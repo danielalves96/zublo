@@ -166,7 +166,10 @@ export function SubscriptionFormModal({
       }
     };
 
-    const probeImage = async (url: string, key: string): Promise<LogoResult | null> => {
+    const probeImage = async (
+      url: string,
+      key: string,
+    ): Promise<LogoResult | null> => {
       const lowered = url.toLowerCase();
       if (lowered.includes(".ico")) return null;
 
@@ -174,7 +177,9 @@ export function SubscriptionFormModal({
         const res = await fetchWithTimeout(url);
         if (!res.ok) return null;
 
-        const contentType = (res.headers.get("content-type") || "").toLowerCase();
+        const contentType = (
+          res.headers.get("content-type") || ""
+        ).toLowerCase();
         if (!contentType.startsWith("image/")) return null;
         if (contentType.includes("icon")) return null;
 
@@ -220,7 +225,7 @@ export function SubscriptionFormModal({
         "prime video": ["primevideo", "amazon"],
         "disney plus": ["disneyplus", "disney"],
         "chat gpt": ["openai", "chatgpt"],
-        "chatgpt": ["openai", "chatgpt"],
+        chatgpt: ["openai", "chatgpt"],
         "google drive": ["googledrive", "google"],
         "youtube premium": ["youtubepremium", "youtube"],
         spotify: ["spotify"],
@@ -287,7 +292,9 @@ export function SubscriptionFormModal({
             { signal: abort.signal },
           );
           if (suggestRes.ok) {
-            const companies = (await suggestRes.json()) as Array<{ domain?: string | null }>;
+            const companies = (await suggestRes.json()) as Array<{
+              domain?: string | null;
+            }>;
             (companies || []).forEach((company) => {
               const domain = (company?.domain || "").trim().toLowerCase();
               if (domain) domainSet.add(domain);
@@ -306,9 +313,12 @@ export function SubscriptionFormModal({
       // Ordered by quality — no Google Favicons (too small/unreliable)
       const domainSources = [
         (d: string) => `https://logo.clearbit.com/${encodeURIComponent(d)}`,
-        (d: string) => `https://cdn.brandfetch.io/${encodeURIComponent(d)}/w/512/h/512`,
-        (d: string) => `https://unavatar.io/${encodeURIComponent(d)}?fallback=false`,
-        (d: string) => `https://img.logo.dev/${encodeURIComponent(d)}?format=png`,
+        (d: string) =>
+          `https://cdn.brandfetch.io/${encodeURIComponent(d)}/w/512/h/512`,
+        (d: string) =>
+          `https://unavatar.io/${encodeURIComponent(d)}?fallback=false`,
+        (d: string) =>
+          `https://img.logo.dev/${encodeURIComponent(d)}?format=png`,
         (d: string) => `https://icon.horse/icon/${encodeURIComponent(d)}`,
       ];
 
@@ -322,7 +332,9 @@ export function SubscriptionFormModal({
           words.join("-"),
           ...words,
         ]),
-      ).filter((s) => s.length >= 2).slice(0, 8);
+      )
+        .filter((s) => s.length >= 2)
+        .slice(0, 8);
 
       // Build full candidate list (domain sources first, then SimpleIcons)
       type Candidate = { url: string; key: string };
@@ -574,7 +586,9 @@ export function SubscriptionFormModal({
                               onMouseDown={(e) => e.preventDefault()}
                               onClick={() => handleSelectLogo(result)}
                               className={`h-20 rounded border overflow-hidden bg-background p-2 ${
-                                logoPreview === result.previewUrl ? "ring-2 ring-primary" : ""
+                                logoPreview === result.previewUrl
+                                  ? "ring-2 ring-primary"
+                                  : ""
                               }`}
                             >
                               <img
@@ -582,7 +596,8 @@ export function SubscriptionFormModal({
                                 alt=""
                                 className="h-full w-full object-contain"
                                 onError={(e) => {
-                                  (e.target as HTMLImageElement).style.display = "none";
+                                  (e.target as HTMLImageElement).style.display =
+                                    "none";
                                 }}
                               />
                             </button>
