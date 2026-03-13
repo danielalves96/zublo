@@ -1,0 +1,22 @@
+# PocketBase binary
+pocketbase
+CHANGELOG.md
+LICENSE.md
+
+# PocketBase data
+pb_data/
+
+# Node
+node_modules/
+dist/
+
+# Environment
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Reference
+Wallos-main/

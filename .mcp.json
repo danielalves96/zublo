@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "pocketbase": {
+      "type": "http",
+      "url": "https://pocketbase.tokenscompany.co/mcp",
+      "headers": {
+        "X-PB-URL": "http://127.0.0.1:8080",
+        "X-PB-Email": "daniel.madeireira@gmail.com",
+        "X-PB-Password": "P&d011217"
+      }
+    }
+  }
+}
