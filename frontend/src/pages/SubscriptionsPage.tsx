@@ -46,6 +46,61 @@ import {
 import { SubscriptionFormModal } from "@/components/SubscriptionFormModal";
 import { cn } from "@/lib/utils";
 
+// ── Payment method icon helpers ───────────────────────────────────────────────
+
+const PAYMENT_ICON_MAP: Record<string, string> = {
+  "visa": "Visa.png", "mastercard": "Mastercard.png",
+  "american express": "Amex.png", "amex": "Amex.png",
+  "discover": "Discover.png", "diners club": "DinersClub.png",
+  "jcb": "JCB.png", "unionpay": "unionpay.png", "union pay": "unionpay.png",
+  "maestro": "Maestro.png", "paypal": "PayPal.png",
+  "apple pay": "ApplePay.png", "google pay": "GooglePay.png",
+  "samsung pay": "samsungpay.png", "amazon pay": "amazonpay.png",
+  "alipay": "alipay.png", "wechat pay": "wechat.png", "wechat": "wechat.png",
+  "venmo": "venmo.png", "stripe": "Stripe.png", "klarna": "Klarna.png",
+  "affirm": "affirm.png", "skrill": "skrill.png",
+  "paysafecard": "paysafe.png", "paysafe": "paysafe.png",
+  "ideal": "ideal.png", "bancontact": "bancontact.png",
+  "giropay": "gitopay.png", "sofort": "sofort.png",
+  "payoneer": "Payoneer.png", "interac": "Interac.png",
+  "bitcoin": "Bitcoin.png", "bitcoin cash": "BitcoinCash.png",
+  "ethereum": "Etherium.png", "litecoin": "Lightcoin.png",
+  "direct debit": "directdebit.png", "directdebit": "directdebit.png",
+  "shop pay": "shoppay.png", "shoppay": "shoppay.png",
+  "facebook pay": "facebookpay.png",
+};
+
+function getPaymentIconSrc(method: PaymentMethod): string | null {
+  if (method.icon) return pb.files.getUrl(method, method.icon);
+  const key = method.name.toLowerCase();
+  return PAYMENT_ICON_MAP[key] ? `/assets/payments/${PAYMENT_ICON_MAP[key]}` : null;
+}
+
+function PaymentMethodIcon({ method }: { method: PaymentMethod }) {
+  const [err, setErr] = useState(false);
+  const src = getPaymentIconSrc(method);
+  if (src && !err) {
+    return (
+      <img
+        src={src}
+        alt={method.name}
+        title={method.name}
+        className="h-7 w-10 rounded object-contain bg-white p-0.5 shrink-0"
+        onError={() => setErr(true)}
+      />
+    );
+  }
+  const initials = method.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+  return (
+    <span
+      title={method.name}
+      className="h-7 w-10 rounded bg-muted flex items-center justify-center text-[10px] font-bold text-muted-foreground shrink-0"
+    >
+      {initials}
+    </span>
+  );
+}
+
 type SortKey = "name" | "price" | "date" | "status";
 type FilterState = {
   categories: string[];
@@ -458,6 +513,7 @@ function SubscriptionCard({
   const cycleName = sub.expand?.cycle?.name ?? "Monthly";
   const category = sub.expand?.category;
   const payer = sub.expand?.payer;
+  const paymentMethod = sub.expand?.payment_method;
 
   const price = showMonthly
     ? toMonthly(sub.price, cycleName, sub.frequency || 1)
@@ -547,7 +603,8 @@ function SubscriptionCard({
       </div>
 
       <div className="mt-5 pt-4 border-t flex items-center justify-between">
-        <div className="text-xs text-muted-foreground">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          {paymentMethod && <PaymentMethodIcon method={paymentMethod} />}
           {payer && <span className="font-medium text-foreground/80">Pays: {payer.name}</span>}
         </div>
         

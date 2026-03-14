@@ -12,7 +12,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Camera, Save } from "lucide-react";
+import { CurrencyInput } from "@/components/ui/currency-input";
+import { Camera, Save, Wallet } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import type { Currency } from "@/types";
 
 function useUserMutation() {
   const { user, refreshUser } = useAuth();
@@ -35,7 +38,19 @@ export function ProfileTab() {
   const [newPwd, setNewPwd] = useState("");
   const [confPwd, setConfPwd] = useState("");
   const [lang, setLang] = useState(user?.language ?? "en");
+  const [budget, setBudget] = useState<number>(user?.budget ?? 0);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+
+  const { data: mainCurrency } = useQuery<Currency | undefined>({
+    queryKey: ["main-currency", user?.id],
+    queryFn: async () => {
+      const list = await pb.collection("currencies").getFullList<Currency>({
+        filter: `user = "${user!.id}" && is_main = true`,
+      });
+      return list[0];
+    },
+    enabled: !!user?.id,
+  });
   const [preview, setPreview] = useState<string | null>(null);
   
   useEffect(() => {
@@ -53,6 +68,7 @@ export function ProfileTab() {
       fd.set("name", username);
       fd.set("email", email);
       fd.set("language", lang);
+      fd.set("budget", String(budget || 0));
       if (oldPwd && newPwd) {
         if (newPwd !== confPwd) {
           toast.error(t("passwords_no_match"));
@@ -155,7 +171,29 @@ export function ProfileTab() {
         </div>
 
         <Separator />
-        
+
+        {/* Monthly Budget */}
+        <div className="rounded-2xl border bg-card/50 p-5 space-y-3 shadow-sm">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-xl bg-primary/10">
+              <Wallet className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-base leading-tight">{t("monthly_budget")}</h3>
+              <p className="text-xs text-muted-foreground">{t("budget_hint")}</p>
+            </div>
+          </div>
+          <CurrencyInput
+            value={budget}
+            onChange={setBudget}
+            symbol={mainCurrency?.symbol}
+            code={mainCurrency?.code}
+            className="text-lg"
+          />
+        </div>
+
+        <Separator />
+
         {/* Change Password */}
         <div className="space-y-4">
           <h3 className="font-semibold text-lg">{t("change_password")}</h3>

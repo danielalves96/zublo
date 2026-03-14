@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
@@ -52,6 +53,8 @@ function useSummaryData(userId: string) {
       const mainSymbol = mainCurrency?.symbol ?? "$";
 
       let totalMonthly = 0;
+      let mostExpensive: { id: string; name: string; monthly: number; logo?: string; record: Subscription } | null = null;
+
       for (const sub of subsResult) {
         const currency = sub.expand?.currency;
         const cycleName = sub.expand?.cycle?.name ?? "Monthly";
@@ -60,7 +63,12 @@ function useSummaryData(userId: string) {
 
         const monthly = toMonthly(price, cycleName, freq);
         const rate = currency?.rate ?? 1;
-        totalMonthly += (monthly / rate) * mainRate;
+        const monthlyMain = (monthly / rate) * mainRate;
+        totalMonthly += monthlyMain;
+
+        if (!mostExpensive || monthlyMain > mostExpensive.monthly) {
+          mostExpensive = { id: sub.id, name: sub.name, monthly: monthlyMain, logo: sub.logo, record: sub };
+        }
       }
 
       return {
@@ -70,6 +78,7 @@ function useSummaryData(userId: string) {
         totalDaily: (totalMonthly * 12) / 365,
         mainSymbol,
         count: subsResult.length,
+        mostExpensive,
       };
     },
     enabled: !!userId,
@@ -116,6 +125,28 @@ export function DashboardPage() {
   const summary = useSummaryData(userId);
   const yearlyCosts = useYearlyCosts(userId);
   const recommendations = useAIRecommendations(userId);
+
+  const snapshotMut = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/costs/snapshot", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${pb.authStore.token}` },
+      });
+      if (!res.ok) throw new Error();
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["yearly-costs", userId] }),
+  });
+
+  useEffect(() => {
+    if (
+      yearlyCosts.data &&
+      yearlyCosts.data.length === 0 &&
+      !snapshotMut.isPending &&
+      !snapshotMut.isSuccess
+    ) {
+      snapshotMut.mutate();
+    }
+  }, [yearlyCosts.data]);
 
   const generateMutation = useMutation({
     mutationFn: async () => {
@@ -272,9 +303,9 @@ export function DashboardPage() {
           <CardHeader className="bg-muted/30 border-b pb-4">
             <CardTitle className="text-lg">{t("budget")} Overview</CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 flex flex-col justify-center space-y-6 pt-6">
+          <CardContent className="flex-1 flex flex-col gap-5 pt-6">
             {budget > 0 ? (
-              <div className="space-y-4">
+              <>
                 <div className="flex justify-between items-end">
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">{t("budget_used")}</p>
@@ -283,41 +314,66 @@ export function DashboardPage() {
                     </p>
                   </div>
                   <div className="text-right space-y-1">
-                    <p className="text-sm text-muted-foreground">Limit</p>
+                    <p className="text-sm text-muted-foreground">{t("monthly_budget")}</p>
                     <p className="text-xl font-medium">{fmt(budget)}</p>
                   </div>
                 </div>
-                
+
                 <div className="space-y-2">
-                  <Progress 
-                    value={budgetUsed} 
-                    className={cn("h-3 rounded-full", isOverBudget && "[&>div]:bg-destructive")} 
+                  <Progress
+                    value={budgetUsed}
+                    className={cn("h-3 rounded-full", isOverBudget && "[&>div]:bg-destructive")}
                   />
                   <div className="flex justify-between text-xs font-medium">
-                    <span className={isOverBudget ? "text-destructive" : "text-muted-foreground"}>
+                    <span className={isOverBudget ? "text-destructive font-bold" : "text-muted-foreground"}>
                       {budgetUsed.toFixed(1)}% {t("budget_used").toLowerCase()}
                     </span>
-                    {isOverBudget && (
-                      <span className="text-destructive flex items-center gap-1">
-                         Over Budget!
+                    {isOverBudget ? (
+                      <span className="text-destructive font-bold">{t("budget_over")}</span>
+                    ) : (
+                      <span className="text-muted-foreground">
+                        {t("budget_remaining")}: <span className="font-semibold text-foreground">{s ? fmt(budget - s.totalMonthly) : "—"}</span>
                       </span>
                     )}
                   </div>
                 </div>
-              </div>
+              </>
             ) : (
-              <div className="text-center space-y-4 py-4">
-                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto text-primary">
+              <div className="text-center space-y-4 py-4 flex-1 flex flex-col items-center justify-center">
+                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                   <DollarSign className="w-8 h-8" />
                 </div>
                 <div className="space-y-2">
-                  <p className="font-semibold text-lg">No Budget Set</p>
-                  <p className="text-sm text-muted-foreground">Set a monthly budget in Settings to keep your spending in check.</p>
+                  <p className="font-semibold text-lg">{t("no_budget_set")}</p>
+                  <p className="text-sm text-muted-foreground">{t("budget_hint")}</p>
                 </div>
               </div>
             )}
-            
-            <div className="mt-auto pt-6 border-t">
+
+            {s?.mostExpensive && (
+              <div className="px-3 py-3 bg-muted/40 rounded-xl flex items-center gap-3">
+                <div className="h-9 w-9 shrink-0 rounded-xl overflow-hidden bg-background border shadow-sm flex items-center justify-center text-sm font-bold">
+                  {s.mostExpensive.logo ? (
+                    <img
+                      src={pb.files.getUrl(s.mostExpensive.record, s.mostExpensive.logo)}
+                      alt={s.mostExpensive.name}
+                      className="h-full w-full object-cover p-0.5 rounded-xl"
+                    />
+                  ) : (
+                    <span className="bg-primary/10 text-primary w-full h-full flex items-center justify-center">
+                      {s.mostExpensive.name[0]?.toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0 space-y-0.5">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">{t("most_expensive_sub")}</p>
+                  <p className="text-sm font-semibold text-foreground truncate">{s.mostExpensive.name}</p>
+                </div>
+                <span className="text-primary font-bold text-base shrink-0">{fmt(s.mostExpensive.monthly)}</span>
+              </div>
+            )}
+
+            <div className="mt-auto border-t pt-4">
               <div className="flex justify-between items-center px-2 py-3 bg-muted/40 rounded-xl">
                 <span className="text-sm font-medium">{t("subscriptions")}</span>
                 <span className="font-bold text-lg text-primary">{s?.count ?? "—"}</span>

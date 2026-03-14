@@ -182,53 +182,53 @@ function sendEmail(app, toEmail, subject, body) {
 }
 
 /**
- * Dispatches a notification to a specific provider.
+ * Dispatches a notification to all enabled providers for a given config record.
+ * Each provider's enabled flag and credentials are stored as flat fields.
  */
-function dispatchNotification(app, config, title, message, subsData) {
-  const cfg = config.get("config") || {};
-  const type = config.get("type");
-
-  try {
-    switch (type) {
-      case "discord":
-        sendDiscord(cfg.webhook_url, title, message);
-        break;
-      case "telegram":
-        sendTelegram(cfg.bot_token, cfg.chat_id, message);
-        break;
-      case "gotify":
-        sendGotify(cfg.url, cfg.token, title, message);
-        break;
-      case "pushover":
-        sendPushover(cfg.user_key, cfg.api_token, title, message);
-        break;
-      case "ntfy":
-        sendNtfy(cfg.url, cfg.topic, title, message);
-        break;
-      case "pushplus":
-        sendPushPlus(cfg.token, title, message);
-        break;
-      case "mattermost":
-        sendMattermost(cfg.webhook_url, message);
-        break;
-      case "webhook":
-        sendWebhookNotification(cfg.url, {
-          title: title,
-          message: message,
-          subscriptions: subsData,
-        });
-        break;
-      case "serverchan":
-        sendServerChan(cfg.key, title, message);
-        break;
-      case "email":
-        if (cfg.email) {
-          sendEmail(app, cfg.email, title, message);
-        }
-        break;
-    }
-  } catch (err) {
-    console.log("[Zublo] Notification error (" + type + "):", err);
+function dispatchToAllProviders(app, notifConfig, title, message, subsData) {
+  if (notifConfig.getBool("email_enabled")) {
+    const to = notifConfig.getString("email_to");
+    if (to) try { sendEmail(app, to, title, message); } catch (e) { console.log("[Zublo] email err:", e); }
+  }
+  if (notifConfig.getBool("discord_enabled")) {
+    const url = notifConfig.getString("discord_webhook_url");
+    if (url) try { sendDiscord(url, title, message); } catch (e) { console.log("[Zublo] discord err:", e); }
+  }
+  if (notifConfig.getBool("telegram_enabled")) {
+    const token = notifConfig.getString("telegram_bot_token");
+    const chatId = notifConfig.getString("telegram_chat_id");
+    if (token && chatId) try { sendTelegram(token, chatId, message); } catch (e) { console.log("[Zublo] telegram err:", e); }
+  }
+  if (notifConfig.getBool("gotify_enabled")) {
+    const url = notifConfig.getString("gotify_url");
+    const token = notifConfig.getString("gotify_token");
+    if (url && token) try { sendGotify(url, token, title, message); } catch (e) { console.log("[Zublo] gotify err:", e); }
+  }
+  if (notifConfig.getBool("pushover_enabled")) {
+    const userKey = notifConfig.getString("pushover_user_key");
+    const apiToken = notifConfig.getString("pushover_api_token");
+    if (userKey && apiToken) try { sendPushover(userKey, apiToken, title, message); } catch (e) { console.log("[Zublo] pushover err:", e); }
+  }
+  if (notifConfig.getBool("ntfy_enabled")) {
+    const url = notifConfig.getString("ntfy_url");
+    const topic = notifConfig.getString("ntfy_topic");
+    if (topic) try { sendNtfy(url, topic, title, message); } catch (e) { console.log("[Zublo] ntfy err:", e); }
+  }
+  if (notifConfig.getBool("pushplus_enabled")) {
+    const token = notifConfig.getString("pushplus_token");
+    if (token) try { sendPushPlus(token, title, message); } catch (e) { console.log("[Zublo] pushplus err:", e); }
+  }
+  if (notifConfig.getBool("mattermost_enabled")) {
+    const url = notifConfig.getString("mattermost_webhook_url");
+    if (url) try { sendMattermost(url, message); } catch (e) { console.log("[Zublo] mattermost err:", e); }
+  }
+  if (notifConfig.getBool("webhook_enabled")) {
+    const url = notifConfig.getString("webhook_url");
+    if (url) try { sendWebhookNotification(url, { title, message, subscriptions: subsData }); } catch (e) { console.log("[Zublo] webhook err:", e); }
+  }
+  if (notifConfig.getBool("serverchan_enabled")) {
+    const key = notifConfig.getString("serverchan_send_key");
+    if (key) try { sendServerChan(key, title, message); } catch (e) { console.log("[Zublo] serverchan err:", e); }
   }
 }
 
@@ -398,15 +398,16 @@ cronAdd("storeYearlyCost", "0 3 1 * *", () => {
       );
     } catch (_) {}
 
+    const rounded = Math.round(totalMonthlyCost * 100) / 100;
     if (existing.length > 0) {
-      existing[0].set("cost", Math.round(totalMonthlyCost * 100) / 100);
+      existing[0].set("total", rounded);
       $app.save(existing[0]);
     } else {
       const record = new Record(yearlyCostsCol);
       record.set("user", userId);
       record.set("year", year);
       record.set("month", month);
-      record.set("cost", Math.round(totalMonthlyCost * 100) / 100);
+      record.set("total", rounded);
       $app.save(record);
     }
   }
@@ -415,159 +416,235 @@ cronAdd("storeYearlyCost", "0 3 1 * *", () => {
 });
 
 // ================================================================
-// CRON 4: Send Payment Notifications
+// CRON 4: Send Payment Notifications (hourly, granular reminders)
 // ================================================================
-cronAdd("sendNotifications", "0 8 * * *", () => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+cronAdd("sendNotifications", "0 * * * *", () => {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const currentHour = now.getHours();
+  const todayStr = today.toISOString().split("T")[0];
+
+  // Cleanup old notification_log entries once a day at midnight
+  if (currentHour === 0) {
+    try {
+      const cutoff = new Date(today);
+      cutoff.setDate(cutoff.getDate() - 31);
+      const cutoffStr = cutoff.toISOString().split("T")[0];
+      const oldLogs = $app.findRecordsByFilter(
+        "notification_log", "sent_date < {:cutoff}", "", 0, 0, { cutoff: cutoffStr }
+      );
+      for (const log of oldLogs) $app.delete(log);
+    } catch (e) {
+      console.log("[Zublo] log cleanup error:", e);
+    }
+  }
 
   const users = $app.findRecordsByFilter("users", "", "", 0, 0);
 
   for (const user of users) {
     const userId = user.id;
 
-    // Get enabled notification configs
     const configs = $app.findRecordsByFilter(
-      "notifications_config",
-      "user = {:userId} && enabled = true",
-      "",
-      0,
-      0,
-      { userId: userId }
+      "notifications_config", "user = {:userId}", "", 1, 0, { userId: userId }
     );
-
     if (configs.length === 0) continue;
+    const notifConfig = configs[0];
 
-    // Get notifiable subscriptions
+    // Parse reminders array — default to [{days:3, hour:8}] if absent
+    let reminders = [{ days: 3, hour: 8 }];
+    try {
+      const raw = notifConfig.get("reminders");
+      if (Array.isArray(raw) && raw.length > 0) reminders = raw;
+    } catch (_) {}
+
+    // Only process slots that fire at the current hour
+    const dueReminders = reminders.filter((r) => Number(r.hour) === currentHour);
+    if (dueReminders.length === 0) continue;
+
     const subs = $app.findRecordsByFilter(
       "subscriptions",
       "user = {:userId} && notify = true && inactive = false",
-      "",
-      0,
-      0,
-      { userId: userId }
+      "", 0, 0, { userId: userId }
     );
+    if (subs.length === 0) continue;
 
-    // Group by payer, check if notification is due
-    const grouped = {};
+    for (const reminder of dueReminders) {
+      const days = Number(reminder.days);
+      // target: subscriptions whose next_payment is exactly `days` days from now
+      const targetDate = new Date(today);
+      targetDate.setDate(targetDate.getDate() + days);
+      const targetDateStr = targetDate.toISOString().split("T")[0];
+      const reminderKey = days + "d_" + currentHour + "h";
 
-    for (const sub of subs) {
-      const nextPayment = new Date(sub.get("next_payment"));
-      const daysBefore = sub.get("notify_days_before") || 1;
-      const notifyDate = new Date(nextPayment.getTime());
-      notifyDate.setDate(notifyDate.getDate() - daysBefore);
+      const grouped = {};
 
-      if (notifyDate <= today) {
-        const payerId = sub.get("payer") || "default";
+      for (const sub of subs) {
+        const nextPayment = sub.getString("next_payment").slice(0, 10);
+        if (nextPayment !== targetDateStr) continue;
+
+        // Dedup: skip if already sent for this slot today
+        try {
+          const existing = $app.findRecordsByFilter(
+            "notification_log",
+            "subscription_id = {:sid} && user_id = {:uid} && reminder_key = {:key} && sent_date = {:date}",
+            "", 1, 0, { sid: sub.id, uid: userId, key: reminderKey, date: todayStr }
+          );
+          if (existing.length > 0) continue;
+        } catch (_) {}
+
+        const payerId = sub.getString("payer") || "default";
         if (!grouped[payerId]) grouped[payerId] = [];
 
         let currencySymbol = "";
         try {
-          const cur = $app.findRecordById("currencies", sub.get("currency"));
-          currencySymbol = cur.get("symbol");
+          const cur = $app.findRecordById("currencies", sub.getString("currency"));
+          currencySymbol = cur.getString("symbol");
         } catch (_) {}
 
         grouped[payerId].push({
-          name: sub.get("name"),
+          id: sub.id,
+          name: sub.getString("name"),
           price: sub.get("price"),
           currency: currencySymbol,
-          next_payment: sub.get("next_payment"),
+          next_payment: nextPayment,
         });
       }
-    }
 
-    // Send notifications for each payer group
-    for (const payerId in grouped) {
-      const subs = grouped[payerId];
-      let payerName = "You";
+      if (Object.keys(grouped).length === 0) continue;
 
-      if (payerId !== "default") {
-        try {
-          const payer = $app.findRecordById("household", payerId);
-          payerName = payer.get("name");
-        } catch (_) {}
-      }
+      const logCol = $app.findCollectionByNameOrId("notification_log");
 
-      // Build message
-      const title = "🔔 Zublo — Upcoming Payments";
-      let message = "**" + payerName + "** has upcoming payments:\n\n";
+      for (const payerId in grouped) {
+        const subList = grouped[payerId];
+        let payerName = "You";
+        if (payerId !== "default") {
+          try {
+            const payer = $app.findRecordById("household", payerId);
+            payerName = payer.getString("name");
+          } catch (_) {}
+        }
 
-      for (const sub of subs) {
-        message += "• **" + sub.name + "** — " + sub.currency + sub.price;
-        message += " (due: " + sub.next_payment + ")\n";
-      }
+        const daysLabel = days === 0 ? "today" : "in " + days + " day(s)";
+        const title = "🔔 Zublo — Upcoming Payments";
+        let message = "**" + payerName + "** has upcoming payments (" + daysLabel + "):\n\n";
+        for (const sub of subList) {
+          message += "• **" + sub.name + "** — " + sub.currency + sub.price;
+          message += " (due: " + sub.next_payment + ")\n";
+        }
 
-      // Dispatch to all enabled providers
-      for (const config of configs) {
-        dispatchNotification($app, config, title, message, subs);
+        dispatchToAllProviders($app, notifConfig, title, message, subList);
+
+        // Log each sent subscription so we don't re-send
+        for (const sub of subList) {
+          try {
+            const log = new Record(logCol);
+            log.set("subscription_id", sub.id);
+            log.set("user_id", userId);
+            log.set("reminder_key", reminderKey);
+            log.set("sent_date", todayStr);
+            $app.save(log);
+          } catch (e) {
+            console.log("[Zublo] log write error:", e);
+          }
+        }
       }
     }
   }
 
-  console.log("[Zublo] sendNotifications: completed");
+  console.log("[Zublo] sendNotifications: completed for hour " + currentHour);
 });
 
 // ================================================================
-// CRON 5: Send Cancellation Notifications
+// CRON 5: Send Cancellation Notifications (hourly, granular reminders)
 // ================================================================
-cronAdd("sendCancellationNotifications", "0 9 * * *", () => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+cronAdd("sendCancellationNotifications", "0 * * * *", () => {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const currentHour = now.getHours();
+  const todayStr = today.toISOString().split("T")[0];
 
-  // Find subscriptions with upcoming cancellation dates
-  const subs = $app.findRecordsByFilter(
+  const allSubs = $app.findRecordsByFilter(
     "subscriptions",
     "cancellation_date != '' && inactive = false",
-    "",
-    0,
-    0
+    "", 0, 0
   );
 
   // Group by user
   const byUser = {};
-
-  for (const sub of subs) {
-    const cancelDate = new Date(sub.get("cancellation_date"));
-    const daysBefore = sub.get("notify_days_before") || 1;
-    const notifyDate = new Date(cancelDate.getTime());
-    notifyDate.setDate(notifyDate.getDate() - daysBefore);
-
-    if (notifyDate <= today && cancelDate >= today) {
-      const userId = sub.get("user");
-      if (!byUser[userId]) byUser[userId] = [];
-
-      byUser[userId].push({
-        name: sub.get("name"),
-        cancellation_date: sub.get("cancellation_date"),
-      });
-    }
+  for (const sub of allSubs) {
+    const uid = sub.getString("user");
+    if (!byUser[uid]) byUser[uid] = [];
+    byUser[uid].push(sub);
   }
 
   for (const userId in byUser) {
     const configs = $app.findRecordsByFilter(
-      "notifications_config",
-      "user = {:userId} && enabled = true",
-      "",
-      0,
-      0,
-      { userId: userId }
+      "notifications_config", "user = {:userId}", "", 1, 0, { userId: userId }
     );
-
     if (configs.length === 0) continue;
+    const notifConfig = configs[0];
 
-    const title = "⚠️ Zublo — Upcoming Cancellations";
-    let message = "The following subscriptions are being cancelled soon:\n\n";
+    let reminders = [{ days: 3, hour: 8 }];
+    try {
+      const raw = notifConfig.get("reminders");
+      if (Array.isArray(raw) && raw.length > 0) reminders = raw;
+    } catch (_) {}
 
-    for (const sub of byUser[userId]) {
-      message += "• **" + sub.name + "** — cancels on " + sub.cancellation_date + "\n";
-    }
+    const dueReminders = reminders.filter((r) => Number(r.hour) === currentHour);
+    if (dueReminders.length === 0) continue;
 
-    for (const config of configs) {
-      dispatchNotification($app, config, title, message, byUser[userId]);
+    for (const reminder of dueReminders) {
+      const days = Number(reminder.days);
+      const targetDate = new Date(today);
+      targetDate.setDate(targetDate.getDate() + days);
+      const targetDateStr = targetDate.toISOString().split("T")[0];
+      const reminderKey = "cancel_" + days + "d_" + currentHour + "h";
+
+      const dueSubs = [];
+      for (const sub of byUser[userId]) {
+        const cancelDate = sub.getString("cancellation_date").slice(0, 10);
+        if (cancelDate !== targetDateStr) continue;
+
+        try {
+          const existing = $app.findRecordsByFilter(
+            "notification_log",
+            "subscription_id = {:sid} && user_id = {:uid} && reminder_key = {:key} && sent_date = {:date}",
+            "", 1, 0, { sid: sub.id, uid: userId, key: reminderKey, date: todayStr }
+          );
+          if (existing.length > 0) continue;
+        } catch (_) {}
+
+        dueSubs.push({ id: sub.id, name: sub.getString("name"), cancellation_date: cancelDate });
+      }
+
+      if (dueSubs.length === 0) continue;
+
+      const daysLabel = days === 0 ? "today" : "in " + days + " day(s)";
+      const title = "⚠️ Zublo — Upcoming Cancellations";
+      let message = "Subscriptions being cancelled " + daysLabel + ":\n\n";
+      for (const sub of dueSubs) {
+        message += "• **" + sub.name + "** — cancels on " + sub.cancellation_date + "\n";
+      }
+
+      dispatchToAllProviders($app, notifConfig, title, message, dueSubs);
+
+      const logCol = $app.findCollectionByNameOrId("notification_log");
+      for (const sub of dueSubs) {
+        try {
+          const log = new Record(logCol);
+          log.set("subscription_id", sub.id);
+          log.set("user_id", userId);
+          log.set("reminder_key", reminderKey);
+          log.set("sent_date", todayStr);
+          $app.save(log);
+        } catch (e) {
+          console.log("[Zublo] cancel log write error:", e);
+        }
+      }
     }
   }
 
-  console.log("[Zublo] sendCancellationNotifications: completed");
+  console.log("[Zublo] sendCancellationNotifications: completed for hour " + currentHour);
 });
 
 // ================================================================

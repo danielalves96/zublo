@@ -1860,3 +1860,208 @@ routerAdd("PATCH", "/api/admin/settings", (e) => {
 
   return e.json(200, { message: "Settings saved" });
 });
+
+// ================================================================
+// ROUTE: POST /api/notifications/test — send a test notification
+// ================================================================
+routerAdd("POST", "/api/notifications/test", (e) => {
+  if (!e.auth) return e.json(401, { error: "Authentication required" });
+
+  const body = e.requestInfo().body;
+  const provider = body.provider;
+
+  if (!provider) return e.json(400, { error: "provider is required" });
+
+  let config;
+  try {
+    const records = $app.findRecordsByFilter(
+      "notifications_config",
+      "user = {:userId}",
+      "", 1, 0,
+      { userId: e.auth.id }
+    );
+    if (records.length === 0) return e.json(404, { error: "No notification config found" });
+    config = records[0];
+  } catch (err) {
+    return e.json(500, { error: "Failed to load config" });
+  }
+
+  const title = "🔔 Zublo — Test Notification";
+  const message = "This is a test notification from Zublo.";
+
+  try {
+    switch (provider) {
+      case "discord": {
+        const url = config.getString("discord_webhook_url");
+        if (!url) return e.json(400, { error: "Webhook URL not configured" });
+        $http.send({ url, method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ embeds: [{ title, description: message, color: 3447003 }] }) });
+        break;
+      }
+      case "telegram": {
+        const token = config.getString("telegram_bot_token");
+        const chatId = config.getString("telegram_chat_id");
+        if (!token || !chatId) return e.json(400, { error: "Token or Chat ID not configured" });
+        $http.send({ url: "https://api.telegram.org/bot" + token + "/sendMessage",
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: "Markdown" }) });
+        break;
+      }
+      case "gotify": {
+        const url = config.getString("gotify_url");
+        const token = config.getString("gotify_token");
+        if (!url || !token) return e.json(400, { error: "URL or token not configured" });
+        $http.send({ url: url + "/message?token=" + token, method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title, message, priority: 5 }) });
+        break;
+      }
+      case "pushover": {
+        const userKey = config.getString("pushover_user_key");
+        const apiToken = config.getString("pushover_api_token");
+        if (!userKey || !apiToken) return e.json(400, { error: "User key or API token not configured" });
+        $http.send({ url: "https://api.pushover.net/1/messages.json", method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: apiToken, user: userKey, title, message }) });
+        break;
+      }
+      case "ntfy": {
+        const ntfyUrl = config.getString("ntfy_url") || "https://ntfy.sh";
+        const topic = config.getString("ntfy_topic");
+        if (!topic) return e.json(400, { error: "Topic not configured" });
+        $http.send({ url: ntfyUrl + "/" + topic, method: "POST",
+          headers: { Title: title }, body: message });
+        break;
+      }
+      case "pushplus": {
+        const token = config.getString("pushplus_token");
+        if (!token) return e.json(400, { error: "Token not configured" });
+        $http.send({ url: "http://www.pushplus.plus/send", method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token, title, content: message, template: "markdown" }) });
+        break;
+      }
+      case "mattermost": {
+        const url = config.getString("mattermost_webhook_url");
+        if (!url) return e.json(400, { error: "Webhook URL not configured" });
+        $http.send({ url, method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: "*" + title + "*\n" + message }) });
+        break;
+      }
+      case "webhook": {
+        const url = config.getString("webhook_url");
+        if (!url) return e.json(400, { error: "Webhook URL not configured" });
+        $http.send({ url, method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title, message }) });
+        break;
+      }
+      case "serverchan": {
+        const key = config.getString("serverchan_send_key");
+        if (!key) return e.json(400, { error: "SendKey not configured" });
+        $http.send({ url: "https://sctapi.ftqq.com/" + key + ".send", method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title, desp: message }) });
+        break;
+      }
+      case "email": {
+        const toEmail = config.getString("email_to");
+        if (!toEmail) return e.json(400, { error: "Destination email not configured" });
+        const msg = new MailerMessage({
+          from: { address: $app.settings().meta.senderAddress || "noreply@zublo.app" },
+          to: [{ address: toEmail }],
+          subject: title,
+          html: "<p>" + message + "</p>",
+        });
+        $app.newMailClient().send(msg);
+        break;
+      }
+      default:
+        return e.json(400, { error: "Unknown provider: " + provider });
+    }
+  } catch (err) {
+    return e.json(500, { error: "Failed to send: " + String(err) });
+  }
+
+  return e.json(200, { success: true });
+});
+
+// ================================================================
+// ROUTE: POST /api/costs/snapshot — calculate & upsert current month cost
+// Called automatically by the dashboard when yearly_costs is empty.
+// ================================================================
+routerAdd("POST", "/api/costs/snapshot", (e) => {
+  if (!e.auth) return e.json(401, { error: "Authentication required" });
+
+  const userId = e.auth.id;
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+
+  // Helper: price per month (mirrors crons.pb.js getPricePerMonth)
+  function pricePerMonth(price, cycleName, frequency, exchangeRate) {
+    const converted = price / (exchangeRate || 1);
+    switch (cycleName) {
+      case "Daily":   return converted * frequency * 30;
+      case "Weekly":  return (converted / frequency) * 4.33;
+      case "Monthly": return converted / frequency;
+      case "Yearly":  return converted / (frequency * 12);
+      default:        return converted;
+    }
+  }
+
+  let totalMonthlyCost = 0;
+
+  try {
+    const subs = $app.findRecordsByFilter(
+      "subscriptions",
+      "user = {:userId} && inactive = false",
+      "", 0, 0, { userId: userId }
+    );
+
+    for (const sub of subs) {
+      const price = sub.get("price") || 0;
+      const frequency = sub.get("frequency") || 1;
+
+      let cycleName = "Monthly";
+      try {
+        cycleName = $app.findRecordById("cycles", sub.getString("cycle")).getString("name");
+      } catch (_) {}
+
+      let rate = 1;
+      try {
+        rate = $app.findRecordById("currencies", sub.getString("currency")).get("rate") || 1;
+      } catch (_) {}
+
+      totalMonthlyCost += pricePerMonth(price, cycleName, frequency, rate);
+    }
+  } catch (err) {
+    return e.json(500, { error: "Failed to calculate costs: " + String(err) });
+  }
+
+  const rounded = Math.round(totalMonthlyCost * 100) / 100;
+
+  try {
+    const col = $app.findCollectionByNameOrId("yearly_costs");
+    const existing = $app.findRecordsByFilter(
+      "yearly_costs",
+      "user = {:userId} && year = {:year} && month = {:month}",
+      "", 1, 0, { userId: userId, year: year, month: month }
+    );
+
+    if (existing.length > 0) {
+      existing[0].set("total", rounded);
+      $app.save(existing[0]);
+    } else {
+      const record = new Record(col);
+      record.set("user", userId);
+      record.set("year", year);
+      record.set("month", month);
+      record.set("total", rounded);
+      $app.save(record);
+    }
+  } catch (err) {
+    return e.json(500, { error: "Failed to save snapshot: " + String(err) });
+  }
+
+  return e.json(200, { year, month, total: rounded });
+});

@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { Layout } from "@/components/Layout";
 import { Toaster } from "@/components/Toaster";
 import { useEffect } from "react";
+import { getPreset, buildColorCSS, saveColorToStorage, DEFAULT_COLOR } from "@/lib/color-presets";
 
 // Pages
 import { LoginPage } from "@/pages/auth/LoginPage";
@@ -42,6 +43,21 @@ function AppTheme() {
       root.classList.toggle("dark", prefersDark);
     }
 
+    // Apply primary color preset
+    // Only sync from server when user has an explicit value set — never overwrite
+    // localStorage with the default, which would erase an unsaved local pick.
+    if (user?.color_theme) {
+      saveColorToStorage(user.color_theme);
+      const preset = getPreset(user.color_theme);
+      let colorEl = document.getElementById("color-theme") as HTMLStyleElement | null;
+      if (!colorEl) {
+        colorEl = document.createElement("style");
+        colorEl.id = "color-theme";
+        document.head.appendChild(colorEl);
+      }
+      colorEl.textContent = buildColorCSS(preset);
+    }
+
     // Apply custom CSS
     let styleEl = document.getElementById(
       "custom-css",
@@ -56,7 +72,7 @@ function AppTheme() {
     } else if (styleEl) {
       styleEl.textContent = "";
     }
-  }, [user?.dark_theme_mode, user?.custom_css]);
+  }, [user?.dark_theme_mode, user?.color_theme, user?.custom_css]);
 
   return null;
 }

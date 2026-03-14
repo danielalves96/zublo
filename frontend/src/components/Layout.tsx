@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import pb from "@/lib/pb";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { LogoIcon, LogoWithName } from "@/components/AppLogo";
 
 const navItems = [
   { key: "dashboard", path: "/dashboard", icon: LayoutDashboard },
@@ -57,12 +58,12 @@ export function Layout() {
           {/* Logo Area */}
           <div className="flex h-20 items-center justify-between px-4 pt-2 relative">
             <div className={cn("flex items-center transition-all overflow-hidden", isCollapsed ? "opacity-0 invisible w-0" : "opacity-100 visible w-full px-2")}>
-              <img src="/assets/logos/logo-name-vertical.png" alt="Wallos" className="h-8 w-auto object-contain drop-shadow" />
+              <LogoWithName className="h-8 w-auto drop-shadow" />
             </div>
             
             {/* Collapsed Logo */}
             <div className={cn("absolute inset-0 flex items-center justify-center pt-2 transition-all", isCollapsed ? "opacity-100 visible" : "opacity-0 invisible pointer-events-none")}>
-               <img src="/assets/logos/logo.png" alt="Wallos" className="h-8 w-8 object-contain drop-shadow" />
+               <LogoIcon className="h-8 w-8 drop-shadow" />
             </div>
 
             <Button
@@ -228,7 +229,7 @@ export function Layout() {
         <header className="flex h-20 items-center justify-between border-b border-border/40 bg-card/40 backdrop-blur-xl px-6 lg:hidden sticky top-0 z-30">
           <div className="flex items-center gap-3">
              <div className="flex items-center transition-all overflow-hidden opacity-100 visible w-full">
-                <img src="/assets/logos/logo-name-vertical.png" alt="Wallos" className="h-7 w-auto object-contain drop-shadow" />
+                <LogoWithName className="h-7 w-auto drop-shadow" />
              </div>
           </div>
           <Button

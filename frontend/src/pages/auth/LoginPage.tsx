@@ -12,6 +12,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { toast } from "@/lib/toast";
+import { LogoWithName } from "@/components/AppLogo";
 
 export function LoginPage() {
   const { t } = useTranslation();
@@ -45,11 +46,7 @@ export function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-2">
-            <img
-              src="/assets/logos/logo-name-vertical.png"
-              alt={t("app_name")}
-              className="h-10 w-auto"
-            />
+            <LogoWithName className="h-10 w-auto" />
           </div>
           <CardDescription>{t("login")}</CardDescription>
         </CardHeader>

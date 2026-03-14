@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/lib/toast";
 import { SUPPORTED_LANGUAGES } from "@/lib/i18n";
+import { LogoWithName } from "@/components/AppLogo";
 import i18n from "@/lib/i18n";
 
 const COMMON_CURRENCIES = [
@@ -113,11 +114,7 @@ export function RegisterPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-2">
-            <img
-              src="/assets/logos/logo-name-vertical.png"
-              alt={t("app_name")}
-              className="h-10 w-auto"
-            />
+            <LogoWithName className="h-10 w-auto" />
           </div>
           <CardDescription>{t("register")}</CardDescription>
         </CardHeader>

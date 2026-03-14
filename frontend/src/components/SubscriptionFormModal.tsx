@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/lib/toast";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import type {
   Subscription,
   Currency,
@@ -661,14 +662,17 @@ export function SubscriptionFormModal({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>{t("price")} *</Label>
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                value={form.price}
-                onChange={(e) => setField("price", e.target.value)}
-                required
-              />
+              {(() => {
+                const cur = currencies.find((c) => c.id === form.currency);
+                return (
+                  <CurrencyInput
+                    value={form.price}
+                    onChange={(v) => setField("price", String(v))}
+                    symbol={cur?.symbol}
+                    code={cur?.code}
+                  />
+                );
+              })()}
             </div>
             <div className="space-y-2">
               <Label>{t("currency")}</Label>

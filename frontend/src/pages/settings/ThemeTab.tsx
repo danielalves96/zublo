@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
@@ -5,7 +6,8 @@ import pb from "@/lib/pb";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { Sun, Moon, Monitor } from "lucide-react";
+import { Sun, Moon, Monitor, Check } from "lucide-react";
+import { COLOR_PRESETS, DEFAULT_COLOR, buildColorCSS, getPreset, saveColorToStorage } from "@/lib/color-presets";
 
 function useUserMutation() {
   const { user, refreshUser } = useAuth();
@@ -24,11 +26,30 @@ export function ThemeTab() {
   const { user } = useAuth();
   const mut = useUserMutation();
 
+  // Optimistic: use user's saved color, fallback to localStorage, fallback to default
+  const [activeColor, setActiveColor] = useState<string>(
+    user?.color_theme ?? localStorage.getItem("zublo_color_theme") ?? DEFAULT_COLOR
+  );
+
   const themes = [
     { value: 0, label: t("light"), icon: Sun },
     { value: 1, label: t("dark"), icon: Moon },
     { value: 2, label: t("system"), icon: Monitor },
   ];
+
+  function applyColor(id: string) {
+    setActiveColor(id);
+    saveColorToStorage(id);
+    // Immediately update the CSS so the whole app reflects the change
+    let el = document.getElementById("color-theme") as HTMLStyleElement | null;
+    if (!el) {
+      el = document.createElement("style");
+      el.id = "color-theme";
+      document.head.appendChild(el);
+    }
+    el.textContent = buildColorCSS(getPreset(id));
+    mut.mutate({ color_theme: id });
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -40,6 +61,7 @@ export function ThemeTab() {
       <Separator />
 
       <div className="space-y-8">
+        {/* Dark / Light / System */}
         <div className="space-y-3">
           <Label className="text-base font-semibold">Color Scheme</Label>
           <p className="text-sm text-muted-foreground">Select your preferred color scheme.</p>
@@ -67,6 +89,49 @@ export function ThemeTab() {
 
         <Separator />
 
+        {/* Accent Color */}
+        <div className="space-y-4">
+          <div>
+            <Label className="text-base font-semibold">Accent Color</Label>
+            <p className="text-sm text-muted-foreground mt-1">Choose the primary accent color used across the app.</p>
+          </div>
+          <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-12 gap-y-4 gap-x-2 justify-items-center">
+            {COLOR_PRESETS.map((preset) => {
+              const isActive = activeColor === preset.id;
+              return (
+                <button
+                  key={preset.id}
+                  title={preset.label}
+                  onClick={() => applyColor(preset.id)}
+                  className="flex flex-col items-center gap-1.5 group w-full"
+                >
+                  <span
+                    className="h-9 w-9 rounded-full flex items-center justify-center transition-transform duration-150 group-hover:scale-110 mx-auto"
+                    style={{
+                      backgroundColor: preset.hex,
+                      outline: isActive ? `3px solid ${preset.hex}` : "3px solid transparent",
+                      outlineOffset: "3px",
+                    }}
+                  >
+                    {isActive && (
+                      <Check className="w-4 h-4 text-white drop-shadow-sm" strokeWidth={3} />
+                    )}
+                  </span>
+                  <span
+                    className="text-[10px] font-medium leading-tight text-center transition-colors truncate w-full"
+                    style={{ color: isActive ? preset.hex : "hsl(var(--muted-foreground))" }}
+                  >
+                    {preset.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <Separator />
+
+        {/* Custom CSS */}
         <div className="space-y-3">
           <Label className="text-base font-semibold">{t("custom_css")}</Label>
           <p className="text-sm text-muted-foreground">

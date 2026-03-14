@@ -100,54 +100,49 @@ export interface Frequency {
   value: number;
 }
 
+export interface NotificationReminder {
+  days: number; // 0 = on payment day, 1 = 1 day before, etc.
+  hour: number; // 0–23
+}
+
 export interface NotificationsConfig {
   id: string;
   user: string;
+  reminders?: NotificationReminder[];
   // Email
   email_enabled?: boolean;
   email_to?: string;
-  email_address?: string; // alias field added in migration 0004
-  email_days_before?: number;
   // Discord
   discord_enabled?: boolean;
   discord_webhook_url?: string;
-  discord_days_before?: number;
   // Telegram
   telegram_enabled?: boolean;
   telegram_bot_token?: string;
   telegram_chat_id?: string;
-  telegram_days_before?: number;
   // Gotify
   gotify_enabled?: boolean;
   gotify_url?: string;
   gotify_token?: string;
-  gotify_days_before?: number;
   // Pushover
   pushover_enabled?: boolean;
   pushover_user_key?: string;
   pushover_api_token?: string;
-  pushover_days_before?: number;
   // ntfy
   ntfy_enabled?: boolean;
   ntfy_url?: string;
   ntfy_topic?: string;
-  ntfy_days_before?: number;
   // Pushplus
   pushplus_enabled?: boolean;
   pushplus_token?: string;
-  pushplus_days_before?: number;
   // Mattermost
   mattermost_enabled?: boolean;
   mattermost_webhook_url?: string;
-  mattermost_days_before?: number;
   // Webhook
   webhook_enabled?: boolean;
   webhook_url?: string;
-  webhook_days_before?: number;
   // Serverchan
   serverchan_enabled?: boolean;
   serverchan_send_key?: string;
-  serverchan_days_before?: number;
 }
 
 export interface FixerSettings {
