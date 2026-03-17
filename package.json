@@ -1,0 +1,14 @@
+{
+  "name": "zublo",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n web,pb -c blue,green \"npm run dev:web\" \"npm run dev:pb\"",
+    "dev:web": "cd apps/web && bun run dev",
+    "dev:pb": "cd apps/backend && ./pocketbase serve --http 127.0.0.1:8080 --hooksWatch=false",
+    "build": "cd apps/web && bun run build",
+    "lint": "cd apps/web && bun run lint"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
