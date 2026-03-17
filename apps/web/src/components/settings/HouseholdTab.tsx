@@ -76,7 +76,7 @@ export function HouseholdTab() {
             <Users className="w-8 h-8 text-primary" />
             {t("household")}
           </h2>
-          <p className="text-muted-foreground">Manage members of your household to share subscriptions with.</p>
+          <p className="text-muted-foreground">{t("household_desc")}</p>
         </div>
         {!isAdding && (
           <Button onClick={() => setIsAdding(true)} className="rounded-xl shadow-lg shadow-primary/20">
@@ -95,7 +95,7 @@ export function HouseholdTab() {
               autoFocus
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              placeholder="Member name..."
+              placeholder={t("member_name_placeholder")}
               className="border-0 bg-transparent focus-visible:ring-0 text-base"
               onKeyDown={(e) => e.key === "Enter" && handleAdd()}
             />
@@ -117,7 +117,7 @@ export function HouseholdTab() {
         ) : members.length === 0 && !isAdding ? (
           <div className="text-center py-12 border border-dashed rounded-3xl text-muted-foreground">
             <Users className="w-12 h-12 mx-auto mb-4 opacity-20" />
-            <p>No household members found.</p>
+            <p>{t("no_household_members")}</p>
           </div>
         ) : (
           members.map((member) => (

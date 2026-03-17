@@ -120,6 +120,7 @@ function IconPicker({
   onClear: () => void;
   hasUploadedIcon: boolean;
 }) {
+  const { t } = useTranslation();
   const fileRef = useRef<HTMLInputElement>(null);
 
   return (
@@ -127,7 +128,7 @@ function IconPicker({
       {currentSrc ? (
         <img
           src={currentSrc}
-          alt="icon preview"
+          alt={t("icon")}
           className="w-10 h-10 rounded-lg object-contain bg-white p-0.5 border"
         />
       ) : (
@@ -143,7 +144,7 @@ function IconPicker({
         onClick={() => fileRef.current?.click()}
       >
         <Upload className="w-3 h-3 mr-1" />
-        {currentSrc ? "Trocar" : "Ícone"}
+        {currentSrc ? t("change_icon") : t("icon")}
       </Button>
       {hasUploadedIcon && (
         <Button
@@ -154,7 +155,7 @@ function IconPicker({
           onClick={onClear}
         >
           <X className="w-3 h-3 mr-1" />
-          Remover
+          {t("remove_icon")}
         </Button>
       )}
       <input
@@ -316,7 +317,7 @@ export function PaymentMethodsTab() {
             <CreditCard className="w-8 h-8 text-primary" />
             {t("payment_methods")}
           </h2>
-          <p className="text-muted-foreground">Manage payment methods for your subscriptions.</p>
+          <p className="text-muted-foreground">{t("payment_methods_desc")}</p>
         </div>
         {!isAdding && (
           <Button onClick={() => setIsAdding(true)} className="rounded-xl shadow-lg shadow-primary/20">
@@ -336,7 +337,7 @@ export function PaymentMethodsTab() {
                 autoFocus
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                placeholder="Method name... (e.g. Visa, PayPal)"
+                placeholder={t("payment_method_name_placeholder")}
                 className="border-0 bg-transparent focus-visible:ring-0 text-base"
                 onKeyDown={(e) => e.key === "Enter" && handleAdd()}
               />
@@ -373,7 +374,7 @@ export function PaymentMethodsTab() {
         ) : methods.length === 0 && !isAdding ? (
           <div className="text-center py-12 border border-dashed rounded-3xl text-muted-foreground">
             <CreditCard className="w-12 h-12 mx-auto mb-4 opacity-20" />
-            <p>No payment methods found.</p>
+            <p>{t("no_payment_methods")}</p>
           </div>
         ) : (
           <DragDropContext onDragEnd={handleDragEnd}>

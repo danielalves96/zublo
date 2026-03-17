@@ -34,7 +34,7 @@ export function ThemeTab() {
   const themes = [
     { value: 0, label: t("light"), icon: Sun },
     { value: 1, label: t("dark"), icon: Moon },
-    { value: 2, label: t("system"), icon: Monitor },
+    { value: 2, label: t("auto"), icon: Monitor },
   ];
 
   function applyColor(id: string) {
@@ -55,7 +55,7 @@ export function ThemeTab() {
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div>
         <h2 className="text-3xl font-bold tracking-tight mb-2">{t("theme")}</h2>
-        <p className="text-muted-foreground">Choose how the app looks. You can also add custom CSS styles.</p>
+        <p className="text-muted-foreground">{t("theme_desc")}</p>
       </div>
 
       <Separator />
@@ -63,8 +63,8 @@ export function ThemeTab() {
       <div className="space-y-8">
         {/* Dark / Light / System */}
         <div className="space-y-3">
-          <Label className="text-base font-semibold">Color Scheme</Label>
-          <p className="text-sm text-muted-foreground">Select your preferred color scheme.</p>
+          <Label className="text-base font-semibold">{t("color_scheme")}</Label>
+          <p className="text-sm text-muted-foreground">{t("color_scheme_desc")}</p>
           <div className="grid grid-cols-3 gap-3">
             {themes.map((th) => {
               const Icon = th.icon;
@@ -92,8 +92,8 @@ export function ThemeTab() {
         {/* Accent Color */}
         <div className="space-y-4">
           <div>
-            <Label className="text-base font-semibold">Accent Color</Label>
-            <p className="text-sm text-muted-foreground mt-1">Choose the primary accent color used across the app.</p>
+            <Label className="text-base font-semibold">{t("accent_color")}</Label>
+            <p className="text-sm text-muted-foreground mt-1">{t("accent_color_desc")}</p>
           </div>
           <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-12 gap-y-4 gap-x-2 justify-items-center">
             {COLOR_PRESETS.map((preset) => {
@@ -135,7 +135,7 @@ export function ThemeTab() {
         <div className="space-y-3">
           <Label className="text-base font-semibold">{t("custom_css")}</Label>
           <p className="text-sm text-muted-foreground">
-            Add custom CSS to further personalize the appearance. Changes apply on save (blur).
+            {t("custom_css_desc")}
           </p>
           <Textarea
             rows={10}

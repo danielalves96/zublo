@@ -111,7 +111,7 @@ function OtpScreen({
 
       <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground">
         <button type="button" onClick={onBackupLink} className="text-primary hover:underline">
-          {t("use_backup_code") || "Use a backup code"}
+          {t("use_backup_code")}
         </button>
         <button
           type="button"
@@ -159,7 +159,7 @@ function BackupScreen({
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <div className="space-y-2">
-        <Label htmlFor="backup">{t("backup_codes") || "Backup code"}</Label>
+        <Label htmlFor="backup">{t("backup_codes")}</Label>
         <Input
           id="backup"
           value={code}
@@ -172,7 +172,7 @@ function BackupScreen({
           disabled={loading}
         />
         <p className="text-xs text-muted-foreground">
-          {t("backup_codes_warning") || "Each backup code can only be used once."}
+          {t("backup_codes_warning")}
         </p>
       </div>
 
@@ -186,7 +186,7 @@ function BackupScreen({
 
       <div className="text-center text-sm">
         <button type="button" onClick={onBack} className="text-primary hover:underline">
-          {t("use_authenticator_app") || "Use authenticator app instead"}
+          {t("use_authenticator_app")}
         </button>
       </div>
     </form>
@@ -221,7 +221,7 @@ export function TotpPage() {
           <CardDescription>
             {screen === "otp"
               ? t("enter_otp")
-              : (t("enter_backup_code_desc") || "Enter one of your saved backup codes")}
+              : t("enter_backup_code_desc")}
           </CardDescription>
         </CardHeader>
         <CardContent>

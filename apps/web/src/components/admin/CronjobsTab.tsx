@@ -43,7 +43,7 @@ export function CronjobsTab() {
           <CalendarClock className="w-8 h-8 text-primary" />
           {t("cronjobs")}
         </h2>
-        <p className="text-muted-foreground">Manually trigger background tasks.</p>
+        <p className="text-muted-foreground">{t("cronjobs_desc")}</p>
       </div>
 
       <Separator />
@@ -65,7 +65,7 @@ export function CronjobsTab() {
 
         {output && (
           <div className="animate-in fade-in duration-300 space-y-2">
-            <Label className="text-xs font-semibold text-muted-foreground">Output Logs</Label>
+            <Label className="text-xs font-semibold text-muted-foreground">{t("output_logs")}</Label>
             <Textarea readOnly value={output} rows={8} className="font-mono text-xs bg-muted/50 rounded-xl resize-y" />
           </div>
         )}

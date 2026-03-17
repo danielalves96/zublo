@@ -14,6 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Camera, Save, Wallet } from "lucide-react";
+import { compressImage } from "@/lib/image";
 import { useQuery } from "@tanstack/react-query";
 import type { Currency } from "@/types";
 
@@ -93,16 +94,17 @@ export function ProfileTab() {
     }
   };
 
-  const handleAvatar = (f: File) => {
-    setAvatarFile(f);
-    setPreview(URL.createObjectURL(f));
+  const handleAvatar = async (f: File) => {
+    const compressed = await compressImage(f, { maxSize: 512 });
+    setAvatarFile(compressed);
+    setPreview(URL.createObjectURL(compressed));
   };
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
       <div>
         <h2 className="text-3xl font-bold tracking-tight mb-2">{t("profile")}</h2>
-        <p className="text-muted-foreground">Manage your personal information and preferences.</p>
+        <p className="text-muted-foreground">{t("profile_desc")}</p>
       </div>
 
       <Separator />
@@ -138,7 +140,7 @@ export function ProfileTab() {
             />
           </div>
           <div className="text-center sm:text-left space-y-2 flex-1 pt-2">
-            <h3 className="font-semibold text-xl">{username || "User"}</h3>
+            <h3 className="font-semibold text-xl">{username || t("user")}</h3>
             <p className="text-sm text-muted-foreground">{email}</p>
             <Button variant="outline" size="sm" className="mt-4 rounded-xl" onClick={() => fileRef.current?.click()}>
               {t("change_avatar")}
@@ -148,13 +150,13 @@ export function ProfileTab() {
 
         {/* Basic Info */}
         <div className="space-y-4">
-          <h3 className="font-semibold text-lg">Basic Information</h3>
+          <h3 className="font-semibold text-lg">{t("basic_information")}</h3>
           <div className="grid gap-2">
             <Label>{t("username")}</Label>
             <Input
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Your name"
+              placeholder={t("your_name_placeholder")}
               className="bg-muted/50 border-white/5 focus:bg-background rounded-xl"
             />
           </div>
@@ -197,7 +199,7 @@ export function ProfileTab() {
         {/* Change Password */}
         <div className="space-y-4">
           <h3 className="font-semibold text-lg">{t("change_password")}</h3>
-          <p className="text-sm text-muted-foreground mb-4">Ensure your account is using a long, random password to stay secure.</p>
+          <p className="text-sm text-muted-foreground mb-4">{t("password_security_hint")}</p>
           <div className="grid gap-2">
             <Label>{t("old_password")}</Label>
             <Input
@@ -231,7 +233,7 @@ export function ProfileTab() {
 
         {/* Preferences */}
         <div className="space-y-4">
-          <h3 className="font-semibold text-lg">Preferences</h3>
+          <h3 className="font-semibold text-lg">{t("preferences")}</h3>
           <div className="grid gap-2">
             <Label>{t("language")}</Label>
             <Select value={lang} onValueChange={setLang}>

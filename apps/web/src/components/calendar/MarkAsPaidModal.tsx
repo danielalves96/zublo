@@ -104,14 +104,14 @@ export function MarkAsPaidModal({
       const saved = await pb
         .collection("payment_records")
         .create<PaymentRecord>(data);
-      if (!saved?.id) throw new Error("Falha ao criar registro de pagamento");
+      if (!saved?.id) throw new Error(t("failed_create_payment_record"));
     },
     onSuccess: () => {
-      toast.success(t("marked_as_paid") || "Payment recorded!");
+      toast.success(t("marked_as_paid"));
       onSaved();
     },
     onError: (err: unknown) => {
-      toast.error(err instanceof Error ? err.message : "Failed to save");
+      toast.error(err instanceof Error ? err.message : t("error"));
     },
   });
 
@@ -139,8 +139,8 @@ export function MarkAsPaidModal({
             <div className="min-w-0 flex-1">
               <p className="text-lg font-bold leading-tight truncate">
                 {isViewOnly
-                  ? t("view_payment") || "Payment details"
-                  : t("mark_as_paid") || "Mark as Paid"}
+                  ? t("view_payment")
+                  : t("mark_as_paid")}
               </p>
               <p className="text-sm text-muted-foreground truncate mt-0.5">
                 {sub.name} ·{" "}
@@ -162,7 +162,7 @@ export function MarkAsPaidModal({
           <div className="grid gap-4 md:grid-cols-2">
             <div className="rounded-2xl border bg-card p-4 space-y-4">
               <div className="space-y-1.5">
-                <Label htmlFor="paid-amount">{t("amount") || "Amount"}</Label>
+                <Label htmlFor="paid-amount">{t("amount")}</Label>
                 <div className="flex items-center gap-2 rounded-xl border bg-background px-3 py-2.5 focus-within:ring-2 focus-within:ring-primary/30">
                   <span className="text-sm text-muted-foreground shrink-0">
                     {cur?.symbol ?? "$"}
@@ -186,13 +186,13 @@ export function MarkAsPaidModal({
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="paid-notes">{t("notes") || "Notes"}</Label>
+                <Label htmlFor="paid-notes">{t("notes")}</Label>
                 <Textarea
                   id="paid-notes"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   disabled={isViewOnly}
-                  placeholder={t("optional") || "Optional…"}
+                  placeholder={t("optional")}
                   rows={5}
                   className="resize-none rounded-xl"
                 />
@@ -200,7 +200,7 @@ export function MarkAsPaidModal({
             </div>
 
             <div className="rounded-2xl border bg-card p-4 space-y-3">
-              <Label>{t("payment_proof") || "Payment proof"}</Label>
+              <Label>{t("payment_proof")}</Label>
 
               {proofUrl ? (
                 <a
@@ -252,17 +252,17 @@ export function MarkAsPaidModal({
                       className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed px-3 py-8 text-sm text-muted-foreground hover:bg-accent/40 hover:border-primary/40 transition-colors"
                     >
                       <Upload className="h-4 w-4" />
-                      {t("upload_proof") || "Upload proof (PDF or image)"}
+                      {t("upload_proof")}
                     </button>
                   )}
 
                   <p className="text-xs text-muted-foreground">
-                    {t("proof_hint") || "PDF or image up to 15 MB"}
+                    {t("proof_hint")}
                   </p>
                 </>
               ) : (
                 <p className="text-sm text-muted-foreground rounded-xl border px-3 py-3">
-                  {t("no_proof") || "No proof uploaded"}
+                  {t("no_proof")}
                 </p>
               )}
             </div>
@@ -270,7 +270,7 @@ export function MarkAsPaidModal({
 
           <div className="flex gap-2 justify-end border-t pt-4">
             <Button variant="outline" onClick={onClose}>
-              {t("close") || "Close"}
+              {t("close")}
             </Button>
             {!isViewOnly && (
               <Button
@@ -280,8 +280,8 @@ export function MarkAsPaidModal({
               >
                 <CheckCircle2 className="h-4 w-4 mr-2" />
                 {mut.isPending
-                  ? t("saving") || "Saving…"
-                  : t("confirm_payment") || "Confirm payment"}
+                  ? t("saving")
+                  : t("confirm_payment")}
               </Button>
             )}
           </div>

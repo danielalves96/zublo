@@ -91,7 +91,7 @@ export function SMTPTab() {
           <Mail className="w-8 h-8 text-primary" />
           SMTP
         </h2>
-        <p className="text-muted-foreground">{t("smtp_settings") || "Configure outbound email delivery."}</p>
+        <p className="text-muted-foreground">{t("smtp_description")}</p>
       </div>
 
       <Separator />
@@ -101,14 +101,14 @@ export function SMTPTab() {
           <div>
             <Label className="font-semibold text-primary">{t("enabled")}</Label>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {t("smtp_enable_description") || "Send email notifications and account emails."}
+              {t("smtp_enable_description")}
             </p>
           </div>
           <Switch checked={form.enabled} onCheckedChange={(v) => set("enabled", v)} />
         </div>
 
         <div className="space-y-4">
-          <h3 className="font-semibold text-lg">{t("smtp_server") || "Server"}</h3>
+          <h3 className="font-semibold text-lg">{t("smtp_server")}</h3>
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2 grid gap-2">
               <Label className="text-xs text-muted-foreground">{t("smtp_address")}</Label>
@@ -123,7 +123,7 @@ export function SMTPTab() {
             <div>
               <Label className="text-sm font-medium">TLS</Label>
               <p className="text-xs text-muted-foreground mt-0.5">
-                {t("smtp_tls_description") || "Force TLS (port 465). Leave off to use STARTTLS (port 587)."}
+                {t("smtp_tls_description")}
               </p>
             </div>
             <Switch checked={form.tls} onCheckedChange={(v) => set("tls", v)} />
@@ -133,7 +133,7 @@ export function SMTPTab() {
         <Separator />
 
         <div className="space-y-4">
-          <h3 className="font-semibold text-lg">{t("smtp_auth") || "Authentication"}</h3>
+          <h3 className="font-semibold text-lg">{t("smtp_auth")}</h3>
           <div className="grid gap-3">
             <div className="grid gap-2">
               <Label className="text-xs text-muted-foreground">{t("smtp_username")}</Label>
@@ -141,7 +141,7 @@ export function SMTPTab() {
             </div>
             <div className="grid gap-2">
               <Label className="text-xs text-muted-foreground">{t("smtp_password")}</Label>
-              <Input type="password" placeholder={hasExistingPassword ? "••••••••  (unchanged)" : t("password")} value={form.password} onChange={(e) => set("password", e.target.value)} className="bg-muted/50 rounded-xl" />
+              <Input type="password" placeholder={hasExistingPassword ? t("smtp_password_unchanged") : t("password")} value={form.password} onChange={(e) => set("password", e.target.value)} className="bg-muted/50 rounded-xl" />
             </div>
           </div>
         </div>
@@ -149,14 +149,14 @@ export function SMTPTab() {
         <Separator />
 
         <div className="space-y-4">
-          <h3 className="font-semibold text-lg">{t("smtp_sender") || "Sender"}</h3>
+          <h3 className="font-semibold text-lg">{t("smtp_sender")}</h3>
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-2">
               <Label className="text-xs text-muted-foreground">{t("smtp_from_email")}</Label>
               <Input placeholder="noreply@example.com" value={form.senderAddress} onChange={(e) => set("senderAddress", e.target.value)} className="bg-muted/50 rounded-xl" />
             </div>
             <div className="grid gap-2">
-              <Label className="text-xs text-muted-foreground">{t("smtp_from_name") || "From name"}</Label>
+              <Label className="text-xs text-muted-foreground">{t("smtp_from_name")}</Label>
               <Input placeholder="Zublo" value={form.senderName} onChange={(e) => set("senderName", e.target.value)} className="bg-muted/50 rounded-xl" />
             </div>
           </div>
@@ -164,10 +164,10 @@ export function SMTPTab() {
 
         <div className="flex items-center gap-3 flex-wrap pt-2">
           <Button onClick={save} disabled={saving} className="rounded-xl shadow-lg shadow-primary/20">
-            {saving ? t("saving") || "Saving…" : t("save")}
+            {saving ? t("saving") : t("save")}
           </Button>
           <Button variant="outline" onClick={testEmail} disabled={testing || !form.enabled} className="rounded-xl">
-            {testing ? t("sending") || "Sending…" : t("send_test_email")}
+            {testing ? t("sending") : t("send_test_email")}
           </Button>
         </div>
       </div>

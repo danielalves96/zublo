@@ -78,16 +78,16 @@ export function AITab() {
       const list: string[] = data.models ?? [];
 
       if (list.length === 0) {
-        toast.error("No models found. Check the URL and API key.");
+        toast.error(t("no_models_found"));
       } else {
         setModels(list);
         // Keep selected model if still in the new list, otherwise reset
         if (model && !list.includes(model)) setModel("");
-        toast.success(`${list.length} model(s) found`);
+        toast.success(t("models_found", { count: list.length }));
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      toast.error("Failed to fetch models: " + msg);
+      toast.error(t("failed_fetch_models", { error: msg }));
     } finally {
       setFetchingModels(false);
     }
@@ -131,16 +131,16 @@ export function AITab() {
         <div>
           <h2 className="text-3xl font-bold tracking-tight mb-2 flex items-center gap-3">
             <Bot className="w-8 h-8 text-primary" />
-            AI Settings
+            {t("ai_settings")}
           </h2>
           <p className="text-muted-foreground">
-            Connect any OpenAI-compatible AI provider to get subscription recommendations.
+            {t("ai_settings_desc")}
           </p>
         </div>
         <div className="flex items-center gap-3 bg-muted/50 py-2 px-4 rounded-full border">
           <Switch id="ai-enable" checked={enabled} onCheckedChange={handleToggleEnabled} disabled={saveMut.isPending} />
           <Label htmlFor="ai-enable" className="font-semibold cursor-pointer">
-            {enabled ? "AI Enabled" : "AI Disabled"}
+            {enabled ? t("ai_enabled_label") : t("ai_disabled_label")}
           </Label>
         </div>
       </div>
@@ -155,24 +155,24 @@ export function AITab() {
         <div className="bg-gradient-to-br from-primary/10 to-transparent p-6 rounded-3xl border border-primary/20 shadow-sm">
           <div className="flex items-center gap-3 mb-6 text-primary">
             <Sparkles className="w-6 h-6" />
-            <h3 className="text-xl font-semibold">Provider Configuration</h3>
+            <h3 className="text-xl font-semibold">{t("provider_configuration")}</h3>
           </div>
 
           <div className="space-y-6">
             {/* Provider Name */}
             <div className="space-y-2">
-              <Label className="text-base font-semibold">Provider Name</Label>
+              <Label className="text-base font-semibold">{t("provider_name")}</Label>
               <Input
                 value={providerName}
                 onChange={(e) => setProviderName(e.target.value)}
-                placeholder="e.g. OpenAI, Anthropic, My Local LLM…"
+                placeholder={t("provider_name_placeholder")}
                 className="h-12 rounded-xl text-base bg-background"
               />
             </div>
 
             {/* API Base URL */}
             <div className="space-y-2">
-              <Label className="text-base font-semibold">API Base URL</Label>
+              <Label className="text-base font-semibold">{t("api_base_url")}</Label>
               <Input
                 value={apiUrl}
                 onChange={(e) => setApiUrl(e.target.value)}
@@ -180,31 +180,29 @@ export function AITab() {
                 className="h-12 rounded-xl text-base bg-background font-mono"
               />
               <p className="text-sm text-muted-foreground">
-                The base URL for your AI provider's API. Must be OpenAI-compatible (supports{" "}
-                <code className="bg-muted px-1 rounded">/models</code> and{" "}
-                <code className="bg-muted px-1 rounded">/chat/completions</code>).
+                {t("api_url_desc")}
               </p>
             </div>
 
             {/* API Key */}
             <div className="space-y-2">
-              <Label className="text-base font-semibold">API Key</Label>
+              <Label className="text-base font-semibold">{t("api_key")}</Label>
               <Input
                 type="password"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                placeholder="sk-… or your provider's key"
+                placeholder={t("api_key_placeholder")}
                 className="h-12 rounded-xl text-base bg-background font-mono"
               />
               <p className="text-sm text-muted-foreground">
-                Your API key for authentication. Leave empty for providers that don't require one (e.g. local Ollama).
+                {t("api_key_auth_desc")}
               </p>
             </div>
 
             {/* Model selector */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-base font-semibold">Model</Label>
+                <Label className="text-base font-semibold">{t("model")}</Label>
                 <Button
                   type="button"
                   variant="outline"
@@ -214,14 +212,14 @@ export function AITab() {
                   onClick={fetchModels}
                 >
                   <RefreshCw className={`w-4 h-4 ${fetchingModels ? "animate-spin" : ""}`} />
-                  {fetchingModels ? "Fetching…" : "Fetch Models"}
+                  {fetchingModels ? t("fetching_models") : t("fetch_models")}
                 </Button>
               </div>
 
               {models.length > 0 ? (
                 <Select value={model} onValueChange={setModel}>
                   <SelectTrigger className="h-12 rounded-xl text-base bg-background">
-                    <SelectValue placeholder="Select a model" />
+                    <SelectValue placeholder={t("select_model")} />
                   </SelectTrigger>
                   <SelectContent>
                     {models.map((m) => (
@@ -235,14 +233,14 @@ export function AITab() {
                 <Input
                   value={model}
                   onChange={(e) => setModel(e.target.value)}
-                  placeholder="Enter API URL above and click Fetch Models, or type manually"
+                  placeholder={t("fetch_models_placeholder")}
                   className="h-12 rounded-xl text-base bg-background"
                 />
               )}
 
               {models.length === 0 && (
                 <p className="text-sm text-muted-foreground">
-                  Enter the API URL and click <strong>Fetch Models</strong> to load available models, or type the model name manually.
+                  {t("fetch_models_hint")}
                 </p>
               )}
             </div>

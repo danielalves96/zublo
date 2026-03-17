@@ -59,7 +59,7 @@ export function UsersTab() {
             <Users className="w-8 h-8 text-primary" />
             {t("users")}
           </h2>
-          <p className="text-muted-foreground">{t("manage_users") || "Manage users and their access."}</p>
+          <p className="text-muted-foreground">{t("manage_users")}</p>
         </div>
 
         <Separator />
@@ -106,12 +106,12 @@ export function UsersTab() {
                           <p className="text-sm font-semibold truncate">{display}</p>
                           {u.is_admin && (
                             <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center gap-1 shrink-0">
-                              <Crown className="w-2.5 h-2.5" /> Admin
+                              <Crown className="w-2.5 h-2.5" /> {t("admin")}
                             </span>
                           )}
                           {isSelf && (
                             <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary shrink-0">
-                              You
+                              {t("you_label")}
                             </span>
                           )}
                           {u.totp_enabled && (
@@ -143,7 +143,7 @@ export function UsersTab() {
                             if (confirm(t("confirm_delete"))) deleteUser.mutate(u.id);
                           }}
                           disabled={isSelf}
-                          title={isSelf ? "Cannot delete yourself" : t("delete")}
+                          title={isSelf ? t("cannot_delete_yourself") : t("delete")}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

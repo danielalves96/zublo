@@ -101,10 +101,10 @@ export function EditUserModal({ user, onClose }: { user: AdminUser; onClose: () 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Pencil className="w-4 h-4" />
-            Edit user
+            {t("edit_user")}
             {user.is_admin && (
               <span className="ml-2 text-xs font-medium px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                <Crown className="w-3 h-3" /> Admin
+                <Crown className="w-3 h-3" /> {t("admin")}
               </span>
             )}
           </DialogTitle>
@@ -172,7 +172,7 @@ export function EditUserModal({ user, onClose }: { user: AdminUser; onClose: () 
             <h4 className="text-sm font-semibold flex items-center gap-2">
               <KeyRound className="w-4 h-4 text-muted-foreground" />
               {t("change_password")}
-              <span className="text-xs font-normal text-muted-foreground">(optional)</span>
+              <span className="text-xs font-normal text-muted-foreground">({t("optional")})</span>
             </h4>
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-2">
@@ -187,7 +187,7 @@ export function EditUserModal({ user, onClose }: { user: AdminUser; onClose: () 
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={onClose} className="rounded-xl">Cancel</Button>
+            <Button variant="outline" onClick={onClose} className="rounded-xl">{t("cancel")}</Button>
             <Button onClick={save} disabled={saving} className="rounded-xl shadow-lg shadow-primary/20">
               {saving ? t("saving") : t("save")}
             </Button>

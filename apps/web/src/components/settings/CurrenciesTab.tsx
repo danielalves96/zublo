@@ -91,7 +91,7 @@ export function CurrenciesTab() {
             <Banknote className="w-8 h-8 text-primary" />
             {t("currencies")}
           </h2>
-          <p className="text-muted-foreground">Manage the currencies you use and set your primary one.</p>
+          <p className="text-muted-foreground">{t("currencies_desc")}</p>
         </div>
         {!isAdding && (
           <Button onClick={() => setIsAdding(true)} className="rounded-xl shadow-lg shadow-primary/20">
@@ -110,19 +110,19 @@ export function CurrenciesTab() {
               autoFocus
               value={newCurrency.code}
               onChange={(e) => setNewCurrency({ ...newCurrency, code: e.target.value })}
-              placeholder="Code (e.g. USD)"
+              placeholder={t("currency_code_placeholder")}
               className="w-24 bg-background"
             />
             <Input
               value={newCurrency.symbol}
               onChange={(e) => setNewCurrency({ ...newCurrency, symbol: e.target.value })}
-              placeholder="Sym (e.g. $)"
+              placeholder={t("currency_symbol_placeholder")}
               className="w-24 bg-background"
             />
             <Input
               value={newCurrency.name}
               onChange={(e) => setNewCurrency({ ...newCurrency, name: e.target.value })}
-              placeholder="Name (e.g. US Dollar)"
+              placeholder={t("currency_name_placeholder")}
               className="flex-1 bg-background"
               onKeyDown={(e) => e.key === "Enter" && handleAdd()}
             />
@@ -144,7 +144,7 @@ export function CurrenciesTab() {
         ) : currencies.length === 0 && !isAdding ? (
           <div className="text-center py-12 border border-dashed rounded-3xl text-muted-foreground">
             <Banknote className="w-12 h-12 mx-auto mb-4 opacity-20" />
-            <p>No currencies found.</p>
+            <p>{t("no_currencies")}</p>
           </div>
         ) : (
           currencies.map((cur) => (

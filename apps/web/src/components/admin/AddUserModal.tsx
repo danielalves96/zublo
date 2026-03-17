@@ -33,7 +33,7 @@ export function AddUserModal({ onClose }: { onClose: () => void }) {
 
   const submit = async () => {
     if (!email || !password || !username) {
-      toast.error(t("fill_required_fields") || "Fill in all required fields");
+      toast.error(t("fill_required_fields"));
       return;
     }
     if (password !== passwordConfirm) {
@@ -106,7 +106,7 @@ export function AddUserModal({ onClose }: { onClose: () => void }) {
               />
             </div>
             <div className="space-y-1">
-              <p className="font-semibold">{name || username || t("new_user") || "New user"}</p>
+              <p className="font-semibold">{name || username || t("new_user")}</p>
               <p className="text-sm text-muted-foreground">{email || t("email")}</p>
               <Button variant="outline" size="sm" className="rounded-xl mt-1" type="button" onClick={() => avatarInputRef.current?.click()}>
                 {t("change_avatar")}
@@ -144,7 +144,7 @@ export function AddUserModal({ onClose }: { onClose: () => void }) {
                 <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="bg-muted/50 rounded-xl" />
               </div>
               <div className="grid gap-2">
-                <Label className="text-xs text-muted-foreground">{t("confirm_password") || "Confirm"} *</Label>
+                <Label className="text-xs text-muted-foreground">{t("confirm_password")} *</Label>
                 <Input type="password" value={passwordConfirm} onChange={(e) => setPasswordConfirm(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()} className="bg-muted/50 rounded-xl" />
               </div>
             </div>
@@ -153,7 +153,7 @@ export function AddUserModal({ onClose }: { onClose: () => void }) {
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={onClose} className="rounded-xl">{t("cancel")}</Button>
             <Button onClick={submit} disabled={saving || !email || !username || !password || !passwordConfirm} className="rounded-xl shadow-lg shadow-primary/20">
-              {saving ? t("saving") || "Saving…" : t("add_user")}
+              {saving ? t("saving") : t("add_user")}
             </Button>
           </div>
         </div>

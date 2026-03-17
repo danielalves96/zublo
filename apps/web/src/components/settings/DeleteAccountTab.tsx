@@ -23,7 +23,7 @@ export function DeleteAccountTab() {
         logout();
       }
     } catch {
-      alert("Error deleting account. Please contact support.");
+      alert(t("error_deleting_account"));
     } finally {
       setIsDeleting(false);
     }
@@ -36,7 +36,7 @@ export function DeleteAccountTab() {
           <Trash2 className="w-8 h-8" />
           {t("delete_account")}
         </h2>
-        <p className="text-muted-foreground">Permanently remove your account and all associated data.</p>
+        <p className="text-muted-foreground">{t("delete_account_desc")}</p>
       </div>
 
       <Separator />
@@ -48,22 +48,21 @@ export function DeleteAccountTab() {
               <AlertTriangle className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="font-semibold text-xl mb-2">Warning: Permanent Action</h3>
+              <h3 className="font-semibold text-xl mb-2">{t("warning_permanent_action")}</h3>
               <p className="text-destructive/80 leading-relaxed text-sm">
-                If you delete your account, <strong>ALL</strong> your data, including subscriptions, statistics, and settings will be permanently destroyed. 
-                This action cannot be undone. We won't be able to recover your data once the operation is complete.
+                {t("delete_account_detail")}
               </p>
             </div>
           </div>
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <p className="text-sm font-medium">To confirm deletion, type your email <strong className="font-mono text-destructive">{user?.email}</strong> below:</p>
+              <p className="text-sm font-medium">{t("confirm_type_email")} <strong className="font-mono text-destructive">{user?.email}</strong></p>
               <Input
                 type="email"
                 value={confirmText}
                 onChange={(e) => setConfirmText(e.target.value)}
-                placeholder="Confirm your email..."
+                placeholder={t("confirm_email_placeholder")}
                 className="bg-background/50 h-12 rounded-xl border-destructive/30 focus-visible:ring-destructive"
               />
             </div>
@@ -75,7 +74,7 @@ export function DeleteAccountTab() {
               disabled={confirmText !== user?.email || isDeleting}
               onClick={handleDelete}
             >
-              {isDeleting ? "Deleting..." : "Permanently Delete My Account"}
+              {isDeleting ? t("deleting") : t("permanently_delete_account")}
             </Button>
           </div>
         </div>

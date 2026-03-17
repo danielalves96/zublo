@@ -38,12 +38,12 @@ export function OIDCTab() {
   });
 
   const oidcFields: { key: keyof AdminSettings; label: string; placeholder?: string }[] = [
-    { key: "oidc_provider_name", label: t("provider_name"), placeholder: "e.g. Google, Authentik" },
-    { key: "oidc_client_id", label: "Client ID" },
-    { key: "oidc_client_secret", label: "Client Secret" },
-    { key: "oidc_issuer_url", label: "Issuer / Discovery URL", placeholder: "https://accounts.example.com" },
-    { key: "oidc_redirect_url", label: "Redirect URL", placeholder: "https://app.example.com/oidc/callback" },
-    { key: "oidc_scopes", label: "Scopes", placeholder: "openid email profile" },
+    { key: "oidc_provider_name", label: t("provider_name"), placeholder: t("oidc_provider_placeholder") },
+    { key: "oidc_client_id", label: t("oidc_client_id") },
+    { key: "oidc_client_secret", label: t("oidc_client_secret") },
+    { key: "oidc_issuer_url", label: t("oidc_issuer_url"), placeholder: "https://accounts.example.com" },
+    { key: "oidc_redirect_url", label: t("oidc_redirect_url"), placeholder: "https://app.example.com/oidc/callback" },
+    { key: "oidc_scopes", label: t("oidc_scopes"), placeholder: "openid email profile" },
   ];
 
   return (
@@ -53,7 +53,7 @@ export function OIDCTab() {
           <ShieldCheck className="w-8 h-8 text-primary" />
           OIDC / SSO
         </h2>
-        <p className="text-muted-foreground">Configure OpenID Connect for single sign-on.</p>
+        <p className="text-muted-foreground">{t("oidc_desc")}</p>
       </div>
 
       <Separator />

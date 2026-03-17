@@ -76,7 +76,7 @@ export function CategoriesTab() {
             <Tag className="w-8 h-8 text-primary" />
             {t("categories")}
           </h2>
-          <p className="text-muted-foreground">Manage the categories used to organize your subscriptions.</p>
+          <p className="text-muted-foreground">{t("categories_desc")}</p>
         </div>
         {!isAdding && (
           <Button onClick={() => setIsAdding(true)} className="rounded-xl shadow-lg shadow-primary/20">
@@ -95,7 +95,7 @@ export function CategoriesTab() {
               autoFocus
               value={newCategoryName}
               onChange={(e) => setNewCategoryName(e.target.value)}
-              placeholder="Category name..."
+              placeholder={t("category_name_placeholder")}
               className="border-0 bg-transparent focus-visible:ring-0 text-base"
               onKeyDown={(e) => e.key === "Enter" && handleAdd()}
             />
@@ -117,7 +117,7 @@ export function CategoriesTab() {
         ) : categories.length === 0 && !isAdding ? (
           <div className="text-center py-12 border border-dashed rounded-3xl text-muted-foreground">
             <Tag className="w-12 h-12 mx-auto mb-4 opacity-20" />
-            <p>No categories found.</p>
+            <p>{t("no_categories")}</p>
           </div>
         ) : (
           categories.map((cat) => (

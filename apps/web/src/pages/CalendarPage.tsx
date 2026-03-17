@@ -30,6 +30,7 @@ import type {
   PaymentRecord,
 } from "@/types";
 import { SubscriptionFormModal } from "@/components/SubscriptionFormModal";
+import { toast } from "@/lib/toast";
 
 // Calendar components
 import { StatCard } from "@/components/calendar/StatCard";
@@ -262,7 +263,7 @@ export function CalendarPage() {
   const handleIcalExport = () => {
     const apiKey = user?.api_key;
     if (!apiKey) {
-      alert("Generate an API key in Settings first.");
+      toast.error(t("generate_api_key_first"));
       return;
     }
     window.open(`/api/calendar/ical?key=${apiKey}`, "_blank");
@@ -276,10 +277,10 @@ export function CalendarPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-            {t("calendar") || "Calendar"}
+            {t("calendar")}
           </h1>
           <p className="text-muted-foreground mt-1">
-            View your upcoming payments and manage dates.
+            {t("calendar_desc")}
           </p>
         </div>
         <Button
@@ -288,7 +289,7 @@ export function CalendarPage() {
           onClick={handleIcalExport}
         >
           <Download className="h-4 w-4 mr-2" />
-          {t("ical_export") || "Export iCal"}
+          {t("ical_export")}
         </Button>
       </div>
 
@@ -297,21 +298,21 @@ export function CalendarPage() {
         <StatCard
           icon={<RefreshCw className="h-5 w-5" />}
           iconClass="bg-primary/20 text-primary"
-          label={t("subscriptions") || "Subscriptions"}
+          label={t("subscriptions")}
           value={String(stats.count)}
           loading={loadingSubs}
         />
         <StatCard
           icon={<TrendingUp className="h-5 w-5" />}
           iconClass="bg-blue-500/20 text-blue-500"
-          label={"Total"}
+          label={t("total")}
           value={formatPrice(stats.total, mainCurrency?.symbol ?? "$")}
           loading={loadingSubs}
         />
         <StatCard
           icon={<Clock className="h-5 w-5" />}
           iconClass="bg-amber-500/20 text-amber-500"
-          label={"Due"}
+          label={t("due")}
           value={formatPrice(stats.due, mainCurrency?.symbol ?? "$")}
           loading={loadingSubs}
         />
@@ -322,7 +323,7 @@ export function CalendarPage() {
         <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/8 px-4 py-3 text-sm text-destructive">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           <span>
-            {t("over_budget_warning") || "Budget exceeded by"}{" "}
+            {t("over_budget_warning")}{" "}
             <strong>
               {formatPrice(stats.total - budget, mainCurrency?.symbol ?? "$")}
             </strong>
@@ -338,8 +339,7 @@ export function CalendarPage() {
             <div className="flex flex-col items-center rounded-lg bg-primary/10 px-2.5 py-1 min-w-[52px]">
               <span className="text-[10px] font-bold uppercase text-primary leading-tight">
                 {(
-                  t(monthNames[month - 1].toLowerCase()) ||
-                  monthNames[month - 1]
+                  t(monthNames[month - 1].toLowerCase())
                 ).slice(0, 3)}
               </span>
               <span className="text-lg font-bold text-primary leading-tight">
@@ -377,8 +377,8 @@ export function CalendarPage() {
               <Badge variant="secondary" className="text-xs">
                 {stats.count}{" "}
                 {stats.count === 1
-                  ? t("event") || "event"
-                  : t("events") || "events"}
+                  ? t("event")
+                  : t("events")}
               </Badge>
             )}
             {!isCurrentMonth && (
@@ -389,7 +389,7 @@ export function CalendarPage() {
                 onClick={goToday}
               >
                 <CalendarDays className="h-3.5 w-3.5 mr-1.5" />
-                {t("today") || "Today"}
+                {t("today")}
               </Button>
             )}
           </div>
@@ -408,7 +408,7 @@ export function CalendarPage() {
                     : "text-muted-foreground",
                 )}
               >
-                {t(d.toLowerCase()) || d}
+                {t(d.toLowerCase())}
               </div>
             ))}
           </div>
@@ -554,7 +554,7 @@ export function CalendarPage() {
                       })}
                       {overflow > 0 && (
                         <p className="pl-1 text-[10px] font-medium text-muted-foreground">
-                          +{overflow} {t("more") || "more"}
+                          +{overflow} {t("more")}
                         </p>
                       )}
                     </div>

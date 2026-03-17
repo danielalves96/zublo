@@ -32,6 +32,7 @@ import type {
   Cycle,
 } from "@/types";
 import { useQuery } from "@tanstack/react-query";
+import { compressImage } from "@/lib/image";
 import { Upload } from "lucide-react";
 
 interface Props {
@@ -505,6 +506,7 @@ export function SubscriptionFormModal({
       }
 
       if (logoToUpload) {
+        logoToUpload = await compressImage(logoToUpload, { maxSize: 256 });
         const formData = new FormData();
         Object.entries(body).forEach(([k, v]) => {
           if (v !== null && v !== undefined) formData.append(k, String(v));

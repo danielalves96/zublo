@@ -63,6 +63,7 @@ export function RegisterPage() {
     try {
       await pb.collection("users").create({
         username: form.username,
+        name: form.username,
         email: form.email,
         password: form.password,
         passwordConfirm: form.passwordConfirm,

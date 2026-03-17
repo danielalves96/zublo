@@ -250,7 +250,7 @@ export function SubscriptionsPage() {
           <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
             {t("subscriptions")}
           </h1>
-          <p className="text-muted-foreground mt-1">Manage and track your active and inactive subscriptions.</p>
+          <p className="text-muted-foreground mt-1">{t("subscriptions_desc")}</p>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <DropdownMenu>
@@ -261,10 +261,10 @@ export function SubscriptionsPage() {
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-40 rounded-xl" align="end">
               <DropdownMenuItem className="cursor-pointer" onClick={() => handleExport("json")}>
-                JSON Format
+                {t("export_json")}
               </DropdownMenuItem>
               <DropdownMenuItem className="cursor-pointer" onClick={() => handleExport("xlsx")}>
-                Excel (XLSX)
+                {t("export_xlsx")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -312,7 +312,7 @@ export function SubscriptionsPage() {
       {showFilters && (
         <div className="rounded-2xl border bg-card/40 backdrop-blur-md p-5 space-y-5 shadow-sm animate-in fade-in slide-in-from-top-2">
           <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-foreground/80 flex items-center gap-1.5 uppercase tracking-wider"><Filter className="w-3.5 h-3.5" /> State</h3>
+            <h3 className="text-sm font-semibold text-foreground/80 flex items-center gap-1.5 uppercase tracking-wider"><Filter className="w-3.5 h-3.5" /> {t("state")}</h3>
             <div className="flex gap-2 flex-wrap">
               {(["all", "active", "inactive"] as const).map((s) => (
                 <button
@@ -333,7 +333,7 @@ export function SubscriptionsPage() {
           
           {categories.length > 0 && (
             <div className="space-y-3 pt-2 border-t border-border/50">
-              <h3 className="text-sm font-semibold text-foreground/80 flex items-center gap-1.5 uppercase tracking-wider">Category</h3>
+              <h3 className="text-sm font-semibold text-foreground/80 flex items-center gap-1.5 uppercase tracking-wider">{t("category")}</h3>
               <div className="flex gap-2 flex-wrap">
                 {categories.map((c) => (
                   <button
@@ -378,7 +378,7 @@ export function SubscriptionsPage() {
             <Search className="w-8 h-8 text-muted-foreground/50" />
           </div>
           <p className="text-lg font-medium text-foreground">{t("no_subscriptions")}</p>
-          <p className="text-muted-foreground mt-1">Try adjusting your search or filters.</p>
+          <p className="text-muted-foreground mt-1">{t("no_subscriptions_hint")}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

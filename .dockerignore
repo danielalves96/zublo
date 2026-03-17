@@ -1,0 +1,36 @@
+# Git
+.git
+.gitignore
+
+# Docs & scripts
+docs/
+scripts/
+*.md
+Wallos-main/
+
+# Node modules
+node_modules/
+apps/web/node_modules/
+
+# Local PocketBase data (never ship production data)
+apps/backend/pb_data/
+
+# Local PocketBase binary (downloaded in Dockerfile)
+apps/backend/pocketbase
+
+# Built frontend assets (built inside Docker)
+apps/backend/pb_public/
+
+# Lock files for root (not needed in image)
+package-lock.json
+
+# IDE & OS
+.vscode/
+.DS_Store
+*.swp
+*.swo
+
+# Env files
+.env
+.env.local
+.env.*.local

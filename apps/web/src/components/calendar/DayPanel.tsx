@@ -70,7 +70,7 @@ export function DayPanel({
               {dateLabel}
               {isToday && (
                 <Badge className="ml-2 bg-primary text-primary-foreground text-[10px]">
-                  {t("today") || "Today"}
+                  {t("today")}
                 </Badge>
               )}
             </p>
@@ -78,8 +78,8 @@ export function DayPanel({
               <p className="text-xs text-muted-foreground mt-0.5">
                 {entries.length}{" "}
                 {entries.length === 1
-                  ? t("subscription") || "subscription"
-                  : t("subscriptions") || "subscriptions"}{" "}
+                  ? t("subscription")
+                  : t("subscriptions")}{" "}
                 ·{" "}
                 <span className="font-medium text-foreground">
                   {formatPrice(total, mainCurrency.symbol)}
@@ -87,7 +87,7 @@ export function DayPanel({
               </p>
             ) : (
               <p className="text-xs text-muted-foreground mt-0.5">
-                {t("no_subscriptions_due") || "No subscriptions due"}
+                {t("no_subscriptions_due")}
               </p>
             )}
           </div>
@@ -193,7 +193,7 @@ export function DayPanel({
                       )}
                       {paymentTracking && isPaid && (
                         <Badge className="text-[10px] h-4 px-1.5 rounded-full bg-green-500/15 text-green-700 dark:text-green-400">
-                          {t("paid") || "Paid"}
+                          {t("paid")}
                         </Badge>
                       )}
                       {isOverdue && (
@@ -201,7 +201,7 @@ export function DayPanel({
                           variant="destructive"
                           className="text-[10px] h-4 px-1.5 rounded-full"
                         >
-                          {t("overdue") || "Overdue"}
+                          {t("overdue")}
                         </Badge>
                       )}
                     </div>
@@ -223,7 +223,7 @@ export function DayPanel({
                     )}
                     {diffDays === 0 && (
                       <Badge className="mt-1 text-[10px] bg-amber-500 text-white">
-                        {t("today") || "Today"}
+                        {t("today")}
                       </Badge>
                     )}
                     {diffDays > 0 && diffDays <= 7 && (

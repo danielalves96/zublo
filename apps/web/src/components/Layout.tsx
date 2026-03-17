@@ -89,7 +89,7 @@ export function Layout() {
             <TooltipProvider delayDuration={0}>
               {!isCollapsed && (
                 <p className="px-4 text-xs font-semibold tracking-wider text-muted-foreground uppercase mb-4 whitespace-nowrap">
-                  Menu
+                  {t("menu")}
                 </p>
               )}
               {navItems.map(({ key, path, icon: Icon }) => {
@@ -133,7 +133,7 @@ export function Layout() {
                     <div className="my-6 border-b border-border/40 mx-4" />
                     {!isCollapsed && (
                       <p className="px-4 text-xs font-semibold tracking-wider text-muted-foreground uppercase mb-4 whitespace-nowrap">
-                        Administration
+                        {t("administration")}
                       </p>
                     )}
                     <Tooltip delayDuration={0}>

@@ -43,17 +43,17 @@ export function BackupTab() {
       <div>
         <h2 className="text-3xl font-bold tracking-tight mb-2 flex items-center gap-3">
           <Database className="w-8 h-8 text-primary" />
-          {t("backup")} &amp; Restore
+          {t("backup")} & {t("restore")}
         </h2>
-        <p className="text-muted-foreground">{t("backup_description") || "Download or restore a full database snapshot."}</p>
+        <p className="text-muted-foreground">{t("backup_description")}</p>
       </div>
 
       <Separator />
 
       <div className="space-y-8">
         <div className="space-y-3">
-          <h3 className="font-semibold text-lg">Download Backup</h3>
-          <p className="text-sm text-muted-foreground">Download a complete snapshot of your database.</p>
+          <h3 className="font-semibold text-lg">{t("download_backup")}</h3>
+          <p className="text-sm text-muted-foreground">{t("download_backup_desc")}</p>
           <Button onClick={download} className="rounded-xl shadow-lg shadow-primary/20">
             <Download className="h-4 w-4 mr-2" />
             {t("download_backup")}
@@ -64,7 +64,7 @@ export function BackupTab() {
 
         <div className="space-y-3">
           <h3 className="font-semibold text-lg">{t("restore")}</h3>
-          <p className="text-sm text-muted-foreground">Restore your database from a previous backup file (.db).</p>
+          <p className="text-sm text-muted-foreground">{t("restore_backup_desc")}</p>
           <input ref={fileRef} type="file" accept=".db" hidden onChange={(e) => e.target.files?.[0] && restore(e.target.files[0])} />
           <Button variant="outline" onClick={() => fileRef.current?.click()} className="rounded-xl">
             <Upload className="h-4 w-4 mr-2" />

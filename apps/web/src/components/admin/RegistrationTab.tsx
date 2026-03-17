@@ -41,10 +41,10 @@ export function RegistrationTab() {
   });
 
   const toggles: { key: keyof AdminSettings; label: string; description?: string }[] = [
-    { key: "open_registrations", label: t("open_registrations"), description: "Allow new users to self-register." },
-    { key: "require_email_validation", label: t("require_email_validation"), description: "Require email verification before login." },
-    { key: "disable_login", label: t("disable_login"), description: "Disable all logins (lockdown mode)." },
-    { key: "update_notification", label: t("update_notifications"), description: "Notify admin about new app versions." },
+    { key: "open_registrations", label: t("open_registrations"), description: t("open_registrations_desc") },
+    { key: "require_email_validation", label: t("require_email_validation"), description: t("require_email_validation_desc") },
+    { key: "disable_login", label: t("disable_login"), description: t("disable_login_desc") },
+    { key: "update_notification", label: t("update_notifications"), description: t("update_notifications_desc") },
   ];
 
   return (
@@ -54,7 +54,7 @@ export function RegistrationTab() {
           <Settings className="w-8 h-8 text-primary" />
           {t("registration")}
         </h2>
-        <p className="text-muted-foreground">{t("registration_settings") || "Manage registration flow and server options."}</p>
+        <p className="text-muted-foreground">{t("registration_settings")}</p>
       </div>
 
       <Separator />
@@ -81,7 +81,7 @@ export function RegistrationTab() {
         <Separator />
 
         <div className="space-y-4">
-          <h3 className="font-semibold text-lg">Limits &amp; URLs</h3>
+          <h3 className="font-semibold text-lg">{t("limits_and_urls")}</h3>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label className="text-sm font-medium">{t("max_users")}</Label>

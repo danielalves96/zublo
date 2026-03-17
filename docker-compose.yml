@@ -1,0 +1,18 @@
+name: zublo
+services:
+  app:
+    image: ghcr.io/danielalves96/zublo:latest
+    container_name: zublo
+    restart: always
+    ports:
+      - "9597:9597"
+    environment:
+      PB_ENCRYPTION_KEY: ${PB_ENCRYPTION_KEY}
+    volumes:
+      - /srv/apps/zublo/data:/pb/pb_data #change this path to your desired path
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9597/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s

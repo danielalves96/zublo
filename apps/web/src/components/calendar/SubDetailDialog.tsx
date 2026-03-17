@@ -110,11 +110,11 @@ export function SubDetailDialog({
               <div className="mt-1.5 flex items-center gap-2 flex-wrap">
                 {sub.inactive ? (
                   <Badge variant="secondary" className="text-xs">
-                    {t("inactive") || "Inactive"}
+                    {t("inactive")}
                   </Badge>
                 ) : (
                   <Badge className="bg-green-500/15 text-green-700 dark:text-green-400 text-xs">
-                    {t("active") || "Active"}
+                    {t("active")}
                   </Badge>
                 )}
                 {cycle && (
@@ -155,7 +155,7 @@ export function SubDetailDialog({
                   <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-green-700 dark:text-green-400">
-                      {t("paid") || "Paid"}
+                      {t("paid")}
                     </p>
                     {paymentRecord?.paid_at && (
                       <p className="text-xs text-muted-foreground mt-0.5 truncate">
@@ -173,7 +173,7 @@ export function SubDetailDialog({
                     >
                       <Button variant="outline" size="sm" className="gap-1.5">
                         <Eye className="h-3.5 w-3.5" />
-                        {t("proof") || "Proof"}
+                        {t("proof")}
                       </Button>
                     </a>
                   )}
@@ -182,14 +182,14 @@ export function SubDetailDialog({
                 <>
                   <CircleDot className="h-5 w-5 text-red-500 shrink-0" />
                   <p className="font-semibold text-red-700 dark:text-red-400">
-                    {t("overdue") || "Overdue"} · {t("not_paid") || "Not paid"}
+                    {t("overdue")} · {t("not_paid")}
                   </p>
                 </>
               ) : (
                 <>
                   <Clock className="h-5 w-5 text-muted-foreground shrink-0" />
                   <p className="font-medium text-muted-foreground">
-                    {t("pending_payment") || "Pending payment"}
+                    {t("pending_payment")}
                   </p>
                 </>
               )}
@@ -199,18 +199,18 @@ export function SubDetailDialog({
           <div className="grid gap-4 md:grid-cols-2">
             <div className="rounded-2xl border bg-card p-4">
               <p className="text-sm font-semibold mb-3">
-                {t("details") || "Details"}
+                {t("details")}
               </p>
               <div className="space-y-3">
                 <InfoRow
                   icon={<CalendarDays className="h-4 w-4" />}
-                  label={t("next_payment") || "Next payment"}
+                  label={t("next_payment")}
                 >
                   <span className="flex items-center gap-1.5 flex-wrap">
                     <span>{formatDate(sub.next_payment)}</span>
                     {dLeft === 0 && (
                       <Badge className="text-[10px] bg-amber-500 text-white">
-                        {t("today") || "Today"}
+                        {t("today")}
                       </Badge>
                     )}
                     {dLeft > 0 && (
@@ -220,7 +220,7 @@ export function SubDetailDialog({
                     )}
                     {dLeft < 0 && (
                       <Badge variant="destructive" className="text-[10px]">
-                        {t("overdue") || "Overdue"}
+                        {t("overdue")}
                       </Badge>
                     )}
                   </span>
@@ -229,7 +229,7 @@ export function SubDetailDialog({
                 {category && (
                   <InfoRow
                     icon={<Tag className="h-4 w-4" />}
-                    label={t("category") || "Category"}
+                    label={t("category")}
                   >
                     {category.name}
                   </InfoRow>
@@ -238,7 +238,7 @@ export function SubDetailDialog({
                 {paymentMethod && (
                   <InfoRow
                     icon={<CreditCard className="h-4 w-4" />}
-                    label={t("payment_method") || "Payment"}
+                    label={t("payment_method")}
                   >
                     {paymentMethod.name}
                   </InfoRow>
@@ -247,7 +247,7 @@ export function SubDetailDialog({
                 {payer && (
                   <InfoRow
                     icon={<Users className="h-4 w-4" />}
-                    label={t("payer") || "Payer"}
+                    label={t("payer")}
                   >
                     {payer.name}
                   </InfoRow>
@@ -257,13 +257,13 @@ export function SubDetailDialog({
 
             <div className="rounded-2xl border bg-card p-4">
               <p className="text-sm font-semibold mb-3">
-                {t("more_info") || "More info"}
+                {t("more_info")}
               </p>
               <div className="space-y-3">
                 {sub.start_date && (
                   <InfoRow
                     icon={<Clock className="h-4 w-4" />}
-                    label={t("start_date") || "Started"}
+                    label={t("start_date")}
                   >
                     {formatDate(sub.start_date)}
                   </InfoRow>
@@ -272,7 +272,7 @@ export function SubDetailDialog({
                 {sub.url && (
                   <InfoRow
                     icon={<ExternalLink className="h-4 w-4" />}
-                    label={t("url") || "URL"}
+                    label={t("url")}
                   >
                     <a
                       href={sub.url}
@@ -287,9 +287,9 @@ export function SubDetailDialog({
 
                 <InfoRow
                   icon={<Banknote className="h-4 w-4" />}
-                  label={t("auto_renew") || "Auto renew"}
+                  label={t("auto_renew")}
                 >
-                  {sub.auto_renew ? t("yes") || "Yes" : t("no") || "No"}
+                  {sub.auto_renew ? t("yes") : t("no")}
                 </InfoRow>
               </div>
             </div>
@@ -298,7 +298,7 @@ export function SubDetailDialog({
           {sub.notes && (
             <div className="rounded-2xl border bg-muted/30 p-4">
               <p className="text-sm font-semibold mb-2">
-                {t("notes") || "Notes"}
+                {t("notes")}
               </p>
               <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
                 {sub.notes}
@@ -308,7 +308,7 @@ export function SubDetailDialog({
 
           <div className="flex gap-2 justify-end flex-wrap border-t pt-4">
             <Button variant="outline" onClick={onClose}>
-              {t("close") || "Close"}
+              {t("close")}
             </Button>
             {paymentTracking && !isPaid && (
               <Button
@@ -317,7 +317,7 @@ export function SubDetailDialog({
                 onClick={onMarkAsPaid}
               >
                 <CheckCircle2 className="h-4 w-4 mr-2" />
-                {t("mark_as_paid") || "Mark as Paid"}
+                {t("mark_as_paid")}
               </Button>
             )}
             {paymentTracking && isPaid && (
@@ -327,12 +327,12 @@ export function SubDetailDialog({
                 onClick={onMarkAsPaid}
               >
                 <FileText className="h-4 w-4 mr-2" />
-                {t("view_payment") || "View payment"}
+                {t("view_payment")}
               </Button>
             )}
             <Button onClick={() => onEdit(sub)}>
               <Pencil className="h-4 w-4 mr-2" />
-              {t("edit") || "Edit"}
+              {t("edit")}
             </Button>
           </div>
         </div>

@@ -14,7 +14,7 @@ export function MaintenanceTab() {
       headers: { Authorization: `Bearer ${pb.authStore.token}` },
     });
     const data = await res.json();
-    toast.success(`Deleted ${data.deleted ?? 0} logos`);
+    toast.success(t("logos_deleted", { count: data.deleted ?? 0 }));
   };
 
   return (
@@ -24,7 +24,7 @@ export function MaintenanceTab() {
           <Wrench className="w-8 h-8 text-primary" />
           {t("maintenance")}
         </h2>
-        <p className="text-muted-foreground">System cleanup and optimization.</p>
+        <p className="text-muted-foreground">{t("maintenance_desc")}</p>
       </div>
 
       <Separator />

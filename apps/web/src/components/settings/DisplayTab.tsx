@@ -40,21 +40,21 @@ export function DisplayTab() {
   };
 
   const displayToggles: { key: DisplayKey; label: string; description: string }[] = [
-    { key: "monthly_price",        label: t("show_monthly_price"),   description: "Show prices normalized to a monthly amount." },
-    { key: "show_original_price",  label: t("show_original_price"),  description: "Display the original price alongside billed amounts." },
-    { key: "hide_disabled",        label: t("hide_inactive"),        description: "Hide inactive subscriptions from the list." },
-    { key: "disabled_to_bottom",   label: t("inactive_to_bottom"),   description: "Move inactive subscriptions to the bottom of the list." },
-    { key: "subscription_progress",label: t("subscription_progress"),description: "Show a progress bar indicating billing cycle." },
-    { key: "mobile_navigation",    label: t("mobile_navigation"),    description: "Show bottom navigation bar on mobile devices." },
-    { key: "remove_background",    label: t("remove_background"),    description: "Remove background from subscription card logos." },
-    { key: "convert_currency",     label: t("convert_currency"),     description: "Convert all prices to your primary currency." },
+    { key: "monthly_price",        label: t("monthly_price"),        description: t("monthly_price_desc") },
+    { key: "show_original_price",  label: t("show_original_price"),  description: t("show_original_price_desc") },
+    { key: "hide_disabled",        label: t("hide_disabled"),        description: t("hide_disabled_desc") },
+    { key: "disabled_to_bottom",   label: t("disabled_to_bottom"),   description: t("disabled_to_bottom_desc") },
+    { key: "subscription_progress",label: t("subscription_progress"),description: t("subscription_progress_desc") },
+    { key: "mobile_navigation",    label: t("mobile_navigation"),    description: t("mobile_navigation_desc") },
+    { key: "remove_background",    label: t("remove_background"),    description: t("remove_background_desc") },
+    { key: "convert_currency",     label: t("convert_currency"),     description: t("convert_currency_desc") },
   ];
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div>
         <h2 className="text-3xl font-bold tracking-tight mb-2">{t("display")}</h2>
-        <p className="text-muted-foreground">Customize how information is displayed across the app.</p>
+        <p className="text-muted-foreground">{t("display_desc")}</p>
       </div>
 
       <Separator />

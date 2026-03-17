@@ -172,8 +172,8 @@ function OtpDialog({
                 onClick={() => { setBackupMode((m) => !m); setOtp(""); setBackupCode(""); }}
               >
                 {backupMode
-                  ? (t("use_authenticator_app") || "Use authenticator app instead")
-                  : (t("use_backup_code") || "Use a backup code instead")}
+                  ? t("use_authenticator_app")
+                  : t("use_backup_code")}
               </button>
             </div>
           )}
@@ -184,7 +184,7 @@ function OtpDialog({
             {t("cancel")}
           </Button>
           <Button variant={confirmVariant} onClick={handleConfirm} disabled={loading || !canSubmit}>
-            {loading ? (t("loading") || "Loading…") : confirmLabel}
+            {loading ? t("loading") : confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -285,7 +285,7 @@ export function TwoFactorTab() {
     await apiPost("/api/auth/totp/delete", { code });
     if (user?.id) clearTrustedDevice(user.id);
     await refreshUser();
-    toast.success(t("2fa_deleted") || "2FA setup deleted");
+    toast.success(t("2fa_deleted"));
     setDialog(null);
     setNewBackup(null);
   };
@@ -297,8 +297,8 @@ export function TwoFactorTab() {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight mb-2">Two-Factor Authentication</h2>
-        <p className="text-muted-foreground">Add an extra layer of security to your account using an authenticator app.</p>
+        <h2 className="text-3xl font-bold tracking-tight mb-2">{t("two_factor_auth")}</h2>
+        <p className="text-muted-foreground">{t("2fa_description")}</p>
       </div>
 
       <Separator />
@@ -316,10 +316,10 @@ export function TwoFactorTab() {
             </h3>
             <p className="text-sm text-muted-foreground mt-0.5">
               {isEnabled
-                ? "Your account is protected with two-factor authentication."
+                ? t("2fa_account_protected")
                 : state === "disabled"
-                ? "2FA is disabled but your authenticator is still linked. You can re-enable it without re-scanning."
-                : "Enable 2FA to add an extra layer of security."}
+                ? t("2fa_disabled_linked")
+                : t("2fa_enable_hint")}
             </p>
           </div>
         </div>
@@ -330,7 +330,7 @@ export function TwoFactorTab() {
         {state === "not_configured" && !setupData && (
           <Button onClick={startSetup} disabled={setupLoading} size="lg" className="w-full rounded-xl shadow-lg shadow-primary/20">
             <Shield className="w-4 h-4 mr-2" />
-            {setupLoading ? (t("loading") || "Loading…") : t("enable_2fa")}
+            {setupLoading ? t("loading") : t("enable_2fa")}
           </Button>
         )}
 
@@ -341,7 +341,7 @@ export function TwoFactorTab() {
           <div className="space-y-6 rounded-2xl border bg-muted/30 p-6">
             <div>
               <h3 className="font-semibold mb-1">{t("scan_qr_code")}</h3>
-              <p className="text-sm text-muted-foreground mb-4">Scan the QR code with your authenticator app (Google Authenticator, Authy, 1Password, Bitwarden…).</p>
+              <p className="text-sm text-muted-foreground mb-4">{t("scan_qr_hint")}</p>
               <div className="flex justify-center p-5 bg-white rounded-xl shadow-sm">
                 <QRCodeSVG value={setupData.otpauthUri} size={192} />
               </div>
@@ -357,7 +357,7 @@ export function TwoFactorTab() {
               </div>
             </div>
 
-            <BackupCodesGrid codes={setupData.backupCodes} title={t("backup_codes_title") || "⚠️ Save your backup codes"} />
+            <BackupCodesGrid codes={setupData.backupCodes} title={t("backup_codes_title")} />
 
             <div className="space-y-3">
               <Label className="text-sm font-semibold">{t("enter_code")}</Label>
@@ -366,7 +366,7 @@ export function TwoFactorTab() {
               </div>
               <div className="flex gap-2 pt-1">
                 <Button onClick={verifyAndEnable} disabled={setupLoading || setupCode.length < 6} className="flex-1 rounded-xl">
-                  {setupLoading ? (t("loading") || "Loading…") : t("verify")}
+                  {setupLoading ? t("loading") : t("verify")}
                 </Button>
                 <Button variant="outline" onClick={() => { setSetupData(null); setSetupCode(""); }} className="rounded-xl">
                   {t("cancel")}
@@ -384,14 +384,14 @@ export function TwoFactorTab() {
             <div className="flex items-center justify-between rounded-xl border bg-muted/30 p-4">
               <div>
                 <p className="text-sm font-medium">{t("enable_2fa")}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Re-enable without re-scanning your QR code</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("2fa_reenable_hint")}</p>
               </div>
               <Switch checked={false} onCheckedChange={() => setDialog("reenable")} />
             </div>
 
             <Button variant="outline" className="w-full rounded-xl text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive" onClick={() => setDialog("delete")}>
               <Trash2 className="w-4 h-4 mr-2" />
-              {t("delete_2fa_setup") || "Delete 2FA setup"}
+              {t("delete_2fa_setup")}
             </Button>
           </div>
         )}
@@ -403,14 +403,14 @@ export function TwoFactorTab() {
           <div className="space-y-4">
             {/* New backup codes shown after regen */}
             {newBackup && (
-              <BackupCodesGrid codes={newBackup} title={t("new_backup_codes") || "✅ New backup codes — save them now!"} />
+              <BackupCodesGrid codes={newBackup} title={t("new_backup_codes")} />
             )}
 
             {/* Enable/disable switch */}
             <div className="flex items-center justify-between rounded-xl border bg-muted/30 p-4">
               <div>
                 <p className="text-sm font-medium">{t("two_factor_auth")}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Login will require your authenticator code</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("2fa_login_require_hint")}</p>
               </div>
               <Switch checked={true} onCheckedChange={() => setDialog("disable")} />
             </div>
@@ -432,7 +432,7 @@ export function TwoFactorTab() {
                 </div>
                 <div className="flex gap-2">
                   <Button onClick={regenBackup} disabled={regenLoading || regenCode.length < 6} className="flex-1 rounded-xl" size="sm">
-                    {regenLoading ? (t("loading") || "Loading…") : (t("regenerate") || "Regenerate")}
+                    {regenLoading ? t("loading") : t("regenerate")}
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => { setShowRegen(false); setRegenCode(""); }} className="rounded-xl">
                     {t("cancel")}
@@ -444,7 +444,7 @@ export function TwoFactorTab() {
             {/* Delete */}
             <Button variant="outline" className="w-full rounded-xl text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive" onClick={() => setDialog("delete")}>
               <Trash2 className="w-4 h-4 mr-2" />
-              {t("delete_2fa_setup") || "Delete 2FA setup"}
+              {t("delete_2fa_setup")}
             </Button>
           </div>
         )}
@@ -455,7 +455,7 @@ export function TwoFactorTab() {
       <OtpDialog
         open={dialog === "disable"}
         onClose={() => setDialog(null)}
-        title={t("confirm_disable_2fa") || "Disable 2FA"}
+        title={t("confirm_disable_2fa")}
         description="Enter your authenticator code to confirm. Your setup will be saved — you can re-enable later without re-scanning."
         confirmLabel={t("disable_2fa")}
         onConfirm={handleDisable}
@@ -473,9 +473,9 @@ export function TwoFactorTab() {
       <OtpDialog
         open={dialog === "delete"}
         onClose={() => setDialog(null)}
-        title={t("delete_2fa_setup") || "Delete 2FA setup"}
+        title={t("delete_2fa_setup")}
         description="This will permanently remove your authenticator link and all backup codes. You will need to re-scan a QR code to set up 2FA again."
-        confirmLabel={t("delete_2fa_setup") || "Delete 2FA setup"}
+        confirmLabel={t("delete_2fa_setup")}
         confirmVariant="destructive"
         onConfirm={handleDelete}
         allowBackup

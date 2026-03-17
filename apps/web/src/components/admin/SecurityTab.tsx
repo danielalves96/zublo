@@ -43,7 +43,7 @@ export function SecurityTab() {
           <Shield className="w-8 h-8 text-primary" />
           {t("security")}
         </h2>
-        <p className="text-muted-foreground">Security and integration settings.</p>
+        <p className="text-muted-foreground">{t("security_desc")}</p>
       </div>
 
       <Separator />

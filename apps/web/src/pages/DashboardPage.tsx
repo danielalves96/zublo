@@ -118,12 +118,12 @@ export function DashboardPage() {
             {t("dashboard")}
           </h1>
           <p className="text-muted-foreground mt-1 text-lg">
-            Welcome back, <span className="font-semibold text-foreground">{user?.name || user?.email?.split('@')[0]}</span>. Here's your financial overview.
+            {t("welcome_back")}, <span className="font-semibold text-foreground">{user?.name || user?.email?.split('@')[0]}</span>. {t("financial_overview")}
           </p>
         </div>
         <div className="flex items-center gap-2 bg-card border rounded-full px-4 py-2 shadow-sm text-sm font-medium">
           <Activity className="w-4 h-4 text-primary animate-pulse" />
-          <span>Active Subscriptions: <span className="text-primary font-bold">{s?.count ?? 0}</span></span>
+          <span>{t("active_subscriptions")}: <span className="text-primary font-bold">{s?.count ?? 0}</span></span>
         </div>
       </div>
 
@@ -134,8 +134,7 @@ export function DashboardPage() {
           value={s ? fmt(s.totalMonthly) : "—"}
           icon={<DollarSign className="h-6 w-6 text-blue-500" />}
           loading={summary.isLoading}
-          trend="+2.5%"
-          trendUp={false}
+
           gradient="from-blue-500/10 to-transparent border-blue-500/20"
         />
         <SummaryCard
@@ -198,7 +197,7 @@ export function DashboardPage() {
                     <Tooltip 
                       contentStyle={{ borderRadius: '12px', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--card))' }}
                       itemStyle={{ color: 'hsl(var(--foreground))', fontWeight: 'bold' }}
-                      formatter={(val: number) => [fmt(val), 'Cost']}
+                      formatter={(val: number) => [fmt(val), t('cost')]}
                     />
                     <Area
                       type="monotone"
@@ -224,7 +223,7 @@ export function DashboardPage() {
         {/* Budget widget */}
         <Card className="rounded-3xl shadow-sm border overflow-hidden flex flex-col">
           <CardHeader className="bg-muted/30 border-b pb-4">
-            <CardTitle className="text-lg">{t("budget")} Overview</CardTitle>
+            <CardTitle className="text-lg">{t("budget_overview")}</CardTitle>
           </CardHeader>
           <CardContent className="flex-1 flex flex-col gap-5 pt-6">
             {budget > 0 ? (
@@ -314,7 +313,7 @@ export function DashboardPage() {
               <Sparkles className="h-5 w-5 text-yellow-500" />
               {t("ai_recommendations")}
             </CardTitle>
-            <p className="text-sm text-muted-foreground">Smart insights to help you save money.</p>
+            <p className="text-sm text-muted-foreground">{t("ai_smart_insights")}</p>
           </div>
           <Button
             className="rounded-xl shadow-md border border-yellow-500/20 bg-yellow-500/10 text-yellow-600 hover:bg-yellow-500/20 hover:text-yellow-700 dark:text-yellow-400 dark:hover:text-yellow-300 transition-all font-semibold"
@@ -340,7 +339,7 @@ export function DashboardPage() {
               <p className="text-muted-foreground">
                 {t("no_recommendations")}
               </p>
-              <p className="text-sm text-muted-foreground mt-1">Generate new AI insights to discover savings.</p>
+              <p className="text-sm text-muted-foreground mt-1">{t("ai_generate_hint")}</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
