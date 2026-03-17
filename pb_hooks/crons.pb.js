@@ -648,6 +648,154 @@ cronAdd("sendCancellationNotifications", "0 * * * *", () => {
 });
 
 // ================================================================
+// CRON 7: Auto-mark Payments as Paid
+// ================================================================
+cronAdd("autoMarkPaid", "0 0 * * *", () => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayStr = today.toISOString().split("T")[0];
+
+  // Find all subscriptions due today that have auto_mark_paid enabled
+  const subs = $app.findRecordsByFilter(
+    "subscriptions",
+    "inactive = false && auto_mark_paid = true && next_payment = {:today}",
+    "",
+    0,
+    0,
+    { today: todayStr }
+  );
+
+  let created = 0;
+  for (const sub of subs) {
+    const userId = sub.get("user");
+    try {
+      const user = $app.findRecordById("users", userId);
+      if (!user.get("payment_tracking")) continue;
+
+      // Skip if already has a payment_record for this due_date
+      const existing = $app.findRecordsByFilter(
+        "payment_records",
+        "subscription_id = {:sid} && due_date = {:date}",
+        "",
+        1,
+        0,
+        { sid: sub.id, date: todayStr }
+      );
+      if (existing.length > 0) continue;
+
+      const col = $app.findCollectionByNameOrId("payment_records");
+      const rec = new Record(col);
+      rec.set("subscription_id", sub.id);
+      rec.set("user", userId);
+      rec.set("due_date", todayStr);
+      rec.set("paid_at", new Date().toISOString());
+      rec.set("auto_paid", true);
+      rec.set("amount", sub.get("price"));
+      $app.save(rec);
+      created++;
+    } catch (e) {
+      console.log("[Zublo] autoMarkPaid error for sub " + sub.id + ":", e);
+    }
+  }
+
+  console.log("[Zublo] autoMarkPaid: created " + created + " payment records");
+});
+
+// ================================================================
+// CRON 8: Overdue Payment Reminders
+// ================================================================
+cronAdd("overduePaymentReminders", "0 9 * * *", () => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayStr = today.toISOString().split("T")[0];
+
+  // Find active subscriptions whose next_payment is in the past
+  const subs = $app.findRecordsByFilter(
+    "subscriptions",
+    "inactive = false && next_payment < {:today}",
+    "",
+    0,
+    0,
+    { today: todayStr }
+  );
+
+  let notified = 0;
+  for (const sub of subs) {
+    const userId = sub.get("user");
+    try {
+      const user = $app.findRecordById("users", userId);
+      if (!user.get("payment_tracking")) continue;
+
+      const dueDate = sub.get("next_payment").split(" ")[0].split("T")[0];
+
+      // Check if already paid
+      const paid = $app.findRecordsByFilter(
+        "payment_records",
+        "subscription_id = {:sid} && due_date = {:date}",
+        "",
+        1,
+        0,
+        { sid: sub.id, date: dueDate }
+      );
+      if (paid.length > 0) continue;
+
+      // Check dedup in notification_log (don't send more than once per day)
+      const reminderKey = "overdue_" + dueDate;
+      const alreadySent = $app.findRecordsByFilter(
+        "notification_log",
+        "subscription_id = {:sid} && user_id = {:uid} && reminder_key = {:key} && sent_date = {:date}",
+        "",
+        1,
+        0,
+        { sid: sub.id, uid: userId, key: reminderKey, date: todayStr }
+      );
+      if (alreadySent.length > 0) continue;
+
+      // Get notification config
+      let notifConfig;
+      try {
+        const configs = $app.findRecordsByFilter(
+          "notifications_config",
+          "user = {:uid}",
+          "",
+          1,
+          0,
+          { uid: userId }
+        );
+        if (configs.length === 0) continue;
+        notifConfig = configs[0];
+      } catch (_) { continue; }
+
+      const subName = sub.get("name");
+      const price   = sub.get("price");
+      const title   = "⚠️ Overdue Payment: " + subName;
+      const message = "Payment of " + price + " for \"" + subName + "\" was due on " + dueDate + " and has not been recorded yet.";
+
+      dispatchToAllProviders(notifConfig, title, message);
+
+      // Log to prevent duplicate
+      try {
+        const logCol = $app.findCollectionByNameOrId("notification_log");
+        const logRec = new Record(logCol);
+        logRec.set("subscription_id", sub.id);
+        logRec.set("user_id", userId);
+        logRec.set("reminder_key", reminderKey);
+        logRec.set("sent_date", todayStr);
+        $app.save(logRec);
+      } catch (e) {
+        console.log("[Zublo] overdue log write error:", e);
+      }
+
+      notified++;
+    } catch (e) {
+      console.log("[Zublo] overduePaymentReminders error for sub " + sub.id + ":", e);
+    }
+  }
+
+  console.log("[Zublo] overduePaymentReminders: notified " + notified + " overdue payments");
+});
+
+// ================================================================
 // CRON 6: Check for Updates
 // ================================================================
 cronAdd("checkForUpdates", "0 0 * * 0", () => {

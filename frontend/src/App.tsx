@@ -4,7 +4,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { Layout } from "@/components/Layout";
 import { Toaster } from "@/components/Toaster";
 import { useEffect } from "react";
-import { getPreset, buildColorCSS, saveColorToStorage, DEFAULT_COLOR } from "@/lib/color-presets";
+import { getPreset, buildColorCSS, saveColorToStorage } from "@/lib/color-presets";
 
 // Pages
 import { LoginPage } from "@/pages/auth/LoginPage";

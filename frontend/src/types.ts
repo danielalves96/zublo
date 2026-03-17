@@ -24,6 +24,19 @@ export interface User {
   convert_currency?: boolean;
   api_key?: string;
   budget?: number;
+  payment_tracking?: boolean;
+}
+
+export interface PaymentRecord {
+  id: string;
+  subscription_id: string;
+  user: string;
+  due_date: string;       // YYYY-MM-DD
+  paid_at?: string;       // ISO datetime
+  auto_paid?: boolean;
+  amount?: number;
+  notes?: string;
+  proof?: string;         // filename
 }
 
 export interface Subscription {
@@ -45,6 +58,7 @@ export interface Subscription {
   notify: boolean;
   notify_days_before: number;
   inactive: boolean;
+  auto_mark_paid?: boolean;
   cancellation_date?: string;
   replacement_subscription?: string;
   user: string;

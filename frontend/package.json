@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "pb": "../pocketbase serve --http 127.0.0.1:8080 --dir ../pb_data --hooksDir ../pb_hooks --publicDir ../pb_public",
+    "kill-pb": "lsof -nP -iTCP:8080 -sTCP:LISTEN || true; lsof -nP -iTCP:8090 -sTCP:LISTEN || true; pgrep -fl 'pocketbase.*serve|/pocketbase serve' || true",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"

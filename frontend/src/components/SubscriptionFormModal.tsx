@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import pb from "@/lib/pb";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Dialog,
   DialogContent,
@@ -61,6 +62,7 @@ const DEFAULT_FORM = {
   notify: false,
   notify_days_before: "3",
   inactive: false,
+  auto_mark_paid: false,
   cancellation_date: "",
   logo_url: "",
 };
@@ -83,6 +85,7 @@ export function SubscriptionFormModal({
   onSaved,
 }: Props) {
   const { t } = useTranslation();
+  const { user: authUser } = useAuth();
   const [form, setForm] = useState({ ...DEFAULT_FORM });
   const [loading, setLoading] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -118,6 +121,7 @@ export function SubscriptionFormModal({
         notify: sub.notify,
         notify_days_before: String(sub.notify_days_before || 3),
         inactive: sub.inactive,
+        auto_mark_paid: !!sub.auto_mark_paid,
         cancellation_date: sub.cancellation_date || "",
         logo_url: "",
       });
@@ -475,6 +479,7 @@ export function SubscriptionFormModal({
         notify: form.notify,
         notify_days_before: parseInt(form.notify_days_before),
         inactive: form.inactive,
+        auto_mark_paid: form.auto_mark_paid,
         cancellation_date: form.cancellation_date || null,
         user: userId,
       };
@@ -847,6 +852,15 @@ export function SubscriptionFormModal({
                 onCheckedChange={(v) => setField("inactive", v)}
               />
             </div>
+            {!!authUser?.payment_tracking && (
+              <div className="flex items-center justify-between">
+                <Label>{t("auto_mark_paid")}</Label>
+                <Switch
+                  checked={form.auto_mark_paid}
+                  onCheckedChange={(v) => setField("auto_mark_paid", v)}
+                />
+              </div>
+            )}
           </div>
 
           {form.notify && (
