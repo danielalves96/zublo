@@ -117,21 +117,36 @@ routerAdd("POST", "/api/cron/{job}", function(e) {
       var provider = fixer.get("provider") || "fixer";
       var userId = fixer.get("user");
       try {
-        var user = $app.findRecordById("users", userId);
-        var mcId = user.get("main_currency");
-        if (!mcId) continue;
-        var base = $app.findRecordById("currencies", mcId).get("code");
+        // Use is_main flag as authoritative source — user.main_currency may be stale
+        var mainCurrencies = $app.findRecordsByFilter("currencies", "user = {:u} && is_main = true", "", 1, 0, { u: userId });
+        if (mainCurrencies.length === 0) continue;
+        var mainCode = mainCurrencies[0].get("code");
+
+        // Free plans only support EUR as base — use HTTPS for Docker/proxy compatibility
         var url = provider === "apilayer"
-          ? "https://api.apilayer.com/fixer/latest?base=" + base
-          : "http://data.fixer.io/api/latest?access_key=" + apiKey + "&base=" + base;
+          ? "https://api.apilayer.com/fixer/latest?base=EUR"
+          : "https://data.fixer.io/api/latest?access_key=" + apiKey;
         var hdrs = provider === "apilayer" ? { apikey: apiKey } : {};
         var res = $http.send({ url: url, method: "GET", headers: hdrs });
+
         if (res.statusCode === 200 && res.json && res.json.rates) {
-          var rates = res.json.rates;
+          var eurRates = res.json.rates;
+          eurRates["EUR"] = 1;
+          var mainEurRate = eurRates[mainCode];
+          if (!mainEurRate) continue; // unknown main currency, skip
+
           var curs = $app.findRecordsByFilter("currencies", "user = {:u}", "", 0, 0, { u: userId });
           for (var ci = 0; ci < curs.length; ci++) {
             var code = curs[ci].get("code");
-            if (rates[code] !== undefined) { curs[ci].set("rate", rates[code]); $app.save(curs[ci]); updated++; }
+            if (code === mainCode) {
+              curs[ci].set("rate", 1);
+              $app.save(curs[ci]);
+              updated++;
+            } else if (eurRates[code] !== undefined) {
+              curs[ci].set("rate", eurRates[code] / mainEurRate);
+              $app.save(curs[ci]);
+              updated++;
+            }
           }
           try {
             var logs = $app.findRecordsByFilter("exchange_log", "", "", 1, 0);

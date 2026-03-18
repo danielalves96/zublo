@@ -393,5 +393,15 @@
   "api_key_endpoint_calendar": "iCalendar 피드",
   "api_key_show_body_schema": "요청 본문 보기",
   "new_api_key": "새 API 키",
-  "create_api_key": "API 키 생성"
+  "create_api_key": "API 키 생성",
+  "importing": "Importing...",
+  "import_success": "Imported {{count}} subscriptions",
+  "import_partial": "Imported {{imported}} subscriptions ({{skipped}} skipped)",
+  "import_error": "Failed to import. Please check the file format.",
+  "import_invalid_format": "Invalid file format. Expected a JSON file with subscriptions.",
+  "fixer_no_key_title": "No Exchange Rate API Key",
+  "fixer_no_key_desc": "To update exchange rates you need to configure a Fixer.io or APILayer API key in Settings.",
+  "fixer_configured_hint": "환율은 하루 두 번(자정과 정오) 자동으로 업데이트됩니다. 언제든지 수동으로 업데이트할 수도 있습니다.",
+  "get_free_api_key": "Get a free API key",
+  "go_to_settings": "Go to Settings"
 }

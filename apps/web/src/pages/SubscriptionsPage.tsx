@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,12 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type { Subscription } from "@/types";
-import {
-  Plus,
-  Search,
-  Filter,
-  ArrowUpDown,
-} from "lucide-react";
+import { Plus, Search, Filter, ArrowUpDown, Upload } from "lucide-react";
 import { SubscriptionFormModal } from "@/components/SubscriptionFormModal";
 import { SubscriptionCard } from "@/components/subscriptions/SubscriptionCard";
 
@@ -56,6 +51,8 @@ export function SubscriptionsPage() {
   const [editSub, setEditSub] = useState<Subscription | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   const { data: subs = [], isLoading } = useQuery({
     queryKey: queryKeys.subscriptions.all(userId),
@@ -143,6 +140,45 @@ export function SubscriptionsPage() {
     }
   };
 
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+
+    setIsImporting(true);
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+
+      // Accept both { subscriptions: [...] } and a bare array
+      const subscriptions: unknown[] = Array.isArray(parsed)
+        ? parsed
+        : Array.isArray(parsed.subscriptions)
+          ? parsed.subscriptions
+          : null;
+
+      if (!subscriptions) {
+        toast.error(t("import_invalid_format"));
+        return;
+      }
+
+      const result = await subscriptionsService.import(subscriptions);
+      qc.invalidateQueries({ queryKey: queryKeys.subscriptions.all(userId) });
+
+      if (result.skipped > 0) {
+        toast.success(
+          t("import_partial", { imported: result.imported, skipped: result.skipped })
+        );
+      } else {
+        toast.success(t("import_success", { count: result.imported }));
+      }
+    } catch {
+      toast.error(t("import_error"));
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   // Filter and sort subscriptions
   const filtered = useMemo(() => {
     let result = [...subs];
@@ -207,6 +243,22 @@ export function SubscriptionsPage() {
           <p className="text-muted-foreground mt-1">{t("subscriptions_desc")}</p>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".json"
+            className="hidden"
+            onChange={handleImportFile}
+          />
+          <Button
+            variant="outline"
+            className="rounded-xl shadow-sm border bg-background/50 backdrop-blur"
+            disabled={isImporting}
+            onClick={() => importInputRef.current?.click()}
+          >
+            <Upload className="h-4 w-4 mr-1.5" />
+            {isImporting ? t("importing") : t("import")}
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="rounded-xl shadow-sm border bg-background/50 backdrop-blur">
@@ -341,7 +393,7 @@ export function SubscriptionsPage() {
               key={sub.id}
               sub={sub}
               mainCurrency={mainCurrency}
-              currencies={currencies}
+              convertCurrency={user?.convert_currency}
               showMonthly={user?.monthly_price}
               showProgress={user?.subscription_progress}
               onEdit={() => {
@@ -381,6 +433,7 @@ export function SubscriptionsPage() {
         description={t("confirm_delete_subscription")}
         onConfirm={() => deleteId && deleteMutation.mutate(deleteId)}
       />
+
     </div>
   );
 }

@@ -1,9 +1,13 @@
 /// <reference path="../pb_data/types.d.ts" />
 
 // ================================================================
-// CRON 2: Update Exchange Rates
+// CRON 2: Update Exchange Rates (twice daily at 00:00 and 12:00)
+//
+// Free plans on Fixer.io and APILayer only support EUR as the base.
+// We always fetch EUR-based rates and normalize them to each user's
+// main currency:  stored_rate[X] = eurRates[X] / eurRates[mainCode]
 // ================================================================
-cronAdd("updateExchange", "0 2 * * *", () => {
+cronAdd("updateExchange", "0 0,12 * * *", () => {
   const fixerRecords = $app.findRecordsByFilter("fixer_settings", "api_key != ''", "", 0, 0);
 
   for (const fixer of fixerRecords) {
@@ -11,21 +15,18 @@ cronAdd("updateExchange", "0 2 * * *", () => {
     const provider = fixer.get("provider") || "fixer";
     const userId = fixer.get("user");
 
-    // Get user's main currency
-    const user = $app.findRecordById("users", userId);
-    const mainCurrencyId = user.get("main_currency");
-    if (!mainCurrencyId) continue;
+    // Use is_main flag as authoritative source — user.main_currency may be stale
+    const mainCurrencies = $app.findRecordsByFilter("currencies", "user = {:u} && is_main = true", "", 1, 0, { u: userId });
+    if (mainCurrencies.length === 0) continue;
+    const mainCode = mainCurrencies[0].get("code");
 
-    const mainCurrency = $app.findRecordById("currencies", mainCurrencyId);
-    const baseCurrency = mainCurrency.get("code");
-
-    // Build API URL based on provider
+    // Always fetch with EUR as base — use HTTPS for Docker/proxy compatibility
     let url, headers;
     if (provider === "apilayer") {
-      url = "https://api.apilayer.com/fixer/latest?base=" + baseCurrency;
+      url = "https://api.apilayer.com/fixer/latest?base=EUR";
       headers = { apikey: apiKey };
     } else {
-      url = "http://data.fixer.io/api/latest?access_key=" + apiKey + "&base=" + baseCurrency;
+      url = "https://data.fixer.io/api/latest?access_key=" + apiKey;
       headers = {};
     }
 
@@ -33,27 +34,30 @@ cronAdd("updateExchange", "0 2 * * *", () => {
       const res = $http.send({ url: url, method: "GET", headers: headers });
 
       if (res.statusCode === 200 && res.json && res.json.rates) {
-        const rates = res.json.rates;
+        const eurRates = res.json.rates;
+        eurRates["EUR"] = 1;
 
-        // Update all user currencies with new rates
+        const mainEurRate = eurRates[mainCode];
+        if (!mainEurRate) {
+          console.log("[Zublo] updateExchange: unknown main currency '" + mainCode + "' for user " + userId);
+          continue;
+        }
+
         const currencies = $app.findRecordsByFilter(
-          "currencies",
-          "user = {:userId}",
-          "",
-          0,
-          0,
-          { userId: userId }
+          "currencies", "user = {:u}", "", 0, 0, { u: userId }
         );
 
         for (const cur of currencies) {
           const code = cur.get("code");
-          if (rates[code] !== undefined) {
-            cur.set("rate", rates[code]);
+          if (code === mainCode) {
+            cur.set("rate", 1);
+            $app.save(cur);
+          } else if (eurRates[code] !== undefined) {
+            cur.set("rate", eurRates[code] / mainEurRate);
             $app.save(cur);
           }
         }
 
-        // Update exchange log
         try {
           const logs = $app.findRecordsByFilter("exchange_log", "", "", 1, 0);
           if (logs.length > 0) {
@@ -67,11 +71,10 @@ cronAdd("updateExchange", "0 2 * * *", () => {
           }
         } catch (_) {}
 
-        console.log("[Zublo] updateExchange: updated rates for user " + userId);
+        console.log("[Zublo] updateExchange: updated rates for user " + userId + " (base: " + mainCode + ")");
       }
     } catch (err) {
       console.log("[Zublo] updateExchange error:", err);
     }
   }
 });
-

@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { currenciesService } from "@/services/currencies";
+import { usersService } from "@/services/users";
+import { fixerService } from "@/services/fixer";
 import { queryKeys } from "@/lib/queryKeys";
 import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
@@ -27,6 +29,13 @@ export function CurrenciesTab() {
     enabled: !!user?.id,
   });
 
+  // Needed to auto-refresh rates when main currency changes
+  const { data: fixerSettings } = useQuery({
+    queryKey: ["fixer_settings", user?.id ?? ""],
+    queryFn: () => fixerService.getSettings(user!.id),
+    enabled: !!user?.id,
+  });
+
   const createMut = useMutation({
     mutationFn: (data: Partial<Currency>) => currenciesService.create(user!.id, data),
     onSuccess: () => {
@@ -39,7 +48,8 @@ export function CurrenciesTab() {
   });
 
   const updateMut = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Currency> }) => currenciesService.update(id, data),
+    mutationFn: ({ id, data }: { id: string; data: Partial<Currency> }) =>
+      currenciesService.update(id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.currencies.all(user?.id ?? "") });
       setEditingId(null);
@@ -69,14 +79,22 @@ export function CurrenciesTab() {
 
   const setMainCurrency = async (id: string) => {
     try {
-      // Set all to false first
-      const mains = currencies.filter(c => c.is_main);
+      const mains = currencies.filter((c) => c.is_main);
       for (const cur of mains) {
         await currenciesService.update(cur.id, { is_main: false });
       }
       await currenciesService.update(id, { is_main: true });
+      // Keep user.main_currency in sync so backend rate normalization uses correct base
+      await usersService.update(user!.id, { main_currency: id });
       qc.invalidateQueries({ queryKey: queryKeys.currencies.all(user?.id ?? "") });
       toast.success(t("success_update"));
+
+      // Rates are relative to the main currency — auto-refresh when base changes
+      if (fixerSettings?.api_key) {
+        fixerService.updateRates()
+          .then(() => qc.invalidateQueries({ queryKey: queryKeys.currencies.all(user?.id ?? "") }))
+          .catch(() => {});
+      }
     } catch {
       toast.error(t("error"));
     }
@@ -125,10 +143,20 @@ export function CurrenciesTab() {
               className="flex-1 bg-background"
               onKeyDown={(e) => e.key === "Enter" && handleAdd()}
             />
-            <Button size="icon" variant="ghost" className="shrink-0 text-green-500 hover:text-green-600 hover:bg-green-500/10" onClick={handleAdd}>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="shrink-0 text-green-500 hover:text-green-600 hover:bg-green-500/10"
+              onClick={handleAdd}
+            >
               <Check className="w-5 h-5" />
             </Button>
-            <Button size="icon" variant="ghost" className="shrink-0 text-muted-foreground" onClick={() => setIsAdding(false)}>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="shrink-0 text-muted-foreground"
+              onClick={() => setIsAdding(false)}
+            >
               <X className="w-5 h-5" />
             </Button>
           </div>
@@ -150,7 +178,9 @@ export function CurrenciesTab() {
             <div
               key={cur.id}
               className={`flex items-center justify-between p-4 rounded-2xl border transition-colors group ${
-                cur.is_main ? "bg-primary/5 border-primary/20 shadow-sm" : "bg-card hover:bg-muted/30"
+                cur.is_main
+                  ? "bg-primary/5 border-primary/20 shadow-sm"
+                  : "bg-card hover:bg-muted/30"
               }`}
             >
               {editingId === cur.id ? (
@@ -172,10 +202,20 @@ export function CurrenciesTab() {
                     className="flex-1 bg-background h-10"
                     onKeyDown={(e) => e.key === "Enter" && handleUpdate(cur.id)}
                   />
-                  <Button size="icon" variant="ghost" className="shrink-0 text-green-500 hover:text-green-600 hover:bg-green-500/10" onClick={() => handleUpdate(cur.id)}>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="shrink-0 text-green-500 hover:text-green-600 hover:bg-green-500/10"
+                    onClick={() => handleUpdate(cur.id)}
+                  >
                     <Check className="w-5 h-5" />
                   </Button>
-                  <Button size="icon" variant="ghost" className="shrink-0" onClick={() => setEditingId(null)}>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="shrink-0"
+                    onClick={() => setEditingId(null)}
+                  >
                     <X className="w-5 h-5" />
                   </Button>
                 </div>
@@ -195,8 +235,12 @@ export function CurrenciesTab() {
                     </button>
                     <div>
                       <span className="font-semibold text-lg">{cur.code}</span>
-                      <span className="text-muted-foreground ml-2 px-2 py-0.5 rounded-md bg-muted text-sm">{cur.symbol}</span>
-                      {cur.name && <span className="text-muted-foreground ml-3 text-sm">{cur.name}</span>}
+                      <span className="text-muted-foreground ml-2 px-2 py-0.5 rounded-md bg-muted text-sm">
+                        {cur.symbol}
+                      </span>
+                      {cur.name && (
+                        <span className="text-muted-foreground ml-3 text-sm">{cur.name}</span>
+                      )}
                     </div>
                   </div>
                   <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">

@@ -555,5 +555,15 @@
   "api_key_endpoint_calendar": "Feed iCalendar",
   "api_key_show_body_schema": "Ver corpo da requisição",
   "new_api_key": "Nova chave de API",
-  "create_api_key": "Criar chave de API"
+  "create_api_key": "Criar chave de API",
+  "importing": "Importing...",
+  "import_success": "Imported {{count}} subscriptions",
+  "import_partial": "Imported {{imported}} subscriptions ({{skipped}} skipped)",
+  "import_error": "Failed to import. Please check the file format.",
+  "import_invalid_format": "Invalid file format. Expected a JSON file with subscriptions.",
+  "fixer_no_key_title": "No Exchange Rate API Key",
+  "fixer_no_key_desc": "To update exchange rates you need to configure a Fixer.io or APILayer API key in Settings.",
+  "fixer_configured_hint": "As taxas de câmbio são atualizadas automaticamente duas vezes ao dia (meia-noite e meio-dia). Você também pode atualizá-las manualmente a qualquer momento.",
+  "get_free_api_key": "Get a free API key",
+  "go_to_settings": "Go to Settings"
 }

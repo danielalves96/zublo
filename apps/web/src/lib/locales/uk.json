@@ -393,5 +393,15 @@
   "api_key_endpoint_calendar": "iCalendar-канал",
   "api_key_show_body_schema": "Показати тіло запиту",
   "new_api_key": "Новий API-ключ",
-  "create_api_key": "Створити API-ключ"
+  "create_api_key": "Створити API-ключ",
+  "importing": "Importing...",
+  "import_success": "Imported {{count}} subscriptions",
+  "import_partial": "Imported {{imported}} subscriptions ({{skipped}} skipped)",
+  "import_error": "Failed to import. Please check the file format.",
+  "import_invalid_format": "Invalid file format. Expected a JSON file with subscriptions.",
+  "fixer_no_key_title": "No Exchange Rate API Key",
+  "fixer_no_key_desc": "To update exchange rates you need to configure a Fixer.io or APILayer API key in Settings.",
+  "fixer_configured_hint": "Обмінні курси оновлюються автоматично двічі на день (опівночі та опівдні). Ви також можете оновити їх вручну в будь-який час.",
+  "get_free_api_key": "Get a free API key",
+  "go_to_settings": "Go to Settings"
 }

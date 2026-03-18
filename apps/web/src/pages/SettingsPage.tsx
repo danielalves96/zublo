@@ -14,6 +14,7 @@ import {
   Bot,
   Key,
   Trash2,
+  TrendingUp,
 } from "lucide-react";
 
 import { ProfileTab } from "@/components/settings/ProfileTab";
@@ -27,6 +28,7 @@ import { ThemeTab } from "@/components/settings/ThemeTab";
 import { NotificationsTab } from "@/components/settings/NotificationsTab";
 import { AITab } from "@/components/settings/AITab";
 import { ApiKeyTab } from "@/components/settings/ApiKeyTab";
+import { FixerTab } from "@/components/settings/FixerTab";
 import { DeleteAccountTab } from "@/components/settings/DeleteAccountTab";
 
 export function SettingsPage() {
@@ -48,6 +50,7 @@ export function SettingsPage() {
     { value: "notifications", label: t("notifications"), icon: Bell },
     { value: "ai", label: t("ai_settings"), icon: Bot },
     { value: "api_key", label: t("api_key"), icon: Key },
+    { value: "exchange_rates", label: t("fixer_api"), icon: TrendingUp },
     { value: "delete", label: t("delete_account"), icon: Trash2, danger: true },
   ];
 
@@ -75,6 +78,8 @@ export function SettingsPage() {
         return <AITab />;
       case "api_key":
         return <ApiKeyTab />;
+      case "exchange_rates":
+        return <FixerTab />;
       case "delete":
         return <DeleteAccountTab />;
       default:

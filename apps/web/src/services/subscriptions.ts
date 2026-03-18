@@ -43,6 +43,12 @@ export const subscriptionsService = {
   export: () =>
     api.get<{ subscriptions: unknown[] }>("/api/subscriptions/export"),
 
+  import: (subscriptions: unknown[]) =>
+    api.post<{ imported: number; skipped: number; errors: { index: number; name?: string; reason?: string; warning?: string }[] }>(
+      "/api/subscriptions/import",
+      { subscriptions }
+    ),
+
   logoUrl: (sub: Subscription): string | null => {
     if (!sub.logo) return null;
     return pb.files.getUrl(

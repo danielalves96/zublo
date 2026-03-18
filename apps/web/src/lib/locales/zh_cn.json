@@ -393,5 +393,15 @@
   "api_key_endpoint_calendar": "iCalendar 源",
   "api_key_show_body_schema": "显示请求体",
   "new_api_key": "新建 API 密钥",
-  "create_api_key": "创建 API 密钥"
+  "create_api_key": "创建 API 密钥",
+  "importing": "Importing...",
+  "import_success": "Imported {{count}} subscriptions",
+  "import_partial": "Imported {{imported}} subscriptions ({{skipped}} skipped)",
+  "import_error": "Failed to import. Please check the file format.",
+  "import_invalid_format": "Invalid file format. Expected a JSON file with subscriptions.",
+  "fixer_no_key_title": "No Exchange Rate API Key",
+  "fixer_no_key_desc": "To update exchange rates you need to configure a Fixer.io or APILayer API key in Settings.",
+  "fixer_configured_hint": "汇率每天自动更新两次（午夜和中午）。您也可以随时手动更新。",
+  "get_free_api_key": "Get a free API key",
+  "go_to_settings": "Go to Settings"
 }

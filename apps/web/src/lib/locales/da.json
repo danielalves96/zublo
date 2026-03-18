@@ -393,5 +393,15 @@
   "api_key_endpoint_calendar": "iCalendar-feed",
   "api_key_show_body_schema": "Vis forespørgselskrop",
   "new_api_key": "Ny API-nøgle",
-  "create_api_key": "Opret API-nøgle"
+  "create_api_key": "Opret API-nøgle",
+  "importing": "Importing...",
+  "import_success": "Imported {{count}} subscriptions",
+  "import_partial": "Imported {{imported}} subscriptions ({{skipped}} skipped)",
+  "import_error": "Failed to import. Please check the file format.",
+  "import_invalid_format": "Invalid file format. Expected a JSON file with subscriptions.",
+  "fixer_no_key_title": "No Exchange Rate API Key",
+  "fixer_no_key_desc": "To update exchange rates you need to configure a Fixer.io or APILayer API key in Settings.",
+  "fixer_configured_hint": "Valutakurser opdateres automatisk to gange om dagen (midnat og middag). Du kan også opdatere dem manuelt når som helst.",
+  "get_free_api_key": "Get a free API key",
+  "go_to_settings": "Go to Settings"
 }

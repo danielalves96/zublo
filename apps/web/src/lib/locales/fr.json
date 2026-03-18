@@ -393,5 +393,15 @@
   "api_key_endpoint_calendar": "Flux iCalendar",
   "api_key_show_body_schema": "Afficher le corps de la requête",
   "new_api_key": "Nouvelle clé d'API",
-  "create_api_key": "Créer une clé d'API"
+  "create_api_key": "Créer une clé d'API",
+  "importing": "Importing...",
+  "import_success": "Imported {{count}} subscriptions",
+  "import_partial": "Imported {{imported}} subscriptions ({{skipped}} skipped)",
+  "import_error": "Failed to import. Please check the file format.",
+  "import_invalid_format": "Invalid file format. Expected a JSON file with subscriptions.",
+  "fixer_no_key_title": "No Exchange Rate API Key",
+  "fixer_no_key_desc": "To update exchange rates you need to configure a Fixer.io or APILayer API key in Settings.",
+  "fixer_configured_hint": "Les taux de change sont mis à jour automatiquement deux fois par jour (minuit et midi). Vous pouvez également les mettre à jour manuellement à tout moment.",
+  "get_free_api_key": "Get a free API key",
+  "go_to_settings": "Go to Settings"
 }

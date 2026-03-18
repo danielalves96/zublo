@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { subscriptionsService } from "@/services/subscriptions";
 import { paymentMethodsService } from "@/services/paymentMethods";
-import { formatPrice, toMonthly, formatDate, daysUntil, subscriptionProgress, cn } from "@/lib/utils";
+import { formatPrice, toMonthly, toMainCurrency, formatDate, daysUntil, subscriptionProgress, cn } from "@/lib/utils";
 import type { Subscription, Currency, PaymentMethod } from "@/types";
 import { Copy, RefreshCw, Trash2, Edit, ExternalLink, Calendar } from "lucide-react";
 
@@ -67,6 +67,8 @@ function PaymentMethodIcon({ method }: { method: PaymentMethod }) {
 
 export function SubscriptionCard({
   sub,
+  mainCurrency,
+  convertCurrency,
   showMonthly,
   showProgress,
   onEdit,
@@ -76,7 +78,8 @@ export function SubscriptionCard({
 }: {
   sub: Subscription;
   mainCurrency?: Currency;
-  currencies: Currency[];
+  convertCurrency?: boolean;
+  currencies?: Currency[];
   showMonthly?: boolean;
   showProgress?: boolean;
   onEdit: () => void;
@@ -91,10 +94,12 @@ export function SubscriptionCard({
   const payer = sub.expand?.payer;
   const paymentMethod = sub.expand?.payment_method;
 
-  const price = showMonthly
+  const shouldConvert = convertCurrency && mainCurrency && !currency?.is_main;
+  const rawPrice = showMonthly
     ? toMonthly(sub.price, cycleName, sub.frequency || 1)
     : sub.price;
-  const symbol = currency?.symbol ?? "$";
+  const price = shouldConvert ? toMainCurrency(rawPrice, currency) : rawPrice;
+  const symbol = shouldConvert ? (mainCurrency?.symbol ?? "$") : (currency?.symbol ?? "$");
   const days = daysUntil(sub.next_payment);
   const progress = showProgress
     ? subscriptionProgress(sub.start_date, sub.next_payment)
