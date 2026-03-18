@@ -2,7 +2,8 @@ import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
-import pb from "@/lib/pb";
+import { paymentMethodsService } from "@/services/paymentMethods";
+import { queryKeys } from "@/lib/queryKeys";
 import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,9 +65,8 @@ const PAYMENT_ICON_MAP: Record<string, string> = {
 };
 
 function getMethodIconSrc(method: PaymentMethod): string | null {
-  if (method.icon) {
-    return pb.files.getUrl(method, method.icon);
-  }
+  const uploaded = paymentMethodsService.iconUrl(method);
+  if (uploaded) return uploaded;
   const key = method.name.toLowerCase();
   if (PAYMENT_ICON_MAP[key]) {
     return `/assets/payments/${PAYMENT_ICON_MAP[key]}`;
@@ -192,11 +192,9 @@ export function PaymentMethodsTab() {
   const [editClearIcon, setEditClearIcon] = useState(false);
 
   const { data: methods = [], isLoading } = useQuery({
-    queryKey: ["payment_methods"],
-    queryFn: async () => {
-      const records = await pb.collection("payment_methods").getFullList<PaymentMethod>({ sort: "order,name" });
-      return records;
-    },
+    queryKey: queryKeys.paymentMethods.all(user?.id ?? ""),
+    queryFn: () => paymentMethodsService.list(user!.id),
+    enabled: !!user?.id,
   });
 
   function resetAddForm() {
@@ -223,10 +221,10 @@ export function PaymentMethodsTab() {
       fd.append("user", user!.id);
       fd.append("order", String(methods.length));
       if (data.file) fd.append("icon", data.file);
-      return pb.collection("payment_methods").create(fd);
+      return paymentMethodsService.create(fd);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["payment_methods"] });
+      qc.invalidateQueries({ queryKey: queryKeys.paymentMethods.all(user?.id ?? "") });
       resetAddForm();
       toast.success(t("success_create"));
     },
@@ -243,12 +241,12 @@ export function PaymentMethodsTab() {
         }
         if (_file) fd.append("icon", _file);
         if (_clearIcon) fd.append("icon-", "icon"); // PocketBase: "field-" to delete file
-        return pb.collection("payment_methods").update(id, fd);
+        return paymentMethodsService.update(id, fd);
       }
-      return pb.collection("payment_methods").update(id, rest);
+      return paymentMethodsService.update(id, rest);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["payment_methods"] });
+      qc.invalidateQueries({ queryKey: queryKeys.paymentMethods.all(user?.id ?? "") });
       resetEditState();
       toast.success(t("success_update"));
     },
@@ -256,9 +254,9 @@ export function PaymentMethodsTab() {
   });
 
   const deleteMut = useMutation({
-    mutationFn: (id: string) => pb.collection("payment_methods").delete(id),
+    mutationFn: (id: string) => paymentMethodsService.delete(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["payment_methods"] });
+      qc.invalidateQueries({ queryKey: queryKeys.paymentMethods.all(user?.id ?? "") });
       toast.success(t("success_delete"));
     },
     onError: () => toast.error(t("error")),
@@ -289,13 +287,13 @@ export function PaymentMethodsTab() {
     reordered.splice(result.destination.index, 0, moved);
 
     // Optimistic update
-    qc.setQueryData<PaymentMethod[]>(["payment_methods"], reordered);
+    qc.setQueryData<PaymentMethod[]>(queryKeys.paymentMethods.all(user?.id ?? ""), reordered);
 
     // Persist only items whose order changed
     reordered.forEach((m, i) => {
       if (m.order !== i) {
-        pb.collection("payment_methods").update(m.id, { order: i }).catch(() => {
-          qc.invalidateQueries({ queryKey: ["payment_methods"] });
+        paymentMethodsService.update(m.id, { order: i }).catch(() => {
+          qc.invalidateQueries({ queryKey: queryKeys.paymentMethods.all(user?.id ?? "") });
         });
       }
     });
@@ -419,7 +417,7 @@ export function PaymentMethodsTab() {
                                 currentSrc={
                                   editClearIcon
                                     ? null
-                                    : editIconPreview ?? (method.icon ? pb.files.getUrl(method, method.icon) : null)
+                                    : editIconPreview ?? paymentMethodsService.iconUrl(method)
                                 }
                                 hasUploadedIcon={!editClearIcon && (!!editIconFile || !!method.icon)}
                                 onFileChange={(file, url) => {

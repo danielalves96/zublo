@@ -1,7 +1,9 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import pb from "@/lib/pb";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { authService } from "@/services/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,25 +15,34 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { toast } from "@/lib/toast";
+import { useState } from "react";
+
+type PasswordResetForm = {
+  email: string;
+};
 
 export function PasswordResetPage() {
   const { t } = useTranslation();
-  const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  const schema = z.object({
+    email: z.string().min(1, t("required")).email(t("validation_invalid_email")),
+  });
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<PasswordResetForm>({ resolver: zodResolver(schema) });
+
+  const onSubmit = async (data: PasswordResetForm) => {
     try {
-      await pb.collection("users").requestPasswordReset(email);
+      await authService.requestPasswordReset(data.email);
       setSent(true);
       toast.success(t("success"));
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : t("unknown_error");
       toast.error(msg);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -41,31 +52,31 @@ export function PasswordResetPage() {
         <CardHeader className="text-center">
           <CardTitle>{t("reset_password")}</CardTitle>
           <CardDescription>
-            {sent
-              ? "Check your email for the reset link."
-              : "Enter your email to receive a password reset link."}
+            {sent ? t("reset_email_check") : t("reset_email_enter")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {!sent ? (
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">{t("email")}</Label>
                 <Input
                   id="email"
                   type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
+                  autoComplete="email"
+                  {...register("email")}
                 />
+                {errors.email && (
+                  <p className="text-sm text-destructive">{errors.email.message}</p>
+                )}
               </div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? t("loading") : t("send_reset_link")}
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? t("loading") : t("send_reset_link")}
               </Button>
             </form>
           ) : (
             <p className="text-sm text-muted-foreground text-center">
-              Reset email sent! Check your inbox.
+              {t("reset_email_sent")}
             </p>
           )}
           <p className="mt-4 text-center text-sm">

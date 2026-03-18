@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import pb from "@/lib/pb";
+import { adminService } from "@/services/admin";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,11 +24,8 @@ export function CronjobsTab() {
     setRunning(job);
     setOutput("");
     try {
-      const res = await fetch(`/api/cron/${job}`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${pb.authStore.token}` },
-      });
-      setOutput(await res.text());
+      await adminService.runCron(job);
+      setOutput("Done.");
     } catch (e: unknown) {
       setOutput(`Error: ${e instanceof Error ? e.message : String(e)}`);
     } finally {

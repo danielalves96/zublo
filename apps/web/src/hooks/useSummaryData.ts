@@ -1,23 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
-import pb from "@/lib/pb";
+import { queryKeys } from "@/lib/queryKeys";
+import { subscriptionsService } from "@/services/subscriptions";
+import { currenciesService } from "@/services/currencies";
 import { toMonthly } from "@/lib/utils";
-import type { Subscription, Currency } from "@/types";
+import type { Subscription } from "@/types";
 
 export function useSummaryData(userId: string) {
   return useQuery({
-    queryKey: ["dashboard", userId],
+    queryKey: queryKeys.dashboard(userId),
     queryFn: async () => {
-      const [subsResult, currenciesResult] = await Promise.all([
-        pb.collection("subscriptions").getFullList<Subscription>({
-          filter: `user = "${userId}" && inactive = false`,
-          expand: "currency,cycle",
-        }),
-        pb.collection("currencies").getFullList<Currency>({
-          filter: `user = "${userId}"`,
-        }),
+      const [subs, currencies] = await Promise.all([
+        subscriptionsService.listActive(userId),
+        currenciesService.list(userId),
       ]);
 
-      const mainCurrency = currenciesResult.find((c) => c.is_main);
+      const mainCurrency = currencies.find((c) => c.is_main);
       const mainRate = mainCurrency?.rate ?? 1;
       const mainSymbol = mainCurrency?.symbol ?? "$";
 
@@ -30,13 +27,10 @@ export function useSummaryData(userId: string) {
         record: Subscription;
       } | null = null;
 
-      for (const sub of subsResult) {
+      for (const sub of subs) {
         const currency = sub.expand?.currency;
         const cycleName = sub.expand?.cycle?.name ?? "Monthly";
-        const price = sub.price;
-        const freq = sub.frequency || 1;
-
-        const monthly = toMonthly(price, cycleName, freq);
+        const monthly = toMonthly(sub.price, cycleName, sub.frequency || 1);
         const rate = currency?.rate ?? 1;
         const monthlyMain = (monthly / rate) * mainRate;
         totalMonthly += monthlyMain;
@@ -58,7 +52,7 @@ export function useSummaryData(userId: string) {
         totalWeekly: (totalMonthly * 12) / 52,
         totalDaily: (totalMonthly * 12) / 365,
         mainSymbol,
-        count: subsResult.length,
+        count: subs.length,
         mostExpensive,
       };
     },

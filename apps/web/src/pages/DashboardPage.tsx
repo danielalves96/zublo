@@ -2,7 +2,10 @@ import { useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
-import pb from "@/lib/pb";
+import { queryKeys } from "@/lib/queryKeys";
+import { aiService } from "@/services/ai";
+import { subscriptionsService } from "@/services/subscriptions";
+import { yearlyCostsService } from "@/services/yearlyCosts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -45,54 +48,30 @@ export function DashboardPage() {
   const recommendations = useAIRecommendations(userId);
 
   const snapshotMut = useMutation({
-    mutationFn: async () => {
-      const res = await fetch("/api/costs/snapshot", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${pb.authStore.token}` },
-      });
-      if (!res.ok) throw new Error();
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["yearly-costs", userId] }),
+    mutationFn: () => yearlyCostsService.snapshot(),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.yearlyCosts.all(userId) }),
   });
+  const { mutate: takeSnapshot, isPending: snapshotPending, isSuccess: snapshotDone } = snapshotMut;
 
   useEffect(() => {
-    if (
-      yearlyCosts.data &&
-      yearlyCosts.data.length === 0 &&
-      !snapshotMut.isPending &&
-      !snapshotMut.isSuccess
-    ) {
-      snapshotMut.mutate();
+    if (yearlyCosts.data && yearlyCosts.data.length === 0 && !snapshotPending && !snapshotDone) {
+      takeSnapshot();
     }
-  }, [yearlyCosts.data]);
+  }, [yearlyCosts.data, snapshotPending, snapshotDone, takeSnapshot]);
 
   const generateMutation = useMutation({
-    mutationFn: async () => {
-      const res = await fetch("/api/ai/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${pb.authStore.token}`,
-        },
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        const msg = body?.error ?? "";
-        if (msg === "AI not configured or disabled") throw new Error("ai_not_configured");
-        throw new Error(msg || "error");
-      }
-      return res.json();
-    },
+    mutationFn: () => aiService.generate(),
     onSuccess: () => {
       toast.success(t("success"));
-      qc.invalidateQueries({ queryKey: ["ai-recommendations", userId] });
+      qc.invalidateQueries({ queryKey: queryKeys.aiRecommendations.all(userId) });
     },
     onError: (err: Error) => toast.error(t(err.message)),
   });
 
   const deleteRecommendation = useMutation({
-    mutationFn: (id: string) => pb.collection("ai_recommendations").delete(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["ai-recommendations", userId] }),
+    mutationFn: (id: string) => aiService.deleteRecommendation(id),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: queryKeys.aiRecommendations.all(userId) }),
   });
 
   const s = summary.data;
@@ -277,7 +256,7 @@ export function DashboardPage() {
                 <div className="h-9 w-9 shrink-0 rounded-xl overflow-hidden bg-background border shadow-sm flex items-center justify-center text-sm font-bold">
                   {s.mostExpensive.logo ? (
                     <img
-                      src={pb.files.getUrl(s.mostExpensive.record, s.mostExpensive.logo)}
+                      src={subscriptionsService.logoUrl(s.mostExpensive.record) ?? ""}
                       alt={s.mostExpensive.name}
                       className="h-full w-full object-cover p-0.5 rounded-xl"
                     />

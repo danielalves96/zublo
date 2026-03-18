@@ -2,7 +2,14 @@ import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
-import pb from "@/lib/pb";
+import { subscriptionsService } from "@/services/subscriptions";
+import { cyclesService } from "@/services/cycles";
+import { currenciesService } from "@/services/currencies";
+import { categoriesService } from "@/services/categories";
+import { paymentMethodsService } from "@/services/paymentMethods";
+import { householdService } from "@/services/household";
+import { paymentRecordsService } from "@/services/paymentRecords";
+import { queryKeys } from "@/lib/queryKeys";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,15 +27,7 @@ import {
   CheckCircle2,
   CircleDot,
 } from "lucide-react";
-import type {
-  Subscription,
-  Currency,
-  Category,
-  PaymentMethod,
-  Household,
-  Cycle,
-  PaymentRecord,
-} from "@/types";
+import type { Subscription } from "@/types";
 import { SubscriptionFormModal } from "@/components/SubscriptionFormModal";
 import { toast } from "@/lib/toast";
 
@@ -70,74 +69,53 @@ export function CalendarPage() {
   // ── queries ─────────────────────────────────────────────────────────────
 
   const { data: subs = [], isLoading: loadingSubs } = useQuery({
-    queryKey: ["subscriptions", userId],
-    queryFn: () =>
-      pb.collection("subscriptions").getFullList<Subscription>({
-        filter: `user = "${userId}"`,
-        expand: "currency,cycle,category,payment_method,payer",
-      }),
+    queryKey: queryKeys.subscriptions.all(userId),
+    queryFn: () => subscriptionsService.list(userId),
     enabled: !!userId,
   });
 
   const { data: cycles = [] } = useQuery({
-    queryKey: ["cycles"],
-    queryFn: () => pb.collection("cycles").getFullList<Cycle>(),
+    queryKey: queryKeys.cycles(),
+    queryFn: () => cyclesService.list(),
   });
 
   const { data: currencies = [] } = useQuery({
-    queryKey: ["currencies", userId],
-    queryFn: () =>
-      pb.collection("currencies").getFullList<Currency>({
-        filter: `user = "${userId}"`,
-      }),
+    queryKey: queryKeys.currencies.all(userId),
+    queryFn: () => currenciesService.list(userId),
     enabled: !!userId,
   });
 
   const { data: categories = [] } = useQuery({
-    queryKey: ["categories", userId],
-    queryFn: () =>
-      pb.collection("categories").getFullList<Category>({
-        filter: `user = "${userId}"`,
-      }),
+    queryKey: queryKeys.categories.all(userId),
+    queryFn: () => categoriesService.list(userId),
     enabled: !!userId,
   });
 
   const { data: paymentMethods = [] } = useQuery({
-    queryKey: ["payment_methods", userId],
-    queryFn: () =>
-      pb.collection("payment_methods").getFullList<PaymentMethod>({
-        filter: `user = "${userId}"`,
-      }),
+    queryKey: queryKeys.paymentMethods.all(userId),
+    queryFn: () => paymentMethodsService.list(userId),
     enabled: !!userId,
   });
 
   const { data: household = [] } = useQuery({
-    queryKey: ["household", userId],
-    queryFn: () =>
-      pb.collection("household").getFullList<Household>({
-        filter: `user = "${userId}"`,
-      }),
+    queryKey: queryKeys.household.all(userId),
+    queryFn: () => householdService.list(userId),
     enabled: !!userId,
   });
 
   const { data: paymentRecords = [] } = useQuery({
-    queryKey: ["payment_records", userId, year, month],
+    queryKey: queryKeys.paymentRecords.forMonth(userId, year, month),
     queryFn: () => {
       const monthStart = `${year}-${String(month).padStart(2, "0")}-01`;
       const daysInMo = new Date(year, month, 0).getDate();
       const monthEnd = `${year}-${String(month).padStart(2, "0")}-${String(daysInMo).padStart(2, "0")}`;
 
-      return pb
-        .collection("payment_records")
-        .getFullList<PaymentRecord>({
-          filter: `user = "${userId}"`,
-        })
-        .then((rows) =>
-          rows.filter((r) => {
-            const d = toDateOnly(r.due_date);
-            return d >= monthStart && d <= monthEnd;
-          }),
-        );
+      return paymentRecordsService.listForUser(userId).then((rows) =>
+        rows.filter((r) => {
+          const d = toDateOnly(r.due_date);
+          return d >= monthStart && d <= monthEnd;
+        }),
+      );
     },
     enabled: !!userId && paymentTracking,
   });
@@ -246,7 +224,10 @@ export function CalendarPage() {
 
   // ── selected day ─────────────────────────────────────────────────────────
 
-  const selectedEntries = selectedDay ? (entriesByDay[selectedDay] ?? []) : [];
+  const selectedEntries = useMemo(
+    () => (selectedDay ? (entriesByDay[selectedDay] ?? []) : []),
+    [selectedDay, entriesByDay],
+  );
 
   const selectedDayTotal = useMemo(
     () =>
@@ -631,7 +612,7 @@ export function CalendarPage() {
           onSaved={() => {
             setMarkAsPaidEntry(null);
             void qc.invalidateQueries({
-              queryKey: ["payment_records", userId],
+              queryKey: queryKeys.paymentRecords.all(userId),
             });
           }}
           t={t}
@@ -654,7 +635,7 @@ export function CalendarPage() {
           onSaved={() => {
             setEditOpen(false);
             setEditSub(null);
-            void qc.invalidateQueries({ queryKey: ["subscriptions", userId] });
+            void qc.invalidateQueries({ queryKey: queryKeys.subscriptions.all(userId) });
           }}
         />
       )}

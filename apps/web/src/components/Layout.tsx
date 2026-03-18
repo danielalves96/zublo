@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -17,22 +17,22 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import pb from "@/lib/pb";
+import { usersService } from "@/services/users";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { LogoIcon, LogoWithName } from "@/components/AppLogo";
 
 const navItems = [
-  { key: "dashboard", path: "/dashboard", icon: LayoutDashboard },
-  { key: "subscriptions", path: "/subscriptions", icon: CreditCard },
-  { key: "calendar", path: "/calendar", icon: Calendar },
-  { key: "statistics", path: "/statistics", icon: BarChart2 },
-  { key: "settings", path: "/settings", icon: Settings },
+  { key: "dashboard", path: "/dashboard" as const, icon: LayoutDashboard },
+  { key: "subscriptions", path: "/subscriptions" as const, icon: CreditCard },
+  { key: "calendar", path: "/calendar" as const, icon: Calendar },
+  { key: "statistics", path: "/statistics" as const, icon: BarChart2 },
+  { key: "settings", path: "/settings" as const, icon: Settings },
 ];
 
 export function Layout() {
   const { t } = useTranslation();
   const { user, isAdmin, logout } = useAuth();
-  const location = useLocation();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -93,11 +93,11 @@ export function Layout() {
                 </p>
               )}
               {navItems.map(({ key, path, icon: Icon }) => {
-                const isActive = location.pathname.startsWith(path);
+                const isActive = pathname.startsWith(path);
                 return (
                   <Tooltip key={key} delayDuration={0}>
                     <TooltipTrigger asChild>
-                      <NavLink
+                      <Link
                         to={path}
                         onClick={() => setSidebarOpen(false)}
                         className={cn(
@@ -115,7 +115,7 @@ export function Layout() {
                           )}
                         />
                         {!isCollapsed && <span className="whitespace-nowrap">{t(key)}</span>}
-                      </NavLink>
+                      </Link>
                     </TooltipTrigger>
                     {isCollapsed && (
                       <TooltipContent side="right" className="ml-4 bg-popover text-popover-foreground shadow-premium backdrop-blur-md rounded-xl border border-white/5">
@@ -127,7 +127,7 @@ export function Layout() {
               })}
 
               {isAdmin && (() => {
-                const isActive = location.pathname.startsWith("/admin");
+                const isActive = pathname.startsWith("/admin");
                 return (
                   <>
                     <div className="my-6 border-b border-border/40 mx-4" />
@@ -138,7 +138,7 @@ export function Layout() {
                     )}
                     <Tooltip delayDuration={0}>
                       <TooltipTrigger asChild>
-                        <NavLink
+                        <Link
                           to="/admin"
                           onClick={() => setSidebarOpen(false)}
                           className={cn(
@@ -156,7 +156,7 @@ export function Layout() {
                             )} 
                           />
                           {!isCollapsed && <span className="whitespace-nowrap">{t("admin")}</span>}
-                        </NavLink>
+                        </Link>
                       </TooltipTrigger>
                       {isCollapsed && (
                         <TooltipContent side="right" className="ml-4 bg-popover text-popover-foreground shadow-premium backdrop-blur-md rounded-xl border border-white/5">
@@ -176,7 +176,7 @@ export function Layout() {
               <div className={cn("flex items-center gap-3", isCollapsed && "justify-center")}>
                 {user?.avatar ? (
                   <img
-                    src={pb.files.getUrl(user, user.avatar)}
+                    src={usersService.avatarUrl(user) ?? ""}
                     alt={user.name || user.email}
                     className="h-10 w-10 shrink-0 rounded-full object-cover ring-2 ring-background shadow-sm"
                   />
@@ -251,25 +251,22 @@ export function Layout() {
       {/* Mobile bottom nav (when mobile_navigation enabled) */}
       {user?.mobile_navigation && (
         <nav className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-border/40 bg-card/80 backdrop-blur-xl pb-safe lg:hidden">
-          {navItems.slice(0, 5).map(({ key, path, icon: Icon }) => (
-            <NavLink
-              key={key}
-              to={path}
-              className={({ isActive }) =>
-                cn(
+          {navItems.slice(0, 5).map(({ key, path, icon: Icon }) => {
+            const isActive = pathname.startsWith(path);
+            return (
+              <Link
+                key={key}
+                to={path}
+                className={cn(
                   "flex flex-1 flex-col items-center justify-center gap-1.5 py-3 text-[10px] font-medium transition-all",
                   isActive ? "text-primary" : "text-muted-foreground hover:text-foreground",
-                )
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <Icon className={cn("h-5 w-5", isActive && "scale-110 transition-transform")} />
-                  <span className="truncate">{t(key)}</span>
-                </>
-              )}
-            </NavLink>
-          ))}
+                )}
+              >
+                <Icon className={cn("h-5 w-5", isActive && "scale-110 transition-transform")} />
+                <span className="truncate">{t(key)}</span>
+              </Link>
+            );
+          })}
         </nav>
       )}
     </div>

@@ -173,6 +173,7 @@ export interface AISettings {
   user: string;
   enabled: boolean;
   type: "chatgpt" | "gemini" | "openrouter" | "ollama";
+  name?: string;
   api_key?: string;
   model?: string;
   url?: string;
@@ -223,6 +224,28 @@ export interface YearlyCost {
   total: number;
 }
 
+// ─── API Keys ─────────────────────────────────────────────────────────────────
+
+export type ApiKeyPermission =
+  | "subscriptions:read"
+  | "subscriptions:write"
+  | "calendar:read"
+  | "statistics:read";
+
+export interface ApiKey {
+  id: string;
+  name: string;
+  key_prefix: string;
+  permissions: ApiKeyPermission[];
+  last_used_at: string | null;
+  created: string;
+}
+
+/** Returned only once, immediately after creation */
+export interface ApiKeyCreated extends ApiKey {
+  key: string;
+}
+
 export type SortOption = "name" | "price" | "date" | "status";
 export type FilterState = {
   category: string[];
@@ -230,3 +253,6 @@ export type FilterState = {
   payment: string[];
   state: "all" | "active" | "inactive";
 };
+
+export type SettingsSearch = { tab?: string };
+export type AdminSearch = { tab?: string };

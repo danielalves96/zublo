@@ -2,11 +2,13 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
-import pb from "@/lib/pb";
+import { subscriptionsService } from "@/services/subscriptions";
+import { currenciesService } from "@/services/currencies";
+import { yearlyCostsService } from "@/services/yearlyCosts";
+import { queryKeys } from "@/lib/queryKeys";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatPrice, toMonthly } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import type { Subscription, Currency, YearlyCost } from "@/types";
 import {
   PieChart,
   Pie,
@@ -42,31 +44,20 @@ export function StatisticsPage() {
   const [groupBy, setGroupBy] = useState<GroupBy>("category");
 
   const { data: subs = [] } = useQuery({
-    queryKey: ["subscriptions", userId],
-    queryFn: () =>
-      pb.collection("subscriptions").getFullList<Subscription>({
-        filter: `user = "${userId}" && inactive = false`,
-        expand: "currency,cycle,category,payment_method,payer",
-      }),
+    queryKey: queryKeys.subscriptions.all(userId),
+    queryFn: () => subscriptionsService.listActiveExpanded(userId),
     enabled: !!userId,
   });
 
   const { data: currencies = [] } = useQuery({
-    queryKey: ["currencies", userId],
-    queryFn: () =>
-      pb.collection("currencies").getFullList<Currency>({
-        filter: `user = "${userId}"`,
-      }),
+    queryKey: queryKeys.currencies.all(userId),
+    queryFn: () => currenciesService.list(userId),
     enabled: !!userId,
   });
 
   const { data: yearlyCosts = [] } = useQuery({
-    queryKey: ["yearly-costs", userId],
-    queryFn: () =>
-      pb.collection("yearly_costs").getFullList<YearlyCost>({
-        filter: `user = "${userId}"`,
-        sort: "year,month",
-      }),
+    queryKey: queryKeys.yearlyCosts.all(userId),
+    queryFn: () => yearlyCostsService.list(userId),
     enabled: !!userId,
   });
 

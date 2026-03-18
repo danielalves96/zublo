@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { QRCodeSVG } from "qrcode.react";
 import { useAuth } from "@/contexts/AuthContext";
-import pb from "@/lib/pb";
+import { totpService } from "@/services/totp";
+import { LS_KEYS } from "@/lib/constants";
 import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,22 +32,8 @@ import {
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
-async function apiPost(path: string, body: Record<string, unknown>) {
-  const res = await fetch(path, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${pb.authStore.token}`,
-    },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || data.message || `HTTP ${res.status}`);
-  return data;
-}
-
 function clearTrustedDevice(userId: string) {
-  localStorage.removeItem(`totp_trusted_${userId}`);
+  localStorage.removeItem(LS_KEYS.totpTrusted(userId));
 }
 
 // ─── BackupCodesGrid ──────────────────────────────────────────────────────────
@@ -223,7 +210,7 @@ export function TwoFactorTab() {
   const startSetup = async () => {
     setSetupLoading(true);
     try {
-      const data = await apiPost("/api/auth/totp/setup", {});
+      const data = await totpService.setup();
       setSetupData(data);
       setSetupCode("");
     } catch (err) {
@@ -237,7 +224,7 @@ export function TwoFactorTab() {
     if (!setupData) return;
     setSetupLoading(true);
     try {
-      await apiPost("/api/auth/totp/verify", { code: setupCode, secret: setupData.secret, backupCodes: setupData.backupCodes });
+      await totpService.verify({ code: setupCode, secret: setupData.secret, backupCodes: setupData.backupCodes });
       await refreshUser();
       toast.success(t("2fa_enabled"));
       setSetupData(null);
@@ -253,8 +240,8 @@ export function TwoFactorTab() {
   const regenBackup = async () => {
     setRegenLoading(true);
     try {
-      const data = await apiPost("/api/auth/totp/regenerate_backup", { code: regenCode });
-      setNewBackup(data.backupCodes);
+      const data = await totpService.regenerateBackup(regenCode);
+      setNewBackup(data.backup_codes);
       setRegenCode("");
       setShowRegen(false);
       toast.success(t("backup_codes_regenerated"));
@@ -267,7 +254,7 @@ export function TwoFactorTab() {
 
   // ── Dialog actions ─────────────────────────────────────────────────────────
   const handleDisable = async (code: string) => {
-    await apiPost("/api/auth/totp/disable", { code });
+    await totpService.disable(code);
     if (user?.id) clearTrustedDevice(user.id);
     await refreshUser();
     toast.success(t("2fa_disabled"));
@@ -275,14 +262,14 @@ export function TwoFactorTab() {
   };
 
   const handleReenable = async (code: string) => {
-    await apiPost("/api/auth/totp/reenable", { code });
+    await totpService.reenable(code);
     await refreshUser();
     toast.success(t("2fa_enabled"));
     setDialog(null);
   };
 
   const handleDelete = async (code: string) => {
-    await apiPost("/api/auth/totp/delete", { code });
+    await totpService.delete(code);
     if (user?.id) clearTrustedDevice(user.id);
     await refreshUser();
     toast.success(t("2fa_deleted"));

@@ -1,5 +1,6 @@
-import { useSearchParams } from "react-router-dom";
+import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { settingsRoute } from "@/routes";
 import {
   User,
   ShieldAlert,
@@ -30,9 +31,10 @@ import { DeleteAccountTab } from "@/components/settings/DeleteAccountTab";
 
 export function SettingsPage() {
   const { t } = useTranslation();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get("tab") || "profile";
-  const setActiveTab = (tab: string) => setSearchParams({ tab }, { replace: true });
+  const navigate = useNavigate();
+  const search = settingsRoute.useSearch();
+  const activeTab = search.tab ?? "profile";
+  const setActiveTab = (tab: string) => navigate({ to: "/settings", search: { tab }, replace: true });
 
   const MENU_ITEMS = [
     { value: "profile", label: t("profile"), icon: User },

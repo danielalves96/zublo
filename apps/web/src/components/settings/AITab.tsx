@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
-import pb from "@/lib/pb";
+import { aiService } from "@/services/ai";
+import type { AISettings } from "@/types";
+import { queryKeys } from "@/lib/queryKeys";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/lib/toast";
 import { Label } from "@/components/ui/label";
@@ -27,17 +29,8 @@ export function AITab() {
   const [fetchingModels, setFetchingModels] = useState(false);
 
   const { data: aiSettings, isLoading } = useQuery({
-    queryKey: ["ai_settings", user?.id],
-    queryFn: async () => {
-      try {
-        const records = await pb.collection("ai_settings").getList(1, 1, {
-          filter: `user="${user?.id}"`,
-        });
-        return records.items[0] ?? null;
-      } catch {
-        return null;
-      }
-    },
+    queryKey: queryKeys.aiSettings(user?.id ?? ""),
+    queryFn: () => aiService.getSettings(user!.id),
     enabled: !!user?.id,
   });
 
@@ -63,18 +56,7 @@ export function AITab() {
     setFetchingModels(true);
     setModels([]);
     try {
-      const params = new URLSearchParams({ url: apiUrl.trim() });
-      if (apiKey.trim()) params.set("api_key", apiKey.trim());
-
-      const res = await fetch(`/api/ai/models?${params.toString()}`, {
-        method: "GET",
-        headers: { Authorization: `Bearer ${pb.authStore.token}` },
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: res.statusText }));
-        throw new Error(err.error ?? res.statusText);
-      }
-      const data = await res.json();
+      const data = await aiService.getModels();
       const list: string[] = data.models ?? [];
 
       if (list.length === 0) {
@@ -98,19 +80,19 @@ export function AITab() {
       const data = {
         enabled: overrides?.enabled ?? enabled,
         name: providerName.trim(),
-        type: providerName.trim() || "custom",
+        type: (providerName.trim() || "chatgpt") as AISettings["type"],
         url: apiUrl.trim(),
         api_key: apiKey.trim(),
         model: model.trim(),
         user: user?.id,
       };
       if (aiSettings?.id) {
-        return pb.collection("ai_settings").update(aiSettings.id, data);
+        return aiService.updateSettings(aiSettings.id, data);
       }
-      return pb.collection("ai_settings").create(data);
+      return aiService.createSettings(data);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["ai_settings"] });
+      qc.invalidateQueries({ queryKey: queryKeys.aiSettings(user?.id ?? "") });
       toast.success(t("success_save"));
     },
     onError: () => toast.error(t("error_save")),

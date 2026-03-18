@@ -2,29 +2,48 @@
 
 // ================================================================
 // ROUTE: Calendar iCal Feed
+// GET /api/calendar/ical?key=wk_xxx  (requires calendar:read permission)
 // ================================================================
-routerAdd("GET", "/api/calendar/ical", (e) => {
-  const apiKey = e.request.url.query().get("key");
+routerAdd("GET", "/api/calendar/ical", function(e) {
+  var rawKey = e.request.url.query().get("key")
+    || (e.request.header.get("Authorization") || "").replace("Bearer ", "").trim();
 
-  if (!apiKey) {
+  if (!rawKey) {
     return e.json(401, { error: "Missing API key" });
   }
 
-  // Find user by API key
-  let user;
+  // Resolve via the new multi-key system (inlined — Goja scoping)
+  var userId = null;
   try {
-    const users = $app.findRecordsByFilter(
-      "users", "api_key = {:apiKey}", "", 1, 0, { apiKey: apiKey }
-    );
-    if (users.length === 0) {
-      return e.json(401, { error: "Invalid API key" });
+    var keyHash = $security.sha256(rawKey);
+    var apiKeys = $app.findRecordsByFilter("api_keys", "key_hash = {:hash}", "", 1, 0, { hash: keyHash });
+    if (apiKeys && apiKeys.length > 0) {
+      var keyRecord = apiKeys[0];
+      var perms = [];
+      try { perms = JSON.parse(keyRecord.get("permissions") || "[]"); } catch (_) {}
+      for (var pi = 0; pi < perms.length; pi++) {
+        if (perms[pi] === "calendar:read") { userId = keyRecord.get("user"); break; }
+      }
+      if (userId) {
+        keyRecord.set("last_used_at", new Date().toISOString());
+        try { $app.save(keyRecord); } catch (_) {}
+      }
     }
-    user = users[0];
-  } catch (_) {
-    return e.json(401, { error: "Invalid API key" });
+  } catch (_) {}
+
+  // Legacy fallback: support the old single api_key field on users
+  if (!userId) {
+    try {
+      var legacyUsers = $app.findRecordsByFilter(
+        "users", "api_key = {:apiKey}", "", 1, 0, { apiKey: rawKey }
+      );
+      if (legacyUsers.length > 0) userId = legacyUsers[0].id;
+    } catch (_) {}
   }
 
-  const userId = user.id;
+  if (!userId) {
+    return e.json(401, { error: "Invalid API key" });
+  }
   const subs = $app.findRecordsByFilter(
     "subscriptions",
     "user = {:userId} && inactive = false",

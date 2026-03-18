@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
-import pb from "@/lib/pb";
+import { currenciesService } from "@/services/currencies";
+import { queryKeys } from "@/lib/queryKeys";
 import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,17 +22,15 @@ export function CurrenciesTab() {
   const [editingData, setEditingData] = useState({ name: "", code: "", symbol: "" });
 
   const { data: currencies = [], isLoading } = useQuery({
-    queryKey: ["currencies"],
-    queryFn: async () => {
-      const records = await pb.collection("currencies").getFullList<Currency>({ sort: "-is_main,name" });
-      return records;
-    },
+    queryKey: queryKeys.currencies.all(user?.id ?? ""),
+    queryFn: () => currenciesService.list(user!.id),
+    enabled: !!user?.id,
   });
 
   const createMut = useMutation({
-    mutationFn: (data: Partial<Currency>) => pb.collection("currencies").create({ ...data, user: user?.id, rate: 1 }),
+    mutationFn: (data: Partial<Currency>) => currenciesService.create(user!.id, data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["currencies"] });
+      qc.invalidateQueries({ queryKey: queryKeys.currencies.all(user?.id ?? "") });
       setNewCurrency({ name: "", code: "", symbol: "" });
       setIsAdding(false);
       toast.success(t("success_create"));
@@ -40,9 +39,9 @@ export function CurrenciesTab() {
   });
 
   const updateMut = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Currency> }) => pb.collection("currencies").update(id, data),
+    mutationFn: ({ id, data }: { id: string; data: Partial<Currency> }) => currenciesService.update(id, data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["currencies"] });
+      qc.invalidateQueries({ queryKey: queryKeys.currencies.all(user?.id ?? "") });
       setEditingId(null);
       toast.success(t("success_update"));
     },
@@ -50,9 +49,9 @@ export function CurrenciesTab() {
   });
 
   const deleteMut = useMutation({
-    mutationFn: (id: string) => pb.collection("currencies").delete(id),
+    mutationFn: (id: string) => currenciesService.delete(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["currencies"] });
+      qc.invalidateQueries({ queryKey: queryKeys.currencies.all(user?.id ?? "") });
       toast.success(t("success_delete"));
     },
     onError: () => toast.error(t("error")),
@@ -73,10 +72,10 @@ export function CurrenciesTab() {
       // Set all to false first
       const mains = currencies.filter(c => c.is_main);
       for (const cur of mains) {
-        await pb.collection("currencies").update(cur.id, { is_main: false });
+        await currenciesService.update(cur.id, { is_main: false });
       }
-      await pb.collection("currencies").update(id, { is_main: true });
-      qc.invalidateQueries({ queryKey: ["currencies"] });
+      await currenciesService.update(id, { is_main: true });
+      qc.invalidateQueries({ queryKey: queryKeys.currencies.all(user?.id ?? "") });
       toast.success(t("success_update"));
     } catch {
       toast.error(t("error"));
@@ -186,8 +185,8 @@ export function CurrenciesTab() {
                     <button
                       onClick={() => !cur.is_main && setMainCurrency(cur.id)}
                       className={`p-2 rounded-full transition-colors ${
-                        cur.is_main 
-                          ? "text-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20" 
+                        cur.is_main
+                          ? "text-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20"
                           : "text-muted-foreground hover:bg-muted opacity-0 group-hover:opacity-100"
                       }`}
                       title={cur.is_main ? "Main Currency" : "Set as Main"}

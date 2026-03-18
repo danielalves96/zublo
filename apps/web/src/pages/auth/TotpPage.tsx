@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
-import pb from "@/lib/pb";
+import { authService } from "@/services/auth";
+import { LS_KEYS } from "@/lib/constants";
 import { OtpInput } from "@/components/ui/otp-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,29 +31,27 @@ async function verifyLogin(
   refreshUser: () => Promise<void>,
 ) {
   // Step 1: authenticate to get a session
-  const authData = await pb
-    .collection("users")
-    .authWithPassword(email, password);
+  const authData = await authService.loginWithPassword(email, password);
 
   // Step 2: verify code with the fresh session
   const res = await fetch("/api/auth/totp/login-verify", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${pb.authStore.token}`,
+      Authorization: `Bearer ${authService.getToken()}`,
     },
     body: JSON.stringify({ code }),
   });
 
   if (!res.ok) {
-    pb.authStore.clear();
+    authService.clear();
     const data = await res.json().catch(() => ({}));
     throw new Error(data.error || data.message || `HTTP ${res.status}`);
   }
 
   if (remember) {
     localStorage.setItem(
-      `totp_trusted_${authData.record.id}`,
+      LS_KEYS.totpTrusted(authData.record.id),
       String(Date.now() + THIRTY_DAYS_MS),
     );
   }
@@ -82,7 +81,7 @@ function OtpScreen({
     setLoading(true);
     try {
       await verifyLogin(state.email, state.password, otp, remember, refreshUser);
-      navigate("/dashboard", { replace: true });
+      navigate({ to: "/dashboard", replace: true });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("invalid_otp"));
       setOtp("");
@@ -116,7 +115,7 @@ function OtpScreen({
         <button
           type="button"
           className="hover:text-foreground transition-colors"
-          onClick={() => navigate("/login", { replace: true })}
+          onClick={() => navigate({ to: "/login", replace: true })}
         >
           {t("back_to_login")}
         </button>
@@ -147,7 +146,7 @@ function BackupScreen({
     setLoading(true);
     try {
       await verifyLogin(state.email, state.password, stripped, false, refreshUser);
-      navigate("/dashboard", { replace: true });
+      navigate({ to: "/dashboard", replace: true });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("invalid_otp"));
       setCode("");
@@ -198,13 +197,13 @@ function BackupScreen({
 export function TotpPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const location = useLocation();
+  const location = useRouterState({ select: (s) => s.location });
   const [screen, setScreen] = useState<Screen>("otp");
 
-  const state = location.state as { email?: string; password?: string } | null;
+  const state = location.state;
 
   if (!state?.email || !state?.password) {
-    navigate("/login", { replace: true });
+    navigate({ to: "/login", replace: true });
     return null;
   }
 

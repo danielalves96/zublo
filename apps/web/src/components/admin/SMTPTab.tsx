@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import pb from "@/lib/pb";
+import { adminService } from "@/services/admin";
+import { queryKeys } from "@/lib/queryKeys";
 import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,20 +22,16 @@ export function SMTPTab() {
   const [hasExistingPassword, setHasExistingPassword] = useState(false);
 
   useQuery({
-    queryKey: ["admin-smtp"],
+    queryKey: queryKeys.admin.smtp(),
     queryFn: async () => {
-      const res = await fetch("/api/admin/smtp", {
-        headers: { Authorization: `Bearer ${pb.authStore.token}` },
-      });
-      if (!res.ok) throw new Error("Failed to load SMTP settings");
-      const data = await res.json();
+      const data = await adminService.getSmtp();
       setForm({
-        enabled: !!data.enabled, host: data.host || "", port: data.port || 587,
-        username: data.username || "", password: "",
-        tls: !!data.tls, authMethod: data.authMethod || "PLAIN",
-        senderAddress: data.senderAddress || "", senderName: data.senderName || "",
+        enabled: !!data.enabled, host: (data.host as string) || "", port: (data.port as number) || 587,
+        username: (data.username as string) || "", password: "",
+        tls: !!data.tls, authMethod: (data.authMethod as string) || "PLAIN",
+        senderAddress: (data.senderAddress as string) || "", senderName: (data.senderName as string) || "",
       });
-      setHasExistingPassword(!!data.hasPassword);
+      setHasExistingPassword(!!(data as Record<string, unknown>).hasPassword);
       return data;
     },
   });
@@ -47,21 +44,12 @@ export function SMTPTab() {
     try {
       const body: Record<string, unknown> = { ...form };
       if (!form.password) delete body.password;
-      const res = await fetch("/api/admin/smtp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${pb.authStore.token}` },
-        body: JSON.stringify(body),
-      });
-      if (res.ok) {
-        toast.success(t("saved"));
-        if (form.password) setHasExistingPassword(true);
-        setForm((prev) => ({ ...prev, password: "" }));
-      } else {
-        const err = await res.json().catch(() => ({ error: "Unknown error" }));
-        toast.error(err.error || t("error"));
-      }
-    } catch {
-      toast.error(t("error"));
+      await adminService.updateSmtp(body);
+      toast.success(t("saved"));
+      if (form.password) setHasExistingPassword(true);
+      setForm((prev) => ({ ...prev, password: "" }));
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : t("error"));
     } finally {
       setSaving(false);
     }
@@ -70,15 +58,10 @@ export function SMTPTab() {
   const testEmail = async () => {
     setTesting(true);
     try {
-      const res = await fetch("/api/admin/smtp/test", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${pb.authStore.token}` },
-      });
-      const data = await res.json();
-      if (res.ok) toast.success(data.message || t("test_sent"));
-      else toast.error(data.error || t("error"));
-    } catch {
-      toast.error(t("error"));
+      await adminService.testSmtp();
+      toast.success(t("test_sent"));
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : t("error"));
     } finally {
       setTesting(false);
     }

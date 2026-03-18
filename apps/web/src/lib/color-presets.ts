@@ -45,7 +45,9 @@ export const COLOR_PRESETS: ColorPreset[] = [
   { id: "midnight",   label: "Midnight",   hex: "#1e3a5f", light: "213 52% 25%",  dark: "213 52% 40%"  },
 ];
 
-const LS_KEY = "zublo_color_theme";
+import { LS_KEYS } from "@/lib/constants";
+
+const LS_KEY = LS_KEYS.COLOR_THEME;
 
 export function getPreset(id: string | undefined): ColorPreset {
   return COLOR_PRESETS.find((p) => p.id === id) ?? COLOR_PRESETS[0];

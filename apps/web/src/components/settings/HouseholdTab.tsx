@@ -2,13 +2,13 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
-import pb from "@/lib/pb";
+import { householdService } from "@/services/household";
+import { queryKeys } from "@/lib/queryKeys";
 import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Plus, Trash2, Edit2, Check, X, Users } from "lucide-react";
-import type { Household } from "@/types";
 
 export function HouseholdTab() {
   const { t } = useTranslation();
@@ -21,17 +21,15 @@ export function HouseholdTab() {
   const [editingName, setEditingName] = useState("");
 
   const { data: members = [], isLoading } = useQuery({
-    queryKey: ["household"],
-    queryFn: async () => {
-      const records = await pb.collection("household").getFullList<Household>({ sort: "name" });
-      return records;
-    },
+    queryKey: queryKeys.household.all(user?.id ?? ""),
+    queryFn: () => householdService.list(user!.id),
+    enabled: !!user?.id,
   });
 
   const createMut = useMutation({
-    mutationFn: (name: string) => pb.collection("household").create({ name, user: user?.id }),
+    mutationFn: (name: string) => householdService.create(user!.id, name),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["household"] });
+      qc.invalidateQueries({ queryKey: queryKeys.household.all(user?.id ?? "") });
       setNewName("");
       setIsAdding(false);
       toast.success(t("success_create"));
@@ -40,9 +38,9 @@ export function HouseholdTab() {
   });
 
   const updateMut = useMutation({
-    mutationFn: ({ id, name }: { id: string; name: string }) => pb.collection("household").update(id, { name }),
+    mutationFn: ({ id, name }: { id: string; name: string }) => householdService.update(id, name),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["household"] });
+      qc.invalidateQueries({ queryKey: queryKeys.household.all(user?.id ?? "") });
       setEditingId(null);
       toast.success(t("success_update"));
     },
@@ -50,9 +48,9 @@ export function HouseholdTab() {
   });
 
   const deleteMut = useMutation({
-    mutationFn: (id: string) => pb.collection("household").delete(id),
+    mutationFn: (id: string) => householdService.delete(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["household"] });
+      qc.invalidateQueries({ queryKey: queryKeys.household.all(user?.id ?? "") });
       toast.success(t("success_delete"));
     },
     onError: () => toast.error(t("error")),

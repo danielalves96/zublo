@@ -1,7 +1,8 @@
 import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import pb from "@/lib/pb";
+import { usersService } from "@/services/users";
+import { queryKeys } from "@/lib/queryKeys";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
@@ -22,10 +23,10 @@ function useUserMutation() {
   const { user, refreshUser } = useAuth();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: Record<string, unknown>) => pb.collection("users").update(user!.id, data),
+    mutationFn: (data: Record<string, unknown>) => usersService.update(user!.id, data),
     onSuccess: () => {
       refreshUser();
-      qc.invalidateQueries({ queryKey: ["user"] });
+      qc.invalidateQueries({ queryKey: queryKeys.user() });
     },
   });
 }

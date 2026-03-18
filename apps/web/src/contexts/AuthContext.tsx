@@ -6,7 +6,8 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
-import pb from "@/lib/pb";
+import { authService } from "@/services/auth";
+import { LS_KEYS } from "@/lib/constants";
 import type { User } from "@/types";
 
 interface AuthContextType {
@@ -26,16 +27,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
 
   const refreshUser = useCallback(async () => {
-    if (!pb.authStore.isValid) {
+    if (!authService.isValid()) {
       setUser(null);
       setIsLoading(false);
       return;
     }
     try {
-      await pb.collection("users").authRefresh();
-      const record = pb.authStore.model;
+      await authService.refresh();
+      const record = authService.getModel();
       if (record) {
-        setUser(record as unknown as User);
+        setUser(record);
         // Determine if user is admin (first registered user).
         // We use /api/auth/admin-id because the listRule on "users" is
         // "id = @request.auth.id" — the SDK can only see the current user,
@@ -45,7 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsAdmin(record.id === json.adminId);
       }
     } catch {
-      pb.authStore.clear();
+      authService.clear();
       setUser(null);
     } finally {
       setIsLoading(false);
@@ -54,21 +55,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     refreshUser();
-  }, []);
+  }, [refreshUser]);
 
   const login = async (email: string, password: string) => {
-    const authData = await pb
-      .collection("users")
-      .authWithPassword(email, password);
+    const authData = await authService.loginWithPassword(email, password);
 
     // If the user has 2FA enabled, check for a "remember this device" entry.
     // If none (or expired), clear the session and redirect to TOTP challenge.
     if (authData.record.totp_enabled) {
-      const rememberKey = `totp_trusted_${authData.record.id}`;
-      const trusted = localStorage.getItem(rememberKey);
+      const trusted = localStorage.getItem(LS_KEYS.totpTrusted(authData.record.id));
       const isStillTrusted = trusted && Number(trusted) > Date.now();
       if (!isStillTrusted) {
-        pb.authStore.clear();
+        authService.clear();
         throw new Error("TOTP_REQUIRED");
       }
       // Trusted device — fall through and complete login normally
@@ -83,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    pb.authStore.clear();
+    authService.clear();
     setUser(null);
     setIsAdmin(false);
   };

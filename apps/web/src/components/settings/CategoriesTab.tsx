@@ -2,13 +2,13 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
-import pb from "@/lib/pb";
+import { categoriesService } from "@/services/categories";
+import { queryKeys } from "@/lib/queryKeys";
 import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Plus, Trash2, Edit2, Check, X, Tag } from "lucide-react";
-import type { Category } from "@/types";
 
 export function CategoriesTab() {
   const { t } = useTranslation();
@@ -21,17 +21,15 @@ export function CategoriesTab() {
   const [editingName, setEditingName] = useState("");
 
   const { data: categories = [], isLoading } = useQuery({
-    queryKey: ["categories"],
-    queryFn: async () => {
-      const records = await pb.collection("categories").getFullList<Category>({ sort: "name" });
-      return records;
-    },
+    queryKey: queryKeys.categories.all(user?.id ?? ""),
+    queryFn: () => categoriesService.list(user!.id),
+    enabled: !!user?.id,
   });
 
   const createMut = useMutation({
-    mutationFn: (name: string) => pb.collection("categories").create({ name, user: user?.id }),
+    mutationFn: (name: string) => categoriesService.create(user!.id, name),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["categories"] });
+      qc.invalidateQueries({ queryKey: queryKeys.categories.all(user?.id ?? "") });
       setNewCategoryName("");
       setIsAdding(false);
       toast.success(t("success_create"));
@@ -40,9 +38,9 @@ export function CategoriesTab() {
   });
 
   const updateMut = useMutation({
-    mutationFn: ({ id, name }: { id: string; name: string }) => pb.collection("categories").update(id, { name }),
+    mutationFn: ({ id, name }: { id: string; name: string }) => categoriesService.update(id, name),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["categories"] });
+      qc.invalidateQueries({ queryKey: queryKeys.categories.all(user?.id ?? "") });
       setEditingId(null);
       toast.success(t("success_update"));
     },
@@ -50,9 +48,9 @@ export function CategoriesTab() {
   });
 
   const deleteMut = useMutation({
-    mutationFn: (id: string) => pb.collection("categories").delete(id),
+    mutationFn: (id: string) => categoriesService.delete(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["categories"] });
+      qc.invalidateQueries({ queryKey: queryKeys.categories.all(user?.id ?? "") });
       toast.success(t("success_delete"));
     },
     onError: () => toast.error(t("error")),

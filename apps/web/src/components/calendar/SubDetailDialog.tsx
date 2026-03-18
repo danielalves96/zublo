@@ -23,7 +23,7 @@ import {
   Eye,
 } from "lucide-react";
 import type { Subscription, Currency, PaymentRecord } from "@/types";
-import pb from "@/lib/pb";
+import { paymentRecordsService } from "@/services/paymentRecords";
 import { toMain, getLogoUrl } from "./types";
 import { InfoRow } from "./InfoRow";
 
@@ -72,14 +72,7 @@ export function SubDetailDialog({
   today.setHours(0, 0, 0, 0);
   const isOverdue = paymentTracking && !isPaid && date < today;
 
-  const proofUrl = paymentRecord?.proof
-    ? pb.files.getUrl(
-        { collectionId: "payment_records", id: paymentRecord.id } as Parameters<
-          typeof pb.files.getUrl
-        >[0],
-        paymentRecord.proof,
-      )
-    : null;
+  const proofUrl = paymentRecord ? paymentRecordsService.proofUrl(paymentRecord) : null;
 
   return (
     <Dialog open onOpenChange={onClose}>

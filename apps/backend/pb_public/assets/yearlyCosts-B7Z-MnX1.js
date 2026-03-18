@@ -1,0 +1,1 @@
+import{p as t}from"./index-HhIXX58R.js";import{a as o}from"./queryKeys-B8y4m-Gl.js";const e={list:s=>t.collection("yearly_costs").getFullList({filter:`user = "${s}"`,sort:"year,month"}),snapshot:()=>o.post("/api/costs/snapshot")};export{e as y};

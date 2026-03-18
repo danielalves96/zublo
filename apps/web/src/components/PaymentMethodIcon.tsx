@@ -1,5 +1,5 @@
 import { useState } from "react";
-import pb from "@/lib/pb";
+import { paymentMethodsService } from "@/services/paymentMethods";
 import type { PaymentMethod } from "@/types";
 
 const PAYMENT_ICON_MAP: Record<string, string> = {
@@ -25,7 +25,7 @@ const PAYMENT_ICON_MAP: Record<string, string> = {
 };
 
 export function getPaymentIconSrc(method: PaymentMethod): string | null {
-  if (method.icon) return pb.files.getUrl(method, method.icon);
+  if (method.icon) return paymentMethodsService.iconUrl(method);
   const key = method.name.toLowerCase();
   return PAYMENT_ICON_MAP[key] ? `/assets/payments/${PAYMENT_ICON_MAP[key]}` : null;
 }

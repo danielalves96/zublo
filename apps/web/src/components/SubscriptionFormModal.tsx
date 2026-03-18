@@ -1,7 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import pb from "@/lib/pb";
 import { useAuth } from "@/contexts/AuthContext";
+import { cyclesService } from "@/services/cycles";
+import { subscriptionsService } from "@/services/subscriptions";
+import { queryKeys } from "@/lib/queryKeys";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import {
   Dialog,
   DialogContent,
@@ -29,7 +34,6 @@ import type {
   Category,
   PaymentMethod,
   Household,
-  Cycle,
 } from "@/types";
 import { useQuery } from "@tanstack/react-query";
 import { compressImage } from "@/lib/image";
@@ -45,28 +49,6 @@ interface Props {
   onClose: () => void;
   onSaved: () => void;
 }
-
-const DEFAULT_FORM = {
-  name: "",
-  price: "",
-  currency: "",
-  frequency: "1",
-  cycle: "",
-  next_payment: "",
-  start_date: new Date().toISOString().split("T")[0],
-  payment_method: "",
-  payer: "",
-  category: "",
-  notes: "",
-  url: "",
-  auto_renew: true,
-  notify: false,
-  notify_days_before: "3",
-  inactive: false,
-  auto_mark_paid: false,
-  cancellation_date: "",
-  logo_url: "",
-};
 
 type LogoResult = {
   previewUrl: string;
@@ -87,9 +69,10 @@ export function SubscriptionFormModal({
 }: Props) {
   const { t } = useTranslation();
   const { user: authUser } = useAuth();
-  const [form, setForm] = useState({ ...DEFAULT_FORM });
-  const [loading, setLoading] = useState(false);
+
+  // ── Logo state (stays outside RHF — not form data) ──────────────────────────
   const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoUrl, setLogoUrl] = useState(""); // source URL of the selected logo
   const [logoSearch, setLogoSearch] = useState("");
   const [logoResults, setLogoResults] = useState<LogoResult[]>([]);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -97,17 +80,83 @@ export function SubscriptionFormModal({
   const [showLogoResults, setShowLogoResults] = useState(false);
   const logoSearchRef = useRef<HTMLDivElement>(null);
 
+  // ── Cycles query ─────────────────────────────────────────────────────────────
   const { data: cycles = [] } = useQuery({
-    queryKey: ["cycles"],
-    queryFn: () => pb.collection("cycles").getFullList<Cycle>(),
+    queryKey: queryKeys.cycles(),
+    queryFn: () => cyclesService.list(),
   });
 
-  // Pre-fill form when editing
+  // ── Zod schema with i18n messages ────────────────────────────────────────────
+  const schema = z.object({
+    name: z.string().min(1, t("required")),
+    price: z.number().nonnegative(),
+    currency: z.string().min(1, t("required")),
+    frequency: z.string().min(1, t("required")),
+    cycle: z.string().min(1, t("required")),
+    next_payment: z.string().min(1, t("required")),
+    start_date: z.string().min(1, t("required")),
+    payment_method: z.string(),
+    payer: z.string(),
+    category: z.string(),
+    notes: z.string(),
+    url: z.string(),
+    auto_renew: z.boolean(),
+    notify: z.boolean(),
+    notify_days_before: z.string(),
+    inactive: z.boolean(),
+    auto_mark_paid: z.boolean(),
+    cancellation_date: z.string(),
+  });
+
+  type FormValues = z.infer<typeof schema>;
+
+  const nextMonthDate = () => {
+    const d = new Date();
+    d.setMonth(d.getMonth() + 1);
+    return d.toISOString().split("T")[0];
+  };
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    reset,
+    watch,
+    formState: { errors, isSubmitting },
+  } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      name: "",
+      price: 0,
+      currency: "",
+      frequency: "1",
+      cycle: "",
+      next_payment: nextMonthDate(),
+      start_date: new Date().toISOString().split("T")[0],
+      payment_method: "",
+      payer: "",
+      category: "",
+      notes: "",
+      url: "",
+      auto_renew: true,
+      notify: false,
+      notify_days_before: "3",
+      inactive: false,
+      auto_mark_paid: false,
+      cancellation_date: "",
+    },
+  });
+
+  const watchedCurrency = watch("currency");
+  const watchedNotify = watch("notify");
+  const watchedInactive = watch("inactive");
+
+  // ── Pre-fill / reset form when sub or dependencies change ───────────────────
   useEffect(() => {
     if (sub) {
-      setForm({
+      reset({
         name: sub.name,
-        price: String(sub.price),
+        price: sub.price,
         currency: sub.currency,
         frequency: String(sub.frequency),
         cycle: sub.cycle,
@@ -124,30 +173,34 @@ export function SubscriptionFormModal({
         inactive: sub.inactive,
         auto_mark_paid: !!sub.auto_mark_paid,
         cancellation_date: sub.cancellation_date || "",
-        logo_url: "",
       });
     } else {
-      // Defaults for new subscription
       const mainCur = currencies.find((c) => c.is_main);
       const monthCycle = cycles.find((c) => c.name === "Monthly");
-      setForm({
-        ...DEFAULT_FORM,
+      reset({
+        name: "",
+        price: 0,
         currency: mainCur?.id || currencies[0]?.id || "",
+        frequency: "1",
         cycle: monthCycle?.id || cycles[0]?.id || "",
+        next_payment: nextMonthDate(),
+        start_date: new Date().toISOString().split("T")[0],
+        payment_method: "",
         payer: household[0]?.id || "",
-        next_payment: (() => {
-          const d = new Date();
-          d.setMonth(d.getMonth() + 1);
-          return d.toISOString().split("T")[0];
-        })(),
+        category: "",
+        notes: "",
+        url: "",
+        auto_renew: true,
+        notify: false,
+        notify_days_before: "3",
+        inactive: false,
+        auto_mark_paid: false,
+        cancellation_date: "",
       });
     }
-  }, [sub, currencies, cycles, household]);
+  }, [sub, currencies, cycles, household, reset]);
 
-  const setField = (field: string, value: string | boolean) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
-  };
-
+  // ── Logo search effect ────────────────────────────────────────────────────────
   useEffect(() => {
     const query = logoSearch.trim();
 
@@ -194,7 +247,6 @@ export function SubscriptionFormModal({
 
         const type = (contentType || blob.type || "image/png").split(";")[0];
 
-        // Check minimum dimensions (skip for SVG — vector, always fine)
         if (!type.includes("svg")) {
           try {
             const bitmap = await createImageBitmap(blob);
@@ -306,7 +358,9 @@ export function SubscriptionFormModal({
               if (domain) domainSet.add(domain);
             });
           }
-        } catch (_) {}
+        } catch (_) {
+          // Logo URL extraction is best-effort; ignore failures
+        }
 
         if (domainSet.size === 0 && compact) {
           domainSet.add(`${compact}.com`);
@@ -316,7 +370,6 @@ export function SubscriptionFormModal({
         return Array.from(domainSet).slice(0, 10);
       };
 
-      // Ordered by quality — no Google Favicons (too small/unreliable)
       const domainSources = [
         (d: string) => `https://logo.clearbit.com/${encodeURIComponent(d)}`,
         (d: string) =>
@@ -342,7 +395,6 @@ export function SubscriptionFormModal({
         .filter((s) => s.length >= 2)
         .slice(0, 8);
 
-      // Build full candidate list (domain sources first, then SimpleIcons)
       type Candidate = { url: string; key: string };
       const allCandidates: Candidate[] = [];
       for (const domain of domains) {
@@ -357,7 +409,6 @@ export function SubscriptionFormModal({
         });
       }
 
-      // Deduplicate URLs
       const seen = new Set<string>();
       const unique = allCandidates.filter(({ url }) => {
         if (seen.has(url)) return false;
@@ -365,7 +416,6 @@ export function SubscriptionFormModal({
         return true;
       });
 
-      // Probe in parallel batches of 8
       const BATCH = 8;
       const results: LogoResult[] = [];
 
@@ -381,7 +431,6 @@ export function SubscriptionFormModal({
         if (results.length >= 15) break;
       }
 
-      // Guarantee at least 3 with ui-avatars fallback
       if (results.length < 3) {
         const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(query)}&background=random&color=fff&format=png&bold=true&rounded=true&length=1&size=256`;
         const candidate = await probeImage(fallbackUrl, compact || "logo");
@@ -429,7 +478,6 @@ export function SubscriptionFormModal({
         setShowLogoResults(false);
       }
     };
-
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
@@ -455,52 +503,49 @@ export function SubscriptionFormModal({
     }
     setLogoFile(result.file);
     setLogoPreview(result.previewUrl);
-    setField("logo_url", result.source);
+    setLogoUrl(result.source);
     setShowLogoResults(false);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  // ── Submit ───────────────────────────────────────────────────────────────────
+  const onSubmit = async (data: FormValues) => {
     try {
       const body: Record<string, unknown> = {
-        name: form.name,
-        price: parseFloat(form.price),
-        currency: form.currency,
-        frequency: parseInt(form.frequency),
-        cycle: form.cycle,
-        next_payment: form.next_payment,
-        start_date: form.start_date,
-        payment_method: form.payment_method || null,
-        payer: form.payer || null,
-        category: form.category || null,
-        notes: form.notes,
-        url: form.url,
-        auto_renew: form.auto_renew,
-        notify: form.notify,
-        notify_days_before: parseInt(form.notify_days_before),
-        inactive: form.inactive,
-        auto_mark_paid: form.auto_mark_paid,
-        cancellation_date: form.cancellation_date || null,
+        name: data.name,
+        price: data.price,
+        currency: data.currency,
+        frequency: parseInt(data.frequency),
+        cycle: data.cycle,
+        next_payment: data.next_payment,
+        start_date: data.start_date,
+        payment_method: data.payment_method || null,
+        payer: data.payer || null,
+        category: data.category || null,
+        notes: data.notes,
+        url: data.url,
+        auto_renew: data.auto_renew,
+        notify: data.notify,
+        notify_days_before: parseInt(data.notify_days_before),
+        inactive: data.inactive,
+        auto_mark_paid: data.auto_mark_paid,
+        cancellation_date: data.cancellation_date || null,
         user: userId,
       };
 
       let result: Subscription;
       let logoToUpload: File | null = logoFile;
 
-      if (!logoToUpload && form.logo_url) {
+      if (!logoToUpload && logoUrl) {
         try {
-          const direct = await fetch(form.logo_url);
+          const direct = await fetch(logoUrl);
           if (!direct.ok) throw new Error("logo_fetch_failed");
           const blob = await direct.blob();
-
           const extFromType = blob.type?.split("/")?.[1] || "png";
           logoToUpload = new File([blob], `logo.${extFromType}`, {
             type: blob.type || "image/png",
           });
         } catch {
           toast.error(t("error_fetching_image_results"));
-          setLoading(false);
           return;
         }
       }
@@ -513,37 +558,31 @@ export function SubscriptionFormModal({
         });
         formData.append("logo", logoToUpload);
         if (sub) {
-          result = await pb
-            .collection("subscriptions")
-            .update<Subscription>(sub.id, formData);
+          result = await subscriptionsService.update(sub.id, formData);
         } else {
-          result = await pb
-            .collection("subscriptions")
-            .create<Subscription>(formData);
+          result = await subscriptionsService.create(formData);
         }
       } else {
         if (sub) {
-          result = await pb
-            .collection("subscriptions")
-            .update<Subscription>(sub.id, body);
+          result = await subscriptionsService.update(sub.id, body);
         } else {
-          result = await pb
-            .collection("subscriptions")
-            .create<Subscription>(body);
+          result = await subscriptionsService.create(body);
         }
       }
 
-      void result; // suppress unused warning
+      void result;
       toast.success(t("success"));
       onSaved();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : t("unknown_error");
       toast.error(msg);
-    } finally {
-      setLoading(false);
     }
   };
 
+  // ── Derive selected currency for CurrencyInput ───────────────────────────────
+  const selectedCurrency = currencies.find((c) => c.id === watchedCurrency);
+
+  // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -553,18 +592,17 @@ export function SubscriptionFormModal({
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {/* Name */}
           <div className="space-y-2">
             <Label>{t("name")} *</Label>
-            <Input
-              value={form.name}
-              onChange={(e) => setField("name", e.target.value)}
-              required
-            />
+            <Input {...register("name")} />
+            {errors.name && (
+              <p className="text-sm text-destructive">{errors.name.message}</p>
+            )}
           </div>
 
-          {/* Logo section (early in form) */}
+          {/* Logo section */}
           <div className="space-y-3 rounded-lg border p-3">
             <Label className="text-sm font-medium">{t("logo")}</Label>
             <div className="flex gap-2 items-start">
@@ -614,7 +652,7 @@ export function SubscriptionFormModal({
                       </div>
                     ) : (
                       <div className="px-3 py-2 text-sm text-muted-foreground">
-                        Nenhum logo encontrado.
+                        {t("no_logos_found")}
                       </div>
                     )}
                   </div>
@@ -641,17 +679,17 @@ export function SubscriptionFormModal({
                       setLogoPreview(null);
                     }
                     setLogoFile(file);
-                    setField("logo_url", "");
+                    setLogoUrl("");
                     setShowLogoResults(false);
                   }}
                 />
               </label>
             </div>
 
-            {(logoPreview || form.logo_url) && (
+            {(logoPreview || logoUrl) && (
               <div className="h-14 w-20 overflow-hidden rounded border bg-muted p-2">
                 <img
-                  src={logoPreview || form.logo_url}
+                  src={logoPreview || logoUrl}
                   alt=""
                   className="h-full w-full object-contain"
                 />
@@ -660,7 +698,7 @@ export function SubscriptionFormModal({
 
             {logoFile && (
               <p className="text-xs text-muted-foreground">
-                Selected: {logoFile.name}
+                {logoFile.name}
               </p>
             )}
           </div>
@@ -669,35 +707,45 @@ export function SubscriptionFormModal({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>{t("price")} *</Label>
-              {(() => {
-                const cur = currencies.find((c) => c.id === form.currency);
-                return (
+              <Controller
+                name="price"
+                control={control}
+                render={({ field }) => (
                   <CurrencyInput
-                    value={form.price}
-                    onChange={(v) => setField("price", String(v))}
-                    symbol={cur?.symbol}
-                    code={cur?.code}
+                    value={field.value}
+                    onChange={field.onChange}
+                    symbol={selectedCurrency?.symbol}
+                    code={selectedCurrency?.code}
                   />
-                );
-              })()}
+                )}
+              />
+              {errors.price && (
+                <p className="text-sm text-destructive">{errors.price.message}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>{t("currency")}</Label>
-              <Select
-                value={form.currency}
-                onValueChange={(v) => setField("currency", v)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {currencies.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.symbol} {c.code}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Controller
+                name="currency"
+                control={control}
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {currencies.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.symbol} {c.code}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.currency && (
+                <p className="text-sm text-destructive">{errors.currency.message}</p>
+              )}
             </div>
           </div>
 
@@ -705,30 +753,34 @@ export function SubscriptionFormModal({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>{t("frequency")}</Label>
-              <Input
-                type="number"
-                min="1"
-                value={form.frequency}
-                onChange={(e) => setField("frequency", e.target.value)}
-              />
+              <Input type="number" min="1" {...register("frequency")} />
+              {errors.frequency && (
+                <p className="text-sm text-destructive">{errors.frequency.message}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>{t("cycle")}</Label>
-              <Select
-                value={form.cycle}
-                onValueChange={(v) => setField("cycle", v)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {cycles.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Controller
+                name="cycle"
+                control={control}
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {cycles.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.cycle && (
+                <p className="text-sm text-destructive">{errors.cycle.message}</p>
+              )}
             </div>
           </div>
 
@@ -736,19 +788,14 @@ export function SubscriptionFormModal({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>{t("next_payment")}</Label>
-              <Input
-                type="date"
-                value={form.next_payment}
-                onChange={(e) => setField("next_payment", e.target.value)}
-              />
+              <Input type="date" {...register("next_payment")} />
+              {errors.next_payment && (
+                <p className="text-sm text-destructive">{errors.next_payment.message}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>{t("start_date")}</Label>
-              <Input
-                type="date"
-                value={form.start_date}
-                onChange={(e) => setField("start_date", e.target.value)}
-              />
+              <Input type="date" {...register("start_date")} />
             </div>
           </div>
 
@@ -756,135 +803,138 @@ export function SubscriptionFormModal({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>{t("category")}</Label>
-              <Select
-                value={form.category}
-                onValueChange={(v) => setField("category", v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={t("optional")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Controller
+                name="category"
+                control={control}
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={t("optional")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
             </div>
             <div className="space-y-2">
               <Label>{t("payer")}</Label>
-              <Select
-                value={form.payer}
-                onValueChange={(v) => setField("payer", v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={t("optional")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {household.map((h) => (
-                    <SelectItem key={h.id} value={h.id}>
-                      {h.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Controller
+                name="payer"
+                control={control}
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={t("optional")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {household.map((h) => (
+                        <SelectItem key={h.id} value={h.id}>
+                          {h.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
             </div>
           </div>
 
           {/* Payment method */}
           <div className="space-y-2">
             <Label>{t("payment_method")}</Label>
-            <Select
-              value={form.payment_method}
-              onValueChange={(v) => setField("payment_method", v)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={t("optional")} />
-              </SelectTrigger>
-              <SelectContent>
-                {paymentMethods.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Controller
+              name="payment_method"
+              control={control}
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={t("optional")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {paymentMethods.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
           </div>
 
           {/* URL + Notes */}
           <div className="space-y-2">
             <Label>{t("url")}</Label>
-            <Input
-              type="url"
-              value={form.url}
-              onChange={(e) => setField("url", e.target.value)}
-              placeholder="https://..."
-            />
+            <Input type="url" {...register("url")} placeholder="https://..." />
           </div>
           <div className="space-y-2">
             <Label>{t("notes")}</Label>
-            <Textarea
-              value={form.notes}
-              onChange={(e) => setField("notes", e.target.value)}
-              rows={2}
-            />
+            <Textarea {...register("notes")} rows={2} />
           </div>
 
           {/* Toggles */}
           <div className="grid grid-cols-2 gap-4">
             <div className="flex items-center justify-between">
               <Label>{t("auto_renew")}</Label>
-              <Switch
-                checked={form.auto_renew}
-                onCheckedChange={(v) => setField("auto_renew", v)}
+              <Controller
+                name="auto_renew"
+                control={control}
+                render={({ field }) => (
+                  <Switch checked={field.value} onCheckedChange={field.onChange} />
+                )}
               />
             </div>
             <div className="flex items-center justify-between">
               <Label>{t("notify")}</Label>
-              <Switch
-                checked={form.notify}
-                onCheckedChange={(v) => setField("notify", v)}
+              <Controller
+                name="notify"
+                control={control}
+                render={({ field }) => (
+                  <Switch checked={field.value} onCheckedChange={field.onChange} />
+                )}
               />
             </div>
             <div className="flex items-center justify-between">
               <Label>{t("inactive")}</Label>
-              <Switch
-                checked={form.inactive}
-                onCheckedChange={(v) => setField("inactive", v)}
+              <Controller
+                name="inactive"
+                control={control}
+                render={({ field }) => (
+                  <Switch checked={field.value} onCheckedChange={field.onChange} />
+                )}
               />
             </div>
             {!!authUser?.payment_tracking && (
               <div className="flex items-center justify-between">
                 <Label>{t("auto_mark_paid")}</Label>
-                <Switch
-                  checked={form.auto_mark_paid}
-                  onCheckedChange={(v) => setField("auto_mark_paid", v)}
+                <Controller
+                  name="auto_mark_paid"
+                  control={control}
+                  render={({ field }) => (
+                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                  )}
                 />
               </div>
             )}
           </div>
 
-          {form.notify && (
+          {watchedNotify && (
             <div className="space-y-2">
               <Label>{t("notify_days_before")}</Label>
-              <Input
-                type="number"
-                min="0"
-                value={form.notify_days_before}
-                onChange={(e) => setField("notify_days_before", e.target.value)}
-              />
+              <Input type="number" min="0" {...register("notify_days_before")} />
             </div>
           )}
 
-          {form.inactive && (
+          {watchedInactive && (
             <div className="space-y-2">
               <Label>{t("cancellation_date")}</Label>
-              <Input
-                type="date"
-                value={form.cancellation_date}
-                onChange={(e) => setField("cancellation_date", e.target.value)}
-              />
+              <Input type="date" {...register("cancellation_date")} />
             </div>
           )}
 
@@ -892,8 +942,8 @@ export function SubscriptionFormModal({
             <Button type="button" variant="outline" onClick={onClose}>
               {t("cancel")}
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? t("loading") : t("save")}
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? t("loading") : t("save")}
             </Button>
           </DialogFooter>
         </form>

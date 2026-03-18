@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import pb from "@/lib/pb";
+import { adminService } from "@/services/admin";
+import { queryKeys } from "@/lib/queryKeys";
 import { toast } from "@/lib/toast";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,25 +14,14 @@ export function SecurityTab() {
   const qc = useQueryClient();
 
   const { data: settings } = useQuery({
-    queryKey: ["admin-settings"],
-    queryFn: async () => {
-      const res = await fetch("/api/admin/settings", {
-        headers: { Authorization: `Bearer ${pb.authStore.token}` },
-      });
-      if (!res.ok) return null;
-      return res.json() as Promise<AdminSettings | null>;
-    },
+    queryKey: queryKeys.admin.settings(),
+    queryFn: () => adminService.getSettings(),
   });
 
   const save = useMutation({
-    mutationFn: (data: Partial<AdminSettings>) =>
-      fetch("/api/admin/settings", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${pb.authStore.token}` },
-        body: JSON.stringify(data),
-      }).then((r) => r.json()),
+    mutationFn: (data: Partial<AdminSettings>) => adminService.updateSettings(data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-settings"] });
+      qc.invalidateQueries({ queryKey: queryKeys.admin.settings() });
       toast.success(t("saved"));
     },
   });

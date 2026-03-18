@@ -1,5 +1,5 @@
 import type { Subscription, Currency, Cycle, PaymentRecord } from "@/types";
-import pb from "@/lib/pb";
+import { subscriptionsService } from "@/services/subscriptions";
 
 // ─── Sub-types ───────────────────────────────────────────────────────────────
 
@@ -131,13 +131,7 @@ export function toMain(price: number, cur: Currency | undefined): number {
 }
 
 export function getLogoUrl(sub: Subscription): string | null {
-  if (!sub.logo) return null;
-  return pb.files.getUrl(
-    { collectionId: "subscriptions", id: sub.id } as Parameters<
-      typeof pb.files.getUrl
-    >[0],
-    sub.logo,
-  );
+  return subscriptionsService.logoUrl(sub);
 }
 
 export function getColorForSub(sub: Subscription, index: number): string {

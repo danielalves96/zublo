@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import pb from "@/lib/pb";
+import { subscriptionsService } from "@/services/subscriptions";
+import { paymentMethodsService } from "@/services/paymentMethods";
 import { formatPrice, toMonthly, formatDate, daysUntil, subscriptionProgress, cn } from "@/lib/utils";
 import type { Subscription, Currency, PaymentMethod } from "@/types";
 import { Copy, RefreshCw, Trash2, Edit, ExternalLink, Calendar } from "lucide-react";
@@ -32,7 +33,7 @@ const PAYMENT_ICON_MAP: Record<string, string> = {
 };
 
 function getPaymentIconSrc(method: PaymentMethod): string | null {
-  if (method.icon) return pb.files.getUrl(method, method.icon);
+  if (method.icon) return paymentMethodsService.iconUrl(method);
   const key = method.name.toLowerCase();
   return PAYMENT_ICON_MAP[key] ? `/assets/payments/${PAYMENT_ICON_MAP[key]}` : null;
 }
@@ -113,7 +114,7 @@ export function SubscriptionCard({
           <div className="h-12 w-12 shrink-0 rounded-2xl overflow-hidden bg-background shadow-sm border flex items-center justify-center text-xl font-bold">
             {sub.logo ? (
               <img
-                src={pb.files.getUrl(sub, sub.logo)}
+                src={subscriptionsService.logoUrl(sub) ?? ""}
                 alt={sub.name}
                 className="h-full w-full object-cover p-1 rounded-2xl"
               />

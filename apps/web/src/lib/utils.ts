@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import pb from "@/lib/pb";
+import { subscriptionsService } from "@/services/subscriptions";
 import type { Subscription, Currency } from "@/types";
 
 export function cn(...inputs: ClassValue[]) {
@@ -15,11 +15,7 @@ export function toMainCurrency(price: number, cur: Currency | undefined): number
 
 /** Get the full URL for a subscription logo, or null. */
 export function getLogoUrl(sub: Subscription): string | null {
-  if (!sub.logo) return null;
-  return pb.files.getUrl(
-    { collectionId: "subscriptions", id: sub.id } as Parameters<typeof pb.files.getUrl>[0],
-    sub.logo,
-  );
+  return subscriptionsService.logoUrl(sub);
 }
 
 /** Color palette for calendar chips and charts. */

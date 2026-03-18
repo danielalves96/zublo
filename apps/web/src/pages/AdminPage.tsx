@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/contexts/AuthContext";
+import { adminRoute } from "@/routes";
 import {
   Users, Settings, Mail, ShieldCheck,
   Shield, Database, CalendarClock, Wrench,
@@ -29,9 +30,10 @@ const TABS: Record<string, React.ComponentType> = {
 export function AdminPage() {
   const { t } = useTranslation();
   const { isAdmin } = useAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get("tab") || "users";
-  const setActiveTab = (tab: string) => setSearchParams({ tab }, { replace: true });
+  const navigate = useNavigate();
+  const search = adminRoute.useSearch();
+  const activeTab = search.tab ?? "users";
+  const setActiveTab = (tab: string) => navigate({ to: "/admin", search: { tab }, replace: true });
 
   if (!isAdmin) {
     return (

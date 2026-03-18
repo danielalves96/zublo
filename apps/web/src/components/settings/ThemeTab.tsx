@@ -2,21 +2,23 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import pb from "@/lib/pb";
+import { usersService } from "@/services/users";
+import { queryKeys } from "@/lib/queryKeys";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Sun, Moon, Monitor, Check } from "lucide-react";
 import { COLOR_PRESETS, DEFAULT_COLOR, buildColorCSS, getPreset, saveColorToStorage } from "@/lib/color-presets";
+import { LS_KEYS } from "@/lib/constants";
 
 function useUserMutation() {
   const { user, refreshUser } = useAuth();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: Record<string, unknown>) => pb.collection("users").update(user!.id, data),
+    mutationFn: (data: Record<string, unknown>) => usersService.update(user!.id, data),
     onSuccess: () => {
       refreshUser();
-      qc.invalidateQueries({ queryKey: ["user"] });
+      qc.invalidateQueries({ queryKey: queryKeys.user() });
     },
   });
 }
@@ -28,7 +30,7 @@ export function ThemeTab() {
 
   // Optimistic: use user's saved color, fallback to localStorage, fallback to default
   const [activeColor, setActiveColor] = useState<string>(
-    user?.color_theme ?? localStorage.getItem("zublo_color_theme") ?? DEFAULT_COLOR
+    user?.color_theme ?? localStorage.getItem(LS_KEYS.COLOR_THEME) ?? DEFAULT_COLOR
   );
 
   const themes = [

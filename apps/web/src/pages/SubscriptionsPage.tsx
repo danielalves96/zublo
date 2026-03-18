@@ -2,7 +2,12 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
-import pb from "@/lib/pb";
+import { queryKeys } from "@/lib/queryKeys";
+import { subscriptionsService } from "@/services/subscriptions";
+import { currenciesService } from "@/services/currencies";
+import { categoriesService } from "@/services/categories";
+import { paymentMethodsService } from "@/services/paymentMethods";
+import { householdService } from "@/services/household";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -23,13 +28,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import type {
-  Subscription,
-  Currency,
-  Category,
-  PaymentMethod,
-  Household,
-} from "@/types";
+import type { Subscription } from "@/types";
 import {
   Plus,
   Search,
@@ -68,104 +67,68 @@ export function SubscriptionsPage() {
   const [showFilters, setShowFilters] = useState(false);
 
   const { data: subs = [], isLoading } = useQuery({
-    queryKey: ["subscriptions", userId],
-    queryFn: () =>
-      pb.collection("subscriptions").getFullList<Subscription>({
-        filter: `user = "${userId}"`,
-        expand: "currency,cycle,category,payment_method,payer",
-      }),
+    queryKey: queryKeys.subscriptions.all(userId),
+    queryFn: () => subscriptionsService.list(userId),
     enabled: !!userId,
   });
 
   const { data: currencies = [] } = useQuery({
-    queryKey: ["currencies", userId],
-    queryFn: () =>
-      pb.collection("currencies").getFullList<Currency>({
-        filter: `user = "${userId}"`,
-      }),
+    queryKey: queryKeys.currencies.all(userId),
+    queryFn: () => currenciesService.list(userId),
     enabled: !!userId,
   });
 
   const { data: categories = [] } = useQuery({
-    queryKey: ["categories", userId],
-    queryFn: () =>
-      pb.collection("categories").getFullList<Category>({
-        filter: `user = "${userId}"`,
-      }),
+    queryKey: queryKeys.categories.all(userId),
+    queryFn: () => categoriesService.list(userId),
     enabled: !!userId,
   });
 
   const { data: paymentMethods = [] } = useQuery({
-    queryKey: ["payment_methods", userId],
-    queryFn: () =>
-      pb.collection("payment_methods").getFullList<PaymentMethod>({
-        filter: `user = "${userId}"`,
-        sort: "order",
-      }),
+    queryKey: queryKeys.paymentMethods.all(userId),
+    queryFn: () => paymentMethodsService.listForForm(userId),
     enabled: !!userId,
   });
 
   const { data: household = [] } = useQuery({
-    queryKey: ["household", userId],
-    queryFn: () =>
-      pb.collection("household").getFullList<Household>({
-        filter: `user = "${userId}"`,
-      }),
+    queryKey: queryKeys.household.all(userId),
+    queryFn: () => householdService.list(userId),
     enabled: !!userId,
   });
 
   const mainCurrency = currencies.find((c) => c.is_main);
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => pb.collection("subscriptions").delete(id),
+    mutationFn: (id: string) => subscriptionsService.delete(id),
     onSuccess: () => {
       toast.success(t("subscription_deleted"));
-      qc.invalidateQueries({ queryKey: ["subscriptions", userId] });
+      qc.invalidateQueries({ queryKey: queryKeys.subscriptions.all(userId) });
       setDeleteId(null);
     },
     onError: () => toast.error(t("error_deleting_subscription")),
   });
 
   const cloneMutation = useMutation({
-    mutationFn: (id: string) =>
-      fetch("/api/subscription/clone", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${pb.authStore.token}`,
-        },
-        body: JSON.stringify({ id }),
-      }).then((r) => r.json()),
+    mutationFn: (id: string) => subscriptionsService.clone(id),
     onSuccess: () => {
       toast.success(t("success"));
-      qc.invalidateQueries({ queryKey: ["subscriptions", userId] });
+      qc.invalidateQueries({ queryKey: queryKeys.subscriptions.all(userId) });
     },
     onError: () => toast.error(t("unknown_error")),
   });
 
   const renewMutation = useMutation({
-    mutationFn: (id: string) =>
-      fetch("/api/subscription/renew", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${pb.authStore.token}`,
-        },
-        body: JSON.stringify({ id }),
-      }).then((r) => r.json()),
+    mutationFn: (id: string) => subscriptionsService.renew(id),
     onSuccess: () => {
       toast.success(t("success"));
-      qc.invalidateQueries({ queryKey: ["subscriptions", userId] });
+      qc.invalidateQueries({ queryKey: queryKeys.subscriptions.all(userId) });
     },
     onError: () => toast.error(t("unknown_error")),
   });
 
   const handleExport = async (format: "json" | "xlsx") => {
     try {
-      const res = await fetch("/api/subscriptions/export", {
-        headers: { Authorization: `Bearer ${pb.authStore.token}` },
-      });
-      const data = await res.json();
+      const data = await subscriptionsService.export();
 
       if (format === "json") {
         const blob = new Blob([JSON.stringify(data.subscriptions, null, 2)], {
@@ -414,7 +377,7 @@ export function SubscriptionsPage() {
           onClose={() => setShowForm(false)}
           onSaved={() => {
             setShowForm(false);
-            qc.invalidateQueries({ queryKey: ["subscriptions", userId] });
+            qc.invalidateQueries({ queryKey: queryKeys.subscriptions.all(userId) });
           }}
         />
       )}

@@ -1,18 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import pb from "@/lib/pb";
-import type { AIRecommendation } from "@/types";
+import { queryKeys } from "@/lib/queryKeys";
+import { aiService } from "@/services/ai";
 
 export function useAIRecommendations(userId: string) {
   return useQuery({
-    queryKey: ["ai-recommendations", userId],
-    queryFn: async () => {
-      const records = await pb
-        .collection("ai_recommendations")
-        .getFullList<AIRecommendation>({
-          filter: `user = "${userId}"`,
-        });
-      return records;
-    },
+    queryKey: queryKeys.aiRecommendations.all(userId),
+    queryFn: () => aiService.listRecommendations(userId),
     enabled: !!userId,
   });
 }

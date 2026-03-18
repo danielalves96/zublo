@@ -19,7 +19,7 @@ import {
   Eye,
 } from "lucide-react";
 import type { Subscription, PaymentRecord } from "@/types";
-import pb from "@/lib/pb";
+import { paymentRecordsService } from "@/services/paymentRecords";
 import { toast } from "@/lib/toast";
 import { toDateStr, toDateOnly, getLogoUrl } from "./types";
 
@@ -55,15 +55,7 @@ export function MarkAsPaidModal({
   const [proofFile, setProofFile] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const proofUrl = existingRecord?.proof
-    ? pb.files.getUrl(
-        {
-          collectionId: "payment_records",
-          id: existingRecord.id,
-        } as Parameters<typeof pb.files.getUrl>[0],
-        existingRecord.proof,
-      )
-    : null;
+  const proofUrl = existingRecord ? paymentRecordsService.proofUrl(existingRecord) : null;
 
   const mut = useMutation({
     mutationFn: async () => {
@@ -80,11 +72,7 @@ export function MarkAsPaidModal({
       let recordId = existingRecord?.id;
 
       if (!recordId) {
-        const candidates = await pb
-          .collection("payment_records")
-          .getFullList<PaymentRecord>({
-            filter: `subscription_id = "${sub.id}" && user = "${userId}"`,
-          });
+        const candidates = await paymentRecordsService.listForSubscription(sub.id, userId);
 
         const matched = candidates.find(
           (r) => toDateOnly(r.due_date) === dueDate,
@@ -93,17 +81,13 @@ export function MarkAsPaidModal({
       }
 
       if (recordId) {
-        const saved = await pb
-          .collection("payment_records")
-          .update<PaymentRecord>(recordId, data);
+        const saved = await paymentRecordsService.update(recordId, data as Partial<PaymentRecord>);
         if (!saved?.id)
           throw new Error("Falha ao atualizar registro de pagamento");
         return;
       }
 
-      const saved = await pb
-        .collection("payment_records")
-        .create<PaymentRecord>(data);
+      const saved = await paymentRecordsService.create(data as Partial<PaymentRecord>);
       if (!saved?.id) throw new Error(t("failed_create_payment_record"));
     },
     onSuccess: () => {

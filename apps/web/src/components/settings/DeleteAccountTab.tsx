@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
-import pb from "@/lib/pb";
+import { usersService } from "@/services/users";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -18,7 +18,7 @@ export function DeleteAccountTab() {
     setIsDeleting(true);
     try {
       if (user?.id) {
-        await pb.collection("users").delete(user.id);
+        await usersService.delete(user.id);
         alert(t("success_delete_account"));
         logout();
       }

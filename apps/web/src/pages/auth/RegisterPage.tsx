@@ -1,8 +1,12 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import pb from "@/lib/pb";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { useAuth } from "@/contexts/AuthContext";
+import { authService } from "@/services/auth";
+import { currenciesService } from "@/services/currencies";
+import { usersService } from "@/services/users";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,64 +39,73 @@ const COMMON_CURRENCIES = [
   { code: "CHF", symbol: "CHF", name: "Swiss Franc" },
 ];
 
+type RegisterForm = {
+  username: string;
+  email: string;
+  password: string;
+  passwordConfirm: string;
+  currency: string;
+  language: string;
+};
+
 export function RegisterPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { refreshUser } = useAuth();
-  const [form, setForm] = useState({
-    username: "",
-    email: "",
-    password: "",
-    passwordConfirm: "",
-    currency: "USD",
-    language: i18n.language || "en",
+
+  const schema = z
+    .object({
+      username: z
+        .string()
+        .min(3, t("validation_min_chars", { count: 3 }))
+        .max(50, t("validation_min_chars", { count: 50 })),
+      email: z.string().min(1, t("required")).email(t("validation_invalid_email")),
+      password: z.string().min(8, t("validation_min_chars", { count: 8 })),
+      passwordConfirm: z.string().min(1, t("required")),
+      currency: z.string().min(1, t("required")),
+      language: z.string().min(1, t("required")),
+    })
+    .refine((data) => data.password === data.passwordConfirm, {
+      message: t("passwords_no_match"),
+      path: ["passwordConfirm"],
+    });
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    formState: { errors, isSubmitting },
+  } = useForm<RegisterForm>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      currency: "USD",
+      language: i18n.language || "en",
+    },
   });
-  const [loading, setLoading] = useState(false);
 
-  const handleChange = (field: string, value: string) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (form.password !== form.passwordConfirm) {
-      toast.error(t("confirm_password") + " mismatch");
-      return;
-    }
-    setLoading(true);
+  const onSubmit = async (data: RegisterForm) => {
     try {
-      await pb.collection("users").create({
-        username: form.username,
-        name: form.username,
-        email: form.email,
-        password: form.password,
-        passwordConfirm: form.passwordConfirm,
-        language: form.language,
+      await authService.register({
+        username: data.username,
+        name: data.username,
+        email: data.email,
+        password: data.password,
+        passwordConfirm: data.passwordConfirm,
+        language: data.language,
       });
-      const authData = await pb
-        .collection("users")
-        .authWithPassword(form.email, form.password);
+      const authData = await authService.loginWithPassword(data.email, data.password);
       const userId = authData.record.id;
 
       // Apply chosen currency preference (onboarding defaults to EUR)
-      if (form.currency !== "EUR") {
+      if (data.currency !== "EUR") {
         try {
-          const currencies = await pb.collection("currencies").getFullList({
-            filter: `user = "${userId}"`,
-          });
-          const preferred = currencies.find((c) => c.code === form.currency);
+          const currencies = await currenciesService.list(userId);
+          const preferred = currencies.find((c) => c.code === data.currency);
           const eur = currencies.find((c) => c.code === "EUR");
           if (preferred) {
-            if (eur)
-              await pb
-                .collection("currencies")
-                .update(eur.id, { is_main: false });
-            await pb
-              .collection("currencies")
-              .update(preferred.id, { is_main: true });
-            await pb
-              .collection("users")
-              .update(userId, { main_currency: preferred.id });
+            if (eur) await currenciesService.update(eur.id, { is_main: false });
+            await currenciesService.update(preferred.id, { is_main: true });
+            await usersService.update(userId, { main_currency: preferred.id });
           }
         } catch {
           // non-fatal: user can change main currency in settings
@@ -101,12 +114,10 @@ export function RegisterPage() {
 
       await refreshUser();
       toast.success(t("success"));
-      navigate("/dashboard", { replace: true });
+      navigate({ to: "/dashboard", replace: true });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : t("unknown_error");
       toast.error(msg);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -120,87 +131,87 @@ export function RegisterPage() {
           <CardDescription>{t("register")}</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="username">{t("username")}</Label>
-              <Input
-                id="username"
-                value={form.username}
-                onChange={(e) => handleChange("username", e.target.value)}
-                required
-              />
+              <Input id="username" {...register("username")} />
+              {errors.username && (
+                <p className="text-sm text-destructive">{errors.username.message}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">{t("email")}</Label>
-              <Input
-                id="email"
-                type="email"
-                value={form.email}
-                onChange={(e) => handleChange("email", e.target.value)}
-                required
-              />
+              <Input id="email" type="email" {...register("email")} />
+              {errors.email && (
+                <p className="text-sm text-destructive">{errors.email.message}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">{t("password")}</Label>
               <Input
                 id="password"
                 type="password"
-                value={form.password}
-                onChange={(e) => handleChange("password", e.target.value)}
-                required
-                minLength={8}
+                {...register("password")}
               />
+              {errors.password && (
+                <p className="text-sm text-destructive">{errors.password.message}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="passwordConfirm">{t("confirm_password")}</Label>
               <Input
                 id="passwordConfirm"
                 type="password"
-                value={form.passwordConfirm}
-                onChange={(e) =>
-                  handleChange("passwordConfirm", e.target.value)
-                }
-                required
+                {...register("passwordConfirm")}
               />
+              {errors.passwordConfirm && (
+                <p className="text-sm text-destructive">{errors.passwordConfirm.message}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>{t("main_currency")}</Label>
-              <Select
-                value={form.currency}
-                onValueChange={(v) => handleChange("currency", v)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {COMMON_CURRENCIES.map((c) => (
-                    <SelectItem key={c.code} value={c.code}>
-                      {c.symbol} — {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Controller
+                name="currency"
+                control={control}
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COMMON_CURRENCIES.map((c) => (
+                        <SelectItem key={c.code} value={c.code}>
+                          {c.symbol} — {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
             </div>
             <div className="space-y-2">
               <Label>{t("language")}</Label>
-              <Select
-                value={form.language}
-                onValueChange={(v) => handleChange("language", v)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SUPPORTED_LANGUAGES.map((l) => (
-                    <SelectItem key={l.code} value={l.code}>
-                      {l.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Controller
+                name="language"
+                control={control}
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SUPPORTED_LANGUAGES.map((l) => (
+                        <SelectItem key={l.code} value={l.code}>
+                          {l.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? t("loading") : t("create_account")}
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? t("loading") : t("create_account")}
             </Button>
           </form>
           <p className="mt-4 text-center text-sm text-muted-foreground">

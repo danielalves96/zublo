@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { useTranslation } from "react-i18next";
-import pb from "@/lib/pb";
+import { adminService } from "@/services/admin";
 import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -11,9 +11,7 @@ export function BackupTab() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const download = async () => {
-    const res = await fetch("/api/db/backup", {
-      headers: { Authorization: `Bearer ${pb.authStore.token}` },
-    });
+    const res = await adminService.backupRaw();
     if (!res.ok) { toast.error(t("error")); return; }
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
@@ -28,13 +26,8 @@ export function BackupTab() {
     const fd = new FormData();
     fd.set("file", file);
     try {
-      const res = await fetch("/api/db/restore", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${pb.authStore.token}` },
-        body: fd,
-      });
-      if (res.ok) toast.success(t("restore_success"));
-      else toast.error(t("error"));
+      await adminService.restore(fd);
+      toast.success(t("restore_success"));
     } catch { toast.error(t("error")); }
   };
 

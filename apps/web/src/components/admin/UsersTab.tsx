@@ -2,13 +2,14 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
-import pb from "@/lib/pb";
+import { adminService } from "@/services/admin";
+import { queryKeys } from "@/lib/queryKeys";
 import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Trash2, Plus, Pencil, Users, Crown } from "lucide-react";
 import type { AdminUser } from "./types";
-import { avatarUrl, EditUserModal } from "./EditUserModal";
+import { EditUserModal } from "./EditUserModal";
 import { AddUserModal } from "./AddUserModal";
 
 export function UsersTab() {
@@ -20,29 +21,14 @@ export function UsersTab() {
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
 
   const { data: users = [], isLoading } = useQuery<AdminUser[]>({
-    queryKey: ["admin-users"],
-    queryFn: async () => {
-      const res = await fetch("/api/admin/users", {
-        headers: { Authorization: `Bearer ${pb.authStore.token}` },
-      });
-      if (!res.ok) throw new Error("Failed to load users");
-      return res.json();
-    },
+    queryKey: queryKeys.admin.users(),
+    queryFn: () => adminService.getUsers(),
   });
 
   const deleteUser = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`/api/admin/users/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${pb.authStore.token}` },
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || t("error"));
-      }
-    },
+    mutationFn: (id: string) => adminService.deleteUser(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-users"] });
+      qc.invalidateQueries({ queryKey: queryKeys.admin.users() });
       toast.success(t("success_delete"));
     },
     onError: (e: Error) => toast.error(e.message),
@@ -84,7 +70,7 @@ export function UsersTab() {
                   const isSelf = u.id === currentUser?.id;
                   const display = u.name || u.username || u.email;
                   const initials = display[0]?.toUpperCase() || "U";
-                  const avatar = avatarUrl(u.id, u.avatar);
+                  const avatar = adminService.avatarUrl(u.id, u.avatar);
 
                   return (
                     <li

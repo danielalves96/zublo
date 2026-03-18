@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import pb from "@/lib/pb";
+import { adminService } from "@/services/admin";
 import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -9,12 +9,8 @@ export function MaintenanceTab() {
   const { t } = useTranslation();
 
   const cleanupLogos = async () => {
-    const res = await fetch("/api/admin/deleteunusedlogos", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${pb.authStore.token}` },
-    });
-    const data = await res.json();
-    toast.success(t("logos_deleted", { count: data.deleted ?? 0 }));
+    const data = await adminService.deleteUnusedLogos();
+    toast.success(t("logos_deleted", { count: data.deleted }));
   };
 
   return (

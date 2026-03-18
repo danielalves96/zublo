@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
-import pb from "@/lib/pb";
+import { notificationsService } from "@/services/notifications";
+import { queryKeys } from "@/lib/queryKeys";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/lib/toast";
 import { Label } from "@/components/ui/label";
@@ -406,17 +407,8 @@ export function NotificationsTab() {
   const qc = useQueryClient();
 
   const { data: config, isLoading } = useQuery({
-    queryKey: ["notifications", user?.id],
-    queryFn: async () => {
-      try {
-        const records = await pb
-          .collection("notifications_config")
-          .getList<NotificationsConfig>(1, 1, { filter: `user="${user?.id}"` });
-        return records.items[0];
-      } catch {
-        return null;
-      }
-    },
+    queryKey: queryKeys.notificationsConfig(user?.id ?? ""),
+    queryFn: () => notificationsService.getConfig(user!.id),
     enabled: !!user?.id,
   });
 
@@ -442,13 +434,13 @@ export function NotificationsTab() {
     mutationFn: async () => {
       const data = { ...formData, reminders, user: user?.id };
       if (config?.id) {
-        return pb.collection("notifications_config").update(config.id, data);
+        return notificationsService.updateConfig(config.id, data);
       } else {
-        return pb.collection("notifications_config").create(data);
+        return notificationsService.createConfig(data);
       }
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["notifications"] });
+      qc.invalidateQueries({ queryKey: queryKeys.notificationsConfig(user?.id ?? "") });
       toast.success(t("success_save", "Saved successfully"));
     },
     onError: () => toast.error(t("error_save", "Error saving")),
@@ -459,18 +451,7 @@ export function NotificationsTab() {
   const handleTest = async (providerId: string) => {
     setTestingProvider(providerId);
     try {
-      const res = await fetch("/api/notifications/test", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${pb.authStore.token}`,
-        },
-        body: JSON.stringify({ provider: providerId }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "error");
-      }
+      await notificationsService.test(providerId);
       toast.success(t("notification_sent", "Test notification sent!"));
     } catch {
       toast.error(t("error_sending_notification", "Error sending notification"));
@@ -533,7 +514,7 @@ export function NotificationsTab() {
           }).map((provider) => (
             <div
               key={provider.id}
-              className={!!formData[provider.enabledKey] ? "md:col-span-2" : ""}
+              className={formData[provider.enabledKey] ? "md:col-span-2" : ""}
             >
               <ProviderCard
                 provider={provider}
