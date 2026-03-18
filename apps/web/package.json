@@ -2,6 +2,10 @@
   "name": "zublo",
   "private": true,
   "version": "1.0.0",
+  "author": {
+    "name": "Daniel Luiz Alves",
+    "url": "https://github.com/danielalves96"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -52,7 +56,9 @@
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.71.2",
     "react-i18next": "^15.0.1",
+    "react-markdown": "^10.1.0",
     "recharts": "^2.12.7",
+    "remark-gfm": "^4.0.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^2.4.0",
     "xlsx": "^0.18.5",

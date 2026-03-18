@@ -49,6 +49,9 @@ const SettingsPage = lazy(() =>
 const AdminPage = lazy(() =>
   import("@/pages/AdminPage").then((m) => ({ default: m.AdminPage })),
 );
+const ChatPage = lazy(() =>
+  import("@/pages/ChatPage").then((m) => ({ default: m.ChatPage })),
+);
 
 // Types for router context
 import type { User, SettingsSearch, AdminSearch } from "@/types";
@@ -177,6 +180,12 @@ export const adminRoute = createRoute({
   },
 });
 
+const chatRoute = createRoute({
+  getParentRoute: () => protectedLayoutRoute,
+  path: "/chat",
+  component: ChatPage,
+});
+
 // ─── Catch-all ─────────────────────────────────────────────────────────────────
 
 const catchAllRoute = createRoute({
@@ -202,6 +211,7 @@ const routeTree = rootRoute.addChildren([
     statisticsRoute,
     settingsRoute,
     adminRoute,
+    chatRoute,
   ]),
   catchAllRoute,
 ]);

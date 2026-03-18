@@ -1,6 +1,6 @@
 import pb from "@/lib/pb";
 import { api } from "@/lib/api";
-import type { AISettings, AIRecommendation } from "@/types";
+import type { AISettings, AIRecommendation, ChatMessage, ChatResponse, ChatConversation } from "@/types";
 
 export const aiService = {
   getSettings: async (userId: string): Promise<AISettings | null> => {
@@ -30,5 +30,36 @@ export const aiService = {
 
   generate: () => api.post<{ count: number }>("/api/ai/generate"),
 
-  getModels: () => api.get<{ models: string[] }>("/api/ai/models"),
+  getModels: (url?: string, apiKey?: string) => {
+    const params = new URLSearchParams();
+    if (url) params.append("url", url);
+    if (apiKey) params.append("api_key", apiKey);
+    const queryString = params.toString() ? `?${params.toString()}` : "";
+    return api.get<{ models: string[] }>(`/api/ai/models${queryString}`);
+  },
+
+  chat: (
+    messages: ChatMessage[],
+    conversationId?: string | null,
+    displayMessage?: string,
+  ) =>
+    api.post<ChatResponse>("/api/ai/chat", {
+      messages,
+      conversation_id: conversationId ?? null,
+      display_message: displayMessage ?? null,
+    }),
+
+  getConversations: () =>
+    api.get<{ conversations: ChatConversation[] }>("/api/ai/conversations"),
+
+  getConversationMessages: (id: string) =>
+    api.get<{ conversation: ChatConversation; messages: ChatMessage[] }>(
+      `/api/ai/conversations/${id}`,
+    ),
+
+  deleteConversation: (id: string) =>
+    api.del<{ success: boolean }>(`/api/ai/conversations/${id}`),
+
+  renameConversation: (id: string, title: string) =>
+    api.patch<{ success: boolean }>(`/api/ai/conversations/${id}`, { title }),
 };

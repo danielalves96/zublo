@@ -6,6 +6,7 @@ import { householdService } from "@/services/household";
 import { queryKeys } from "@/lib/queryKeys";
 import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Plus, Trash2, Edit2, Check, X, Users } from "lucide-react";
@@ -19,6 +20,7 @@ export function HouseholdTab() {
   const [newName, setNewName] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const { data: members = [], isLoading } = useQuery({
     queryKey: queryKeys.household.all(user?.id ?? ""),
@@ -29,7 +31,9 @@ export function HouseholdTab() {
   const createMut = useMutation({
     mutationFn: (name: string) => householdService.create(user!.id, name),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.household.all(user?.id ?? "") });
+      qc.invalidateQueries({
+        queryKey: queryKeys.household.all(user?.id ?? ""),
+      });
       setNewName("");
       setIsAdding(false);
       toast.success(t("success_create"));
@@ -38,9 +42,12 @@ export function HouseholdTab() {
   });
 
   const updateMut = useMutation({
-    mutationFn: ({ id, name }: { id: string; name: string }) => householdService.update(id, name),
+    mutationFn: ({ id, name }: { id: string; name: string }) =>
+      householdService.update(id, name),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.household.all(user?.id ?? "") });
+      qc.invalidateQueries({
+        queryKey: queryKeys.household.all(user?.id ?? ""),
+      });
       setEditingId(null);
       toast.success(t("success_update"));
     },
@@ -50,7 +57,9 @@ export function HouseholdTab() {
   const deleteMut = useMutation({
     mutationFn: (id: string) => householdService.delete(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.household.all(user?.id ?? "") });
+      qc.invalidateQueries({
+        queryKey: queryKeys.household.all(user?.id ?? ""),
+      });
       toast.success(t("success_delete"));
     },
     onError: () => toast.error(t("error")),
@@ -77,7 +86,10 @@ export function HouseholdTab() {
           <p className="text-muted-foreground">{t("household_desc")}</p>
         </div>
         {!isAdding && (
-          <Button onClick={() => setIsAdding(true)} className="rounded-xl shadow-lg shadow-primary/20">
+          <Button
+            onClick={() => setIsAdding(true)}
+            className="rounded-xl shadow-lg shadow-primary/20"
+          >
             <Plus className="w-4 h-4 mr-2" />
             {t("add")}
           </Button>
@@ -97,10 +109,20 @@ export function HouseholdTab() {
               className="border-0 bg-transparent focus-visible:ring-0 text-base"
               onKeyDown={(e) => e.key === "Enter" && handleAdd()}
             />
-            <Button size="icon" variant="ghost" className="shrink-0 text-green-500 hover:text-green-600 hover:bg-green-500/10" onClick={handleAdd}>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="shrink-0 text-green-500 hover:text-green-600 hover:bg-green-500/10"
+              onClick={handleAdd}
+            >
               <Check className="w-5 h-5" />
             </Button>
-            <Button size="icon" variant="ghost" className="shrink-0 text-muted-foreground" onClick={() => setIsAdding(false)}>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="shrink-0 text-muted-foreground"
+              onClick={() => setIsAdding(false)}
+            >
               <X className="w-5 h-5" />
             </Button>
           </div>
@@ -109,7 +131,10 @@ export function HouseholdTab() {
         {isLoading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-16 rounded-2xl bg-muted/50 animate-pulse" />
+              <div
+                key={i}
+                className="h-16 rounded-2xl bg-muted/50 animate-pulse"
+              />
             ))}
           </div>
         ) : members.length === 0 && !isAdding ? (
@@ -130,12 +155,24 @@ export function HouseholdTab() {
                     value={editingName}
                     onChange={(e) => setEditingName(e.target.value)}
                     className="border-muted bg-background focus-visible:ring-primary h-10 text-base"
-                    onKeyDown={(e) => e.key === "Enter" && handleUpdate(member.id)}
+                    onKeyDown={(e) =>
+                      e.key === "Enter" && handleUpdate(member.id)
+                    }
                   />
-                  <Button size="icon" variant="ghost" className="shrink-0 text-green-500 hover:text-green-600 hover:bg-green-500/10" onClick={() => handleUpdate(member.id)}>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="shrink-0 text-green-500 hover:text-green-600 hover:bg-green-500/10"
+                    onClick={() => handleUpdate(member.id)}
+                  >
                     <Check className="w-5 h-5" />
                   </Button>
-                  <Button size="icon" variant="ghost" className="shrink-0" onClick={() => setEditingId(null)}>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="shrink-0"
+                    onClick={() => setEditingId(null)}
+                  >
                     <X className="w-5 h-5" />
                   </Button>
                 </div>
@@ -159,7 +196,7 @@ export function HouseholdTab() {
                       variant="ghost"
                       className="text-destructive/70 hover:text-destructive hover:bg-destructive/10"
                       onClick={() => {
-                        if (confirm(t("confirm_delete"))) deleteMut.mutate(member.id);
+                        setPendingDeleteId(member.id);
                       }}
                     >
                       <Trash2 className="w-4 h-4" />
@@ -171,6 +208,20 @@ export function HouseholdTab() {
           ))
         )}
       </div>
+
+      <ConfirmDialog
+        open={!!pendingDeleteId}
+        onOpenChange={(open) => {
+          if (!open) setPendingDeleteId(null);
+        }}
+        title={t("delete")}
+        description={t("confirm_delete")}
+        onConfirm={() => {
+          if (!pendingDeleteId) return;
+          deleteMut.mutate(pendingDeleteId);
+          setPendingDeleteId(null);
+        }}
+      />
     </div>
   );
 }

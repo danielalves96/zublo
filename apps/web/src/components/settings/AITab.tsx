@@ -56,7 +56,7 @@ export function AITab() {
     setFetchingModels(true);
     setModels([]);
     try {
-      const data = await aiService.getModels();
+      const data = await aiService.getModels(apiUrl.trim(), apiKey.trim());
       const list: string[] = data.models ?? [];
 
       if (list.length === 0) {

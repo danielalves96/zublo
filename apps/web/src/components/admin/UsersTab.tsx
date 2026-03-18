@@ -6,6 +6,7 @@ import { adminService } from "@/services/admin";
 import { queryKeys } from "@/lib/queryKeys";
 import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Separator } from "@/components/ui/separator";
 import { Trash2, Plus, Pencil, Users, Crown } from "lucide-react";
 import type { AdminUser } from "./types";
@@ -19,6 +20,7 @@ export function UsersTab() {
 
   const [addingUser, setAddingUser] = useState(false);
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const { data: users = [], isLoading } = useQuery<AdminUser[]>({
     queryKey: queryKeys.admin.users(),
@@ -37,7 +39,12 @@ export function UsersTab() {
   return (
     <>
       {addingUser && <AddUserModal onClose={() => setAddingUser(false)} />}
-      {editingUser && <EditUserModal user={editingUser} onClose={() => setEditingUser(null)} />}
+      {editingUser && (
+        <EditUserModal
+          user={editingUser}
+          onClose={() => setEditingUser(null)}
+        />
+      )}
 
       <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div>
@@ -53,8 +60,13 @@ export function UsersTab() {
         <div className="space-y-4">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">{users.length} {t("users").toLowerCase()}</span>
-              <Button className="rounded-xl gap-2" onClick={() => setAddingUser(true)}>
+              <span className="text-sm text-muted-foreground">
+                {users.length} {t("users").toLowerCase()}
+              </span>
+              <Button
+                className="rounded-xl gap-2"
+                onClick={() => setAddingUser(true)}
+              >
                 <Plus className="w-4 h-4" />
                 {t("add_user")}
               </Button>
@@ -62,7 +74,12 @@ export function UsersTab() {
 
             {isLoading ? (
               <div className="space-y-2">
-                {[1, 2, 3].map((i) => <div key={i} className="h-16 rounded-2xl bg-muted/50 animate-pulse" />)}
+                {[1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="h-16 rounded-2xl bg-muted/50 animate-pulse"
+                  />
+                ))}
               </div>
             ) : (
               <ul className="space-y-2">
@@ -79,7 +96,11 @@ export function UsersTab() {
                     >
                       <div className="h-11 w-11 shrink-0 rounded-full overflow-hidden ring-2 ring-background shadow-sm">
                         {avatar ? (
-                          <img src={avatar} alt={display} className="h-full w-full object-cover" />
+                          <img
+                            src={avatar}
+                            alt={display}
+                            className="h-full w-full object-cover"
+                          />
                         ) : (
                           <div className="h-full w-full bg-primary/10 flex items-center justify-center text-base font-bold text-primary">
                             {initials}
@@ -89,7 +110,9 @@ export function UsersTab() {
 
                       <div className="flex-1 overflow-hidden">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-semibold truncate">{display}</p>
+                          <p className="text-sm font-semibold truncate">
+                            {display}
+                          </p>
                           {u.is_admin && (
                             <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center gap-1 shrink-0">
                               <Crown className="w-2.5 h-2.5" /> {t("admin")}
@@ -106,9 +129,13 @@ export function UsersTab() {
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {u.email}
+                        </p>
                         {u.username && u.username !== display && (
-                          <p className="text-xs text-muted-foreground truncate">@{u.username}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            @{u.username}
+                          </p>
                         )}
                       </div>
 
@@ -126,10 +153,12 @@ export function UsersTab() {
                           variant="ghost"
                           className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-30"
                           onClick={() => {
-                            if (confirm(t("confirm_delete"))) deleteUser.mutate(u.id);
+                            setPendingDeleteId(u.id);
                           }}
                           disabled={isSelf}
-                          title={isSelf ? t("cannot_delete_yourself") : t("delete")}
+                          title={
+                            isSelf ? t("cannot_delete_yourself") : t("delete")
+                          }
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -142,6 +171,20 @@ export function UsersTab() {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!pendingDeleteId}
+        onOpenChange={(open) => {
+          if (!open) setPendingDeleteId(null);
+        }}
+        title={t("delete")}
+        description={t("confirm_delete")}
+        onConfirm={() => {
+          if (!pendingDeleteId) return;
+          deleteUser.mutate(pendingDeleteId);
+          setPendingDeleteId(null);
+        }}
+      />
     </>
   );
 }

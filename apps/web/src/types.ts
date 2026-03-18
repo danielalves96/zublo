@@ -188,6 +188,29 @@ export interface AIRecommendation {
   savings: string;
 }
 
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface ChatActionTaken {
+  tool: string;
+  result: Record<string, unknown>;
+}
+
+export interface ChatResponse {
+  message: string;
+  actions_taken?: ChatActionTaken[];
+  conversation_id: string;
+}
+
+export interface ChatConversation {
+  id: string;
+  title: string;
+  created: string;
+  updated: string;
+}
+
 export interface AdminSettings {
   id: string;
   open_registrations: boolean;

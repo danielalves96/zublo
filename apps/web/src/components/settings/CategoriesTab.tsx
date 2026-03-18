@@ -6,6 +6,7 @@ import { categoriesService } from "@/services/categories";
 import { queryKeys } from "@/lib/queryKeys";
 import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Plus, Trash2, Edit2, Check, X, Tag } from "lucide-react";
@@ -19,6 +20,7 @@ export function CategoriesTab() {
   const [newCategoryName, setNewCategoryName] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const { data: categories = [], isLoading } = useQuery({
     queryKey: queryKeys.categories.all(user?.id ?? ""),
@@ -29,7 +31,9 @@ export function CategoriesTab() {
   const createMut = useMutation({
     mutationFn: (name: string) => categoriesService.create(user!.id, name),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.categories.all(user?.id ?? "") });
+      qc.invalidateQueries({
+        queryKey: queryKeys.categories.all(user?.id ?? ""),
+      });
       setNewCategoryName("");
       setIsAdding(false);
       toast.success(t("success_create"));
@@ -38,9 +42,12 @@ export function CategoriesTab() {
   });
 
   const updateMut = useMutation({
-    mutationFn: ({ id, name }: { id: string; name: string }) => categoriesService.update(id, name),
+    mutationFn: ({ id, name }: { id: string; name: string }) =>
+      categoriesService.update(id, name),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.categories.all(user?.id ?? "") });
+      qc.invalidateQueries({
+        queryKey: queryKeys.categories.all(user?.id ?? ""),
+      });
       setEditingId(null);
       toast.success(t("success_update"));
     },
@@ -50,7 +57,9 @@ export function CategoriesTab() {
   const deleteMut = useMutation({
     mutationFn: (id: string) => categoriesService.delete(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.categories.all(user?.id ?? "") });
+      qc.invalidateQueries({
+        queryKey: queryKeys.categories.all(user?.id ?? ""),
+      });
       toast.success(t("success_delete"));
     },
     onError: () => toast.error(t("error")),
@@ -77,7 +86,10 @@ export function CategoriesTab() {
           <p className="text-muted-foreground">{t("categories_desc")}</p>
         </div>
         {!isAdding && (
-          <Button onClick={() => setIsAdding(true)} className="rounded-xl shadow-lg shadow-primary/20">
+          <Button
+            onClick={() => setIsAdding(true)}
+            className="rounded-xl shadow-lg shadow-primary/20"
+          >
             <Plus className="w-4 h-4 mr-2" />
             {t("add")}
           </Button>
@@ -97,10 +109,20 @@ export function CategoriesTab() {
               className="border-0 bg-transparent focus-visible:ring-0 text-base"
               onKeyDown={(e) => e.key === "Enter" && handleAdd()}
             />
-            <Button size="icon" variant="ghost" className="shrink-0 text-green-500 hover:text-green-600 hover:bg-green-500/10" onClick={handleAdd}>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="shrink-0 text-green-500 hover:text-green-600 hover:bg-green-500/10"
+              onClick={handleAdd}
+            >
               <Check className="w-5 h-5" />
             </Button>
-            <Button size="icon" variant="ghost" className="shrink-0 text-muted-foreground" onClick={() => setIsAdding(false)}>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="shrink-0 text-muted-foreground"
+              onClick={() => setIsAdding(false)}
+            >
               <X className="w-5 h-5" />
             </Button>
           </div>
@@ -109,7 +131,10 @@ export function CategoriesTab() {
         {isLoading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-16 rounded-2xl bg-muted/50 animate-pulse" />
+              <div
+                key={i}
+                className="h-16 rounded-2xl bg-muted/50 animate-pulse"
+              />
             ))}
           </div>
         ) : categories.length === 0 && !isAdding ? (
@@ -132,10 +157,20 @@ export function CategoriesTab() {
                     className="border-muted bg-background focus-visible:ring-primary h-10 text-base"
                     onKeyDown={(e) => e.key === "Enter" && handleUpdate(cat.id)}
                   />
-                  <Button size="icon" variant="ghost" className="shrink-0 text-green-500 hover:bg-green-500/10" onClick={() => handleUpdate(cat.id)}>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="shrink-0 text-green-500 hover:bg-green-500/10"
+                    onClick={() => handleUpdate(cat.id)}
+                  >
                     <Check className="w-5 h-5" />
                   </Button>
-                  <Button size="icon" variant="ghost" className="shrink-0" onClick={() => setEditingId(null)}>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="shrink-0"
+                    onClick={() => setEditingId(null)}
+                  >
                     <X className="w-5 h-5" />
                   </Button>
                 </div>
@@ -159,7 +194,7 @@ export function CategoriesTab() {
                       variant="ghost"
                       className="text-destructive/70 hover:text-destructive hover:bg-destructive/10"
                       onClick={() => {
-                        if (confirm(t("confirm_delete"))) deleteMut.mutate(cat.id);
+                        setPendingDeleteId(cat.id);
                       }}
                     >
                       <Trash2 className="w-4 h-4" />
@@ -171,6 +206,20 @@ export function CategoriesTab() {
           ))
         )}
       </div>
+
+      <ConfirmDialog
+        open={!!pendingDeleteId}
+        onOpenChange={(open) => {
+          if (!open) setPendingDeleteId(null);
+        }}
+        title={t("delete")}
+        description={t("confirm_delete")}
+        onConfirm={() => {
+          if (!pendingDeleteId) return;
+          deleteMut.mutate(pendingDeleteId);
+          setPendingDeleteId(null);
+        }}
+      />
     </div>
   );
 }

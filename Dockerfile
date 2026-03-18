@@ -42,9 +42,10 @@ RUN set -eux; \
 
 WORKDIR /pb
 
-# Copy backend files (hooks, migrations)
-COPY apps/backend/pb_hooks    ./pb_hooks
+# Copy backend files (hooks, migrations, product knowledge base)
+COPY apps/backend/pb_hooks      ./pb_hooks
 COPY apps/backend/pb_migrations ./pb_migrations
+COPY apps/backend/LLMS.md       ./LLMS.md
 
 # Copy built frontend from stage 1
 COPY --from=frontend-builder /app/backend/pb_public ./pb_public

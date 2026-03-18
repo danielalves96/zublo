@@ -12,16 +12,20 @@ import {
   Menu,
   X,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { usersService } from "@/services/users";
+import { aiService } from "@/services/ai";
+import { queryKeys } from "@/lib/queryKeys";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { LogoIcon, LogoWithName } from "@/components/AppLogo";
 
-const navItems = [
+const baseNavItems = [
   { key: "dashboard", path: "/dashboard" as const, icon: LayoutDashboard },
   { key: "subscriptions", path: "/subscriptions" as const, icon: CreditCard },
   { key: "calendar", path: "/calendar" as const, icon: Calendar },
@@ -29,12 +33,25 @@ const navItems = [
   { key: "settings", path: "/settings" as const, icon: Settings },
 ];
 
+const chatNavItem = { key: "chat", path: "/chat" as const, icon: MessageSquare };
+
 export function Layout() {
   const { t } = useTranslation();
   const { user, isAdmin, logout } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+
+  const { data: aiSettings } = useQuery({
+    queryKey: queryKeys.aiSettings(user?.id ?? ""),
+    queryFn: () => aiService.getSettings(user!.id),
+    enabled: !!user?.id,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const navItems = aiSettings?.enabled
+    ? [...baseNavItems.slice(0, 4), chatNavItem, baseNavItems[4]]
+    : baseNavItems;
 
   return (
     <div className="flex h-screen w-full bg-background text-foreground overflow-hidden">

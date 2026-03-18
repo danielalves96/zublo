@@ -76,10 +76,15 @@ routerAdd("GET", "/api/ai/models", (e) => {
     }
 
     if (res.statusCode === 200) {
-      const parsed = parseModels(res.json);
+      // POCKETBASE FIX: Manual JSON parsing + defensive body access
+      const rawBody = (typeof res.text === "string" && res.text.length > 0) ? res.text
+        : (typeof res.body === "string" && res.body.length > 0) ? res.body
+        : String(res.raw ?? "");
+      const resData = JSON.parse(rawBody);
+      const parsed = parseModels(resData);
       for (const m of parsed) models.push(m);
     } else {
-      return e.json(res.statusCode, { error: "Provider returned status " + res.statusCode });
+      return e.json(res.statusCode, { error: "Provider returned status " + res.statusCode, details: res.text });
     }
   } catch (err) {
     return e.json(500, { error: "Failed to fetch models: " + err });
@@ -125,16 +130,22 @@ routerAdd("POST", "/api/ai/generate", (e) => {
   let subsList = "";
   for (const sub of subs) {
     let currencySymbol = "$";
-    try {
-      const cur = $app.findRecordById("currencies", sub.get("currency"));
-      currencySymbol = cur.get("symbol");
-    } catch (_) {}
+    const curId = sub.get("currency");
+    if (curId) {
+      try {
+        const cur = $app.findRecordById("currencies", curId);
+        currencySymbol = cur.get("symbol") || "$";
+      } catch (_) {}
+    }
 
     let cycleName = "monthly";
-    try {
-      const cycle = $app.findRecordById("cycles", sub.get("cycle"));
-      cycleName = cycle.get("name").toLowerCase();
-    } catch (_) {}
+    const cycleId = sub.get("cycle");
+    if (cycleId) {
+      try {
+        const cycle = $app.findRecordById("cycles", cycleId);
+        cycleName = (cycle.get("name") || "monthly").toLowerCase();
+      } catch (_) {}
+    }
 
     subsList += "- " + sub.get("name") + ": " + currencySymbol + sub.get("price") +
       " (" + cycleName + ", frequency: " + sub.get("frequency") + ")\n";
@@ -200,20 +211,25 @@ routerAdd("POST", "/api/ai/generate", (e) => {
     });
 
     if (res.statusCode !== 200) {
-      return e.json(500, { error: "AI API error: " + res.statusCode });
+      return e.json(500, { error: "AI API error: " + res.statusCode, details: res.text });
     }
 
+    // POCKETBASE FIX: Manual JSON parsing + defensive body access
+    const rawBody = (typeof res.text === "string" && res.text.length > 0) ? res.text
+      : (typeof res.body === "string" && res.body.length > 0) ? res.body
+      : String(res.raw ?? "");
+    const resData = JSON.parse(rawBody);
     let responseText = "";
     if (isGemini) {
       // Gemini format
-      responseText = res.json.candidates[0].content.parts[0].text;
-    } else if (res.json.choices && res.json.choices[0]) {
-      responseText = res.json.choices[0].message.content;
-    } else if (res.json.message && res.json.message.content) {
+      responseText = resData.candidates[0].content.parts[0].text;
+    } else if (resData.choices && resData.choices[0]) {
+      responseText = resData.choices[0].message.content;
+    } else if (resData.message && resData.message.content) {
       // Ollama non-streaming
-      responseText = res.json.message.content;
+      responseText = resData.message.content;
     } else {
-      return e.json(500, { error: "Unexpected AI response format" });
+      return e.json(500, { error: "Unexpected AI response format", details: rawBody });
     }
 
     responseText = responseText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();

@@ -1,6 +1,10 @@
 {
   "name": "zublo",
   "private": true,
+  "author": {
+    "name": "Daniel Luiz Alves",
+    "url": "https://github.com/danielalves96"
+  },
   "scripts": {
     "dev": "concurrently -n web,pb -c blue,green \"npm run dev:web\" \"npm run dev:pb\"",
     "dev:web": "cd apps/web && bun run dev",

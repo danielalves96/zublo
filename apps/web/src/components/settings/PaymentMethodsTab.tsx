@@ -6,62 +6,78 @@ import { paymentMethodsService } from "@/services/paymentMethods";
 import { queryKeys } from "@/lib/queryKeys";
 import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Trash2, Edit2, Check, X, CreditCard, Upload, ImageOff, GripVertical } from "lucide-react";
-import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
+import {
+  Plus,
+  Trash2,
+  Edit2,
+  Check,
+  X,
+  CreditCard,
+  Upload,
+  ImageOff,
+  GripVertical,
+} from "lucide-react";
+import {
+  DragDropContext,
+  Droppable,
+  Draggable,
+  type DropResult,
+} from "@hello-pangea/dnd";
 import type { PaymentMethod } from "@/types";
 
 // Static icon map: method name (lowercase) → filename in /assets/payments/
 const PAYMENT_ICON_MAP: Record<string, string> = {
-  "visa": "Visa.png",
-  "mastercard": "Mastercard.png",
+  visa: "Visa.png",
+  mastercard: "Mastercard.png",
   "american express": "Amex.png",
-  "amex": "Amex.png",
-  "discover": "Discover.png",
+  amex: "Amex.png",
+  discover: "Discover.png",
   "diners club": "DinersClub.png",
-  "jcb": "JCB.png",
-  "unionpay": "unionpay.png",
+  jcb: "JCB.png",
+  unionpay: "unionpay.png",
   "union pay": "unionpay.png",
-  "maestro": "Maestro.png",
-  "paypal": "PayPal.png",
+  maestro: "Maestro.png",
+  paypal: "PayPal.png",
   "apple pay": "ApplePay.png",
   "google pay": "GooglePay.png",
   "samsung pay": "samsungpay.png",
   "amazon pay": "amazonpay.png",
-  "alipay": "alipay.png",
+  alipay: "alipay.png",
   "wechat pay": "wechat.png",
-  "wechat": "wechat.png",
-  "venmo": "venmo.png",
-  "stripe": "Stripe.png",
-  "klarna": "Klarna.png",
-  "affirm": "affirm.png",
-  "skrill": "skrill.png",
-  "paysafecard": "paysafe.png",
-  "paysafe": "paysafe.png",
-  "ideal": "ideal.png",
-  "bancontact": "bancontact.png",
-  "giropay": "gitopay.png",
-  "sofort": "sofort.png",
-  "payoneer": "Payoneer.png",
-  "interac": "Interac.png",
-  "bitcoin": "Bitcoin.png",
+  wechat: "wechat.png",
+  venmo: "venmo.png",
+  stripe: "Stripe.png",
+  klarna: "Klarna.png",
+  affirm: "affirm.png",
+  skrill: "skrill.png",
+  paysafecard: "paysafe.png",
+  paysafe: "paysafe.png",
+  ideal: "ideal.png",
+  bancontact: "bancontact.png",
+  giropay: "gitopay.png",
+  sofort: "sofort.png",
+  payoneer: "Payoneer.png",
+  interac: "Interac.png",
+  bitcoin: "Bitcoin.png",
   "bitcoin cash": "BitcoinCash.png",
-  "ethereum": "Etherium.png",
-  "litecoin": "Lightcoin.png",
-  "yandex": "Yandex.png",
-  "elo": "elo.png",
-  "qiwi": "qiwi.png",
-  "bitpay": "bitpay.png",
+  ethereum: "Etherium.png",
+  litecoin: "Lightcoin.png",
+  yandex: "Yandex.png",
+  elo: "elo.png",
+  qiwi: "qiwi.png",
+  bitpay: "bitpay.png",
   "direct debit": "directdebit.png",
-  "directdebit": "directdebit.png",
-  "poli": "poli.png",
-  "webmoney": "webmoney.png",
-  "verifone": "verifone.png",
+  directdebit: "directdebit.png",
+  poli: "poli.png",
+  webmoney: "webmoney.png",
+  verifone: "verifone.png",
   "shop pay": "shoppay.png",
-  "shoppay": "shoppay.png",
+  shoppay: "shoppay.png",
   "facebook pay": "facebookpay.png",
-  "citadele": "citadele.png",
+  citadele: "citadele.png",
 };
 
 function getMethodIconSrc(method: PaymentMethod): string | null {
@@ -74,7 +90,13 @@ function getMethodIconSrc(method: PaymentMethod): string | null {
   return null;
 }
 
-function MethodIcon({ method, size = 40 }: { method: PaymentMethod; size?: number }) {
+function MethodIcon({
+  method,
+  size = 40,
+}: {
+  method: PaymentMethod;
+  size?: number;
+}) {
   const [imgError, setImgError] = useState(false);
   const src = getMethodIconSrc(method);
 
@@ -190,6 +212,7 @@ export function PaymentMethodsTab() {
   const [editIconFile, setEditIconFile] = useState<File | null>(null);
   const [editIconPreview, setEditIconPreview] = useState<string | null>(null);
   const [editClearIcon, setEditClearIcon] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const { data: methods = [], isLoading } = useQuery({
     queryKey: queryKeys.paymentMethods.all(user?.id ?? ""),
@@ -224,7 +247,9 @@ export function PaymentMethodsTab() {
       return paymentMethodsService.create(fd);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.paymentMethods.all(user?.id ?? "") });
+      qc.invalidateQueries({
+        queryKey: queryKeys.paymentMethods.all(user?.id ?? ""),
+      });
       resetAddForm();
       toast.success(t("success_create"));
     },
@@ -232,7 +257,16 @@ export function PaymentMethodsTab() {
   });
 
   const updateMut = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<PaymentMethod> & { _file?: File | null; _clearIcon?: boolean } }) => {
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: Partial<PaymentMethod> & {
+        _file?: File | null;
+        _clearIcon?: boolean;
+      };
+    }) => {
       const { _file, _clearIcon, ...rest } = data;
       if (_file || _clearIcon) {
         const fd = new FormData();
@@ -246,7 +280,9 @@ export function PaymentMethodsTab() {
       return paymentMethodsService.update(id, rest);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.paymentMethods.all(user?.id ?? "") });
+      qc.invalidateQueries({
+        queryKey: queryKeys.paymentMethods.all(user?.id ?? ""),
+      });
       resetEditState();
       toast.success(t("success_update"));
     },
@@ -256,7 +292,9 @@ export function PaymentMethodsTab() {
   const deleteMut = useMutation({
     mutationFn: (id: string) => paymentMethodsService.delete(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.paymentMethods.all(user?.id ?? "") });
+      qc.invalidateQueries({
+        queryKey: queryKeys.paymentMethods.all(user?.id ?? ""),
+      });
       toast.success(t("success_delete"));
     },
     onError: () => toast.error(t("error")),
@@ -280,20 +318,26 @@ export function PaymentMethodsTab() {
   };
 
   const handleDragEnd = (result: DropResult) => {
-    if (!result.destination || result.destination.index === result.source.index) return;
+    if (!result.destination || result.destination.index === result.source.index)
+      return;
 
     const reordered = Array.from(methods);
     const [moved] = reordered.splice(result.source.index, 1);
     reordered.splice(result.destination.index, 0, moved);
 
     // Optimistic update
-    qc.setQueryData<PaymentMethod[]>(queryKeys.paymentMethods.all(user?.id ?? ""), reordered);
+    qc.setQueryData<PaymentMethod[]>(
+      queryKeys.paymentMethods.all(user?.id ?? ""),
+      reordered,
+    );
 
     // Persist only items whose order changed
     reordered.forEach((m, i) => {
       if (m.order !== i) {
         paymentMethodsService.update(m.id, { order: i }).catch(() => {
-          qc.invalidateQueries({ queryKey: queryKeys.paymentMethods.all(user?.id ?? "") });
+          qc.invalidateQueries({
+            queryKey: queryKeys.paymentMethods.all(user?.id ?? ""),
+          });
         });
       }
     });
@@ -318,7 +362,10 @@ export function PaymentMethodsTab() {
           <p className="text-muted-foreground">{t("payment_methods_desc")}</p>
         </div>
         {!isAdding && (
-          <Button onClick={() => setIsAdding(true)} className="rounded-xl shadow-lg shadow-primary/20">
+          <Button
+            onClick={() => setIsAdding(true)}
+            className="rounded-xl shadow-lg shadow-primary/20"
+          >
             <Plus className="w-4 h-4 mr-2" />
             {t("add")}
           </Button>
@@ -339,10 +386,20 @@ export function PaymentMethodsTab() {
                 className="border-0 bg-transparent focus-visible:ring-0 text-base"
                 onKeyDown={(e) => e.key === "Enter" && handleAdd()}
               />
-              <Button size="icon" variant="ghost" className="shrink-0 text-green-500 hover:text-green-600 hover:bg-green-500/10" onClick={handleAdd}>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="shrink-0 text-green-500 hover:text-green-600 hover:bg-green-500/10"
+                onClick={handleAdd}
+              >
                 <Check className="w-5 h-5" />
               </Button>
-              <Button size="icon" variant="ghost" className="shrink-0 text-muted-foreground" onClick={resetAddForm}>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="shrink-0 text-muted-foreground"
+                onClick={resetAddForm}
+              >
                 <X className="w-5 h-5" />
               </Button>
             </div>
@@ -366,7 +423,10 @@ export function PaymentMethodsTab() {
         {isLoading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-16 rounded-2xl bg-muted/50 animate-pulse" />
+              <div
+                key={i}
+                className="h-16 rounded-2xl bg-muted/50 animate-pulse"
+              />
             ))}
           </div>
         ) : methods.length === 0 && !isAdding ? (
@@ -378,7 +438,11 @@ export function PaymentMethodsTab() {
           <DragDropContext onDragEnd={handleDragEnd}>
             <Droppable droppableId="payment-methods">
               {(provided) => (
-                <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-3">
+                <div
+                  ref={provided.innerRef}
+                  {...provided.droppableProps}
+                  className="space-y-3"
+                >
                   {methods.map((method, idx) => (
                     <Draggable
                       key={method.id}
@@ -402,14 +466,29 @@ export function PaymentMethodsTab() {
                                 <Input
                                   autoFocus
                                   value={editingName}
-                                  onChange={(e) => setEditingName(e.target.value)}
+                                  onChange={(e) =>
+                                    setEditingName(e.target.value)
+                                  }
                                   className="border-muted bg-background focus-visible:ring-primary h-10 text-base"
-                                  onKeyDown={(e) => e.key === "Enter" && handleUpdateName(method.id)}
+                                  onKeyDown={(e) =>
+                                    e.key === "Enter" &&
+                                    handleUpdateName(method.id)
+                                  }
                                 />
-                                <Button size="icon" variant="ghost" className="shrink-0 text-green-500 hover:text-green-600" onClick={() => handleUpdateName(method.id)}>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="shrink-0 text-green-500 hover:text-green-600"
+                                  onClick={() => handleUpdateName(method.id)}
+                                >
                                   <Check className="w-5 h-5" />
                                 </Button>
-                                <Button size="icon" variant="ghost" className="shrink-0" onClick={resetEditState}>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="shrink-0"
+                                  onClick={resetEditState}
+                                >
                                   <X className="w-5 h-5" />
                                 </Button>
                               </div>
@@ -417,17 +496,23 @@ export function PaymentMethodsTab() {
                                 currentSrc={
                                   editClearIcon
                                     ? null
-                                    : editIconPreview ?? paymentMethodsService.iconUrl(method)
+                                    : (editIconPreview ??
+                                      paymentMethodsService.iconUrl(method))
                                 }
-                                hasUploadedIcon={!editClearIcon && (!!editIconFile || !!method.icon)}
+                                hasUploadedIcon={
+                                  !editClearIcon &&
+                                  (!!editIconFile || !!method.icon)
+                                }
                                 onFileChange={(file, url) => {
-                                  if (editIconPreview) URL.revokeObjectURL(editIconPreview);
+                                  if (editIconPreview)
+                                    URL.revokeObjectURL(editIconPreview);
                                   setEditIconFile(file);
                                   setEditIconPreview(url);
                                   setEditClearIcon(false);
                                 }}
                                 onClear={() => {
-                                  if (editIconPreview) URL.revokeObjectURL(editIconPreview);
+                                  if (editIconPreview)
+                                    URL.revokeObjectURL(editIconPreview);
                                   setEditIconFile(null);
                                   setEditIconPreview(null);
                                   setEditClearIcon(true);
@@ -444,7 +529,9 @@ export function PaymentMethodsTab() {
                                   <GripVertical className="w-4 h-4" />
                                 </div>
                                 <MethodIcon method={method} size={40} />
-                                <span className="font-medium text-lg">{method.name}</span>
+                                <span className="font-medium text-lg">
+                                  {method.name}
+                                </span>
                               </div>
                               <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
                                 <Button
@@ -460,7 +547,7 @@ export function PaymentMethodsTab() {
                                   variant="ghost"
                                   className="text-destructive/70 hover:text-destructive hover:bg-destructive/10"
                                   onClick={() => {
-                                    if (confirm(t("confirm_delete"))) deleteMut.mutate(method.id);
+                                    setPendingDeleteId(method.id);
                                   }}
                                 >
                                   <Trash2 className="w-4 h-4" />
@@ -470,6 +557,19 @@ export function PaymentMethodsTab() {
                           )}
                         </div>
                       )}
+                      <ConfirmDialog
+                        open={!!pendingDeleteId}
+                        onOpenChange={(open) => {
+                          if (!open) setPendingDeleteId(null);
+                        }}
+                        title={t("delete")}
+                        description={t("confirm_delete")}
+                        onConfirm={() => {
+                          if (!pendingDeleteId) return;
+                          deleteMut.mutate(pendingDeleteId);
+                          setPendingDeleteId(null);
+                        }}
+                      />
                     </Draggable>
                   ))}
                   {provided.placeholder}
