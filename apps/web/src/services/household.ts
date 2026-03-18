@@ -4,7 +4,7 @@ import type { Household } from "@/types";
 export const householdService = {
   list: (userId: string) =>
     pb.collection("household").getFullList<Household>({
-      filter: `user = "${userId}"`,
+      filter: pb.filter("user = {:userId}", { userId }),
       sort: "name",
     }),
 

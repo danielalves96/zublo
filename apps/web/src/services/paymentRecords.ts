@@ -4,12 +4,12 @@ import type { PaymentRecord } from "@/types";
 export const paymentRecordsService = {
   listForUser: (userId: string) =>
     pb.collection("payment_records").getFullList<PaymentRecord>({
-      filter: `user = "${userId}"`,
+      filter: pb.filter("user = {:userId}", { userId }),
     }),
 
   listForSubscription: (subscriptionId: string, userId: string) =>
     pb.collection("payment_records").getFullList<PaymentRecord>({
-      filter: `subscription_id = "${subscriptionId}" && user = "${userId}"`,
+      filter: pb.filter("subscription_id = {:subscriptionId} && user = {:userId}", { subscriptionId, userId }),
     }),
 
   create: (data: FormData | Partial<PaymentRecord>) =>

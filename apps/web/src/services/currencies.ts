@@ -4,13 +4,13 @@ import type { Currency } from "@/types";
 export const currenciesService = {
   list: (userId: string) =>
     pb.collection("currencies").getFullList<Currency>({
-      filter: `user = "${userId}"`,
+      filter: pb.filter("user = {:userId}", { userId }),
       sort: "-is_main,name",
     }),
 
   listMain: (userId: string) =>
     pb.collection("currencies").getFullList<Currency>({
-      filter: `user = "${userId}" && is_main = true`,
+      filter: pb.filter("user = {:userId} && is_main = true", { userId }),
     }),
 
   create: (userId: string, data: Partial<Currency>) =>

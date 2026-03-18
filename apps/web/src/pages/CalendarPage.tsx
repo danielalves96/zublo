@@ -47,6 +47,15 @@ import {
   getPaymentRecord,
 } from "@/components/calendar/types";
 
+// ─── i18n key arrays (stable module-level constants, translated via t() at render) ─
+
+const MONTH_KEYS = [
+  "january", "february", "march", "april", "may", "june",
+  "july", "august", "september", "october", "november", "december",
+] as const;
+
+const DOW_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
+
 // ─── CalendarPage ─────────────────────────────────────────────────────────────
 
 export function CalendarPage() {
@@ -120,7 +129,16 @@ export function CalendarPage() {
     enabled: !!userId && paymentTracking,
   });
 
-  const mainCurrency = currencies.find((c) => c.is_main) ?? currencies[0];
+  const mainCurrency = useMemo(
+    () => currencies.find((c) => c.is_main) ?? currencies[0],
+    [currencies],
+  );
+
+  // O(1) currency lookup map — avoids repeated .find() in stats and selectedDayTotal loops
+  const currencyById = useMemo(
+    () => new Map(currencies.map((c) => [c.id, c])),
+    [currencies],
+  );
 
   // ── calendar math ───────────────────────────────────────────────────────
 
@@ -143,8 +161,7 @@ export function CalendarPage() {
       due = 0;
     for (const entries of Object.values(entriesByDay)) {
       for (const { sub, date } of entries) {
-        const cur =
-          sub.expand?.currency ?? currencies.find((c) => c.id === sub.currency);
+        const cur = sub.expand?.currency ?? currencyById.get(sub.currency);
         const v = toMain(sub.price, cur);
         count++;
         total += v;
@@ -152,39 +169,36 @@ export function CalendarPage() {
       }
     }
     return { count, total, due };
-  }, [entriesByDay, currencies]);
+  }, [entriesByDay, currencyById]);
 
   const budget = user?.budget ?? 0;
   const overBudget = budget > 0 && stats.total > budget;
 
   // ── grid ────────────────────────────────────────────────────────────────
 
-  const firstDow = new Date(year, month - 1, 1).getDay();
-  const offsetSun = firstDow;
-  const daysInMonth = new Date(year, month, 0).getDate();
+  const daysInMonth = useMemo(() => new Date(year, month, 0).getDate(), [year, month]);
 
-  const prevMonthDays = new Date(year, month - 1, 0).getDate();
-  const prevCells: { day: number; type: "prev" }[] = Array.from(
-    { length: offsetSun },
-    (_, i) => ({ day: prevMonthDays - offsetSun + 1 + i, type: "prev" }),
-  );
+  const allCells = useMemo(() => {
+    const firstDow = new Date(year, month - 1, 1).getDay();
+    const days = new Date(year, month, 0).getDate();
+    const prevMonthDays = new Date(year, month - 1, 0).getDate();
 
-  const currentCells: { day: number; type: "current" }[] = Array.from(
-    { length: daysInMonth },
-    (_, i) => ({ day: i + 1, type: "current" }),
-  );
-
-  const totalCells = prevCells.length + currentCells.length;
-  const remaining = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
-  const nextCells: { day: number; type: "next" }[] = Array.from(
-    { length: remaining },
-    (_, i) => ({ day: i + 1, type: "next" }),
-  );
-
-  const allCells = [...prevCells, ...currentCells, ...nextCells] as {
-    day: number;
-    type: "prev" | "current" | "next";
-  }[];
+    const prevCells = Array.from(
+      { length: firstDow },
+      (_, i) => ({ day: prevMonthDays - firstDow + 1 + i, type: "prev" as const }),
+    );
+    const currentCells = Array.from(
+      { length: days },
+      (_, i) => ({ day: i + 1, type: "current" as const }),
+    );
+    const totalCells = prevCells.length + currentCells.length;
+    const remaining = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+    const nextCells = Array.from(
+      { length: remaining },
+      (_, i) => ({ day: i + 1, type: "next" as const }),
+    );
+    return [...prevCells, ...currentCells, ...nextCells];
+  }, [year, month]);
 
   // ── nav ─────────────────────────────────────────────────────────────────
 
@@ -213,14 +227,7 @@ export function CalendarPage() {
   const isCurrentMonth =
     month === now.getMonth() + 1 && year === now.getFullYear();
 
-  const monthNames = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December",
-  ];
-
-  const monthLabel = `${t(monthNames[month - 1].toLowerCase()) || monthNames[month - 1]} ${year}`;
-
-  const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const monthLabel = `${t(MONTH_KEYS[month - 1])} ${year}`;
 
   // ── selected day ─────────────────────────────────────────────────────────
 
@@ -232,11 +239,10 @@ export function CalendarPage() {
   const selectedDayTotal = useMemo(
     () =>
       selectedEntries.reduce((sum, { sub }) => {
-        const cur =
-          sub.expand?.currency ?? currencies.find((c) => c.id === sub.currency);
+        const cur = sub.expand?.currency ?? currencyById.get(sub.currency);
         return sum + toMain(sub.price, cur);
       }, 0),
-    [selectedEntries, currencies],
+    [selectedEntries, currencyById],
   );
 
   // ── ical ─────────────────────────────────────────────────────────────────
@@ -319,9 +325,7 @@ export function CalendarPage() {
           <div className="flex items-center gap-3">
             <div className="flex flex-col items-center rounded-lg bg-primary/10 px-2.5 py-1 min-w-[52px]">
               <span className="text-[10px] font-bold uppercase text-primary leading-tight">
-                {(
-                  t(monthNames[month - 1].toLowerCase())
-                ).slice(0, 3)}
+                {t(MONTH_KEYS[month - 1]).slice(0, 3)}
               </span>
               <span className="text-lg font-bold text-primary leading-tight">
                 {year}
@@ -337,10 +341,7 @@ export function CalendarPage() {
                   <ChevronLeft className="h-3.5 w-3.5" />
                 </button>
                 <span>
-                  {(
-                    t(monthNames[month - 1].toLowerCase()) ||
-                    monthNames[month - 1]
-                  ).slice(0, 3)}{" "}
+                  {t(MONTH_KEYS[month - 1]).slice(0, 3)}{" "}
                   1 – {daysInMonth}, {year}
                 </span>
                 <button
@@ -379,7 +380,7 @@ export function CalendarPage() {
         <CardContent className="p-0">
           {/* Day-of-week header */}
           <div className="grid grid-cols-7 border-b bg-muted/30">
-            {DOW.map((d, i) => (
+            {DOW_KEYS.map((d, i) => (
               <div
                 key={d}
                 className={cn(
@@ -389,7 +390,7 @@ export function CalendarPage() {
                     : "text-muted-foreground",
                 )}
               >
-                {t(d.toLowerCase())}
+                {t(d)}
               </div>
             ))}
           </div>

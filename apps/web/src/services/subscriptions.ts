@@ -8,21 +8,21 @@ export const subscriptionsService = {
   /** All subscriptions for a user (active + inactive), with full relations. */
   list: (userId: string) =>
     pb.collection("subscriptions").getFullList<Subscription>({
-      filter: `user = "${userId}"`,
+      filter: pb.filter("user = {:userId}", { userId }),
       expand: FULL_EXPAND,
     }),
 
   /** Only active subscriptions — used by dashboard summary. */
   listActive: (userId: string) =>
     pb.collection("subscriptions").getFullList<Subscription>({
-      filter: `user = "${userId}" && inactive = false`,
+      filter: pb.filter("user = {:userId} && inactive = false", { userId }),
       expand: "currency,cycle",
     }),
 
   /** Only active subscriptions with full expand — used by statistics. */
   listActiveExpanded: (userId: string) =>
     pb.collection("subscriptions").getFullList<Subscription>({
-      filter: `user = "${userId}" && inactive = false`,
+      filter: pb.filter("user = {:userId} && inactive = false", { userId }),
       expand: FULL_EXPAND,
     }),
 

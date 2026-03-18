@@ -5,7 +5,7 @@ import type { YearlyCost } from "@/types";
 export const yearlyCostsService = {
   list: (userId: string) =>
     pb.collection("yearly_costs").getFullList<YearlyCost>({
-      filter: `user = "${userId}"`,
+      filter: pb.filter("user = {:userId}", { userId }),
       sort: "year,month",
     }),
 

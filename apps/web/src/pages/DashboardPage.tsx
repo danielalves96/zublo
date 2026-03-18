@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
@@ -77,15 +77,20 @@ export function DashboardPage() {
   const s = summary.data;
   const fmt = (v: number) => formatPrice(v, s?.mainSymbol ?? "$");
 
-  const chartData =
-    yearlyCosts.data?.slice(-12).map((yc) => ({
-      name: `${yc.year}/${String(yc.month).padStart(2, "0")}`,
-      cost: Number(yc.total.toFixed(2)),
-    })) ?? [];
+  const chartData = useMemo(
+    () =>
+      yearlyCosts.data?.slice(-12).map((yc) => ({
+        name: `${yc.year}/${String(yc.month).padStart(2, "0")}`,
+        cost: Number(yc.total.toFixed(2)),
+      })) ?? [],
+    [yearlyCosts.data],
+  );
 
-  const budget = user?.budget ?? 0;
-  const budgetUsed = budget > 0 && s ? Math.min(100, (s.totalMonthly / budget) * 100) : 0;
-  const isOverBudget = budgetUsed >= 100;
+  const { budget, budgetUsed, isOverBudget } = useMemo(() => {
+    const budget = user?.budget ?? 0;
+    const budgetUsed = budget > 0 && s ? Math.min(100, (s.totalMonthly / budget) * 100) : 0;
+    return { budget, budgetUsed, isOverBudget: budgetUsed >= 100 };
+  }, [user?.budget, s]);
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">

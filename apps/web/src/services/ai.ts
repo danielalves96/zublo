@@ -6,7 +6,7 @@ export const aiService = {
   getSettings: async (userId: string): Promise<AISettings | null> => {
     try {
       const result = await pb.collection("ai_settings").getList<AISettings>(1, 1, {
-        filter: `user = "${userId}"`,
+        filter: pb.filter("user = {:userId}", { userId }),
       });
       return result.items[0] ?? null;
     } catch {
@@ -22,7 +22,7 @@ export const aiService = {
 
   listRecommendations: (userId: string) =>
     pb.collection("ai_recommendations").getFullList<AIRecommendation>({
-      filter: `user = "${userId}"`,
+      filter: pb.filter("user = {:userId}", { userId }),
     }),
 
   deleteRecommendation: (id: string) =>

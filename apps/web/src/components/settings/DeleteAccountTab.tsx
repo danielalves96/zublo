@@ -5,6 +5,7 @@ import { usersService } from "@/services/users";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { MessageDialog } from "@/components/ui/message-dialog";
 import { Trash2, AlertTriangle } from "lucide-react";
 
 export function DeleteAccountTab() {
@@ -12,6 +13,7 @@ export function DeleteAccountTab() {
   const { user, logout } = useAuth();
   const [confirmText, setConfirmText] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
+  const [dialog, setDialog] = useState<{ type: "success" | "error"; title: string; description: string } | null>(null);
 
   const handleDelete = async () => {
     if (confirmText !== user?.email) return;
@@ -19,11 +21,10 @@ export function DeleteAccountTab() {
     try {
       if (user?.id) {
         await usersService.delete(user.id);
-        alert(t("success_delete_account"));
-        logout();
+        setDialog({ type: "success", title: t("delete_account"), description: t("success_delete_account") });
       }
     } catch {
-      alert(t("error_deleting_account"));
+      setDialog({ type: "error", title: t("delete_account"), description: t("error_deleting_account") });
     } finally {
       setIsDeleting(false);
     }
@@ -31,6 +32,16 @@ export function DeleteAccountTab() {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <MessageDialog
+        open={!!dialog}
+        onClose={() => {
+          if (dialog?.type === "success") logout();
+          setDialog(null);
+        }}
+        type={dialog?.type ?? "success"}
+        title={dialog?.title ?? ""}
+        description={dialog?.description ?? ""}
+      />
       <div>
         <h2 className="text-3xl font-bold tracking-tight mb-2 text-destructive flex items-center gap-3">
           <Trash2 className="w-8 h-8" />

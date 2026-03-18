@@ -17,6 +17,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Key,
   Plus,
@@ -504,6 +505,7 @@ export function ApiKeyTab() {
 
   const [showCreate, setShowCreate] = useState(false);
   const [justCreated, setJustCreated] = useState<ApiKeyCreated | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const { data: keys = [], isLoading } = useQuery({
     queryKey: queryKeys.apiKeys(user!.id),
@@ -536,10 +538,8 @@ export function ApiKeyTab() {
   });
 
   const handleDelete = (id: string) => {
-    const key = keys.find((k) => k.id === id);
-    if (!key) return;
-    if (!confirm(t("api_key_confirm_delete", { name: key.name }))) return;
-    deleteMut.mutate(id);
+    if (!keys.find((k) => k.id === id)) return;
+    setPendingDeleteId(id);
   };
 
   return (
@@ -624,6 +624,19 @@ export function ApiKeyTab() {
       <RevealDialog
         created={justCreated}
         onClose={() => setJustCreated(null)}
+      />
+      <ConfirmDialog
+        open={!!pendingDeleteId}
+        onOpenChange={(v) => !v && setPendingDeleteId(null)}
+        title={t("api_key_delete")}
+        description={t("api_key_confirm_delete", {
+          name: keys.find((k) => k.id === pendingDeleteId)?.name ?? "",
+        })}
+        confirmLabel={t("api_key_delete")}
+        onConfirm={() => {
+          if (pendingDeleteId) deleteMut.mutate(pendingDeleteId);
+          setPendingDeleteId(null);
+        }}
       />
     </div>
   );

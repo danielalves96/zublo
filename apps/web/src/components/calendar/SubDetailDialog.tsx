@@ -6,7 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { formatPrice, formatDate, daysUntil } from "@/lib/utils";
+import { formatPrice, formatDate, daysUntil, sanitizeHref } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import {
   CalendarDays,
@@ -262,21 +262,30 @@ export function SubDetailDialog({
                   </InfoRow>
                 )}
 
-                {sub.url && (
-                  <InfoRow
-                    icon={<ExternalLink className="h-4 w-4" />}
-                    label={t("url")}
-                  >
-                    <a
-                      href={sub.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary underline-offset-2 hover:underline"
+                {sub.url && (() => {
+                  const safeUrl = sanitizeHref(sub.url);
+                  return (
+                    <InfoRow
+                      icon={<ExternalLink className="h-4 w-4" />}
+                      label={t("url")}
                     >
-                      {sub.url.replace(/^https?:\/\//, "").split("/")[0]}
-                    </a>
-                  </InfoRow>
-                )}
+                      {safeUrl ? (
+                        <a
+                          href={safeUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary underline-offset-2 hover:underline"
+                        >
+                          {safeUrl.replace(/^https?:\/\//, "").split("/")[0]}
+                        </a>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">
+                          {sub.url.split("/")[0]}
+                        </span>
+                      )}
+                    </InfoRow>
+                  );
+                })()}
 
                 <InfoRow
                   icon={<Banknote className="h-4 w-4" />}

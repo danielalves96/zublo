@@ -6,7 +6,7 @@ FROM oven/bun:1-alpine AS frontend-builder
 WORKDIR /app/web
 
 COPY apps/web/package.json apps/web/bun.lock ./
-RUN bun install --frozen-lockfile
+RUN bun install
 
 COPY apps/web/ .
 

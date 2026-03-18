@@ -4,7 +4,7 @@ import type { Category } from "@/types";
 export const categoriesService = {
   list: (userId: string) =>
     pb.collection("categories").getFullList<Category>({
-      filter: `user = "${userId}"`,
+      filter: pb.filter("user = {:userId}", { userId }),
       sort: "name",
     }),
 

@@ -6,6 +6,7 @@ REPO     := ghcr.io/danielalves96/$(IMAGE)
 .PHONY: build
 build:
 	docker buildx build \
+		--no-cache \
 		--platform linux/amd64,linux/arm64 \
 		-t $(IMAGE):$(VERSION) \
 		-t $(IMAGE):latest \
@@ -17,6 +18,7 @@ build:
 .PHONY: push
 push:
 	docker buildx build \
+		--no-cache \
 		--platform linux/amd64,linux/arm64 \
 		-t $(REPO):$(VERSION) \
 		-t $(REPO):latest \
@@ -26,11 +28,11 @@ push:
 # ── Builds individuais (carregam no daemon local) ────────────────────────────
 .PHONY: build-amd64
 build-amd64:
-	docker buildx build --platform linux/amd64 -t $(IMAGE):amd64 --load .
+	docker buildx build --no-cache --platform linux/amd64 -t $(IMAGE):amd64 --load .
 
 .PHONY: build-arm64
 build-arm64:
-	docker buildx build --platform linux/arm64 -t $(IMAGE):arm64 --load .
+	docker buildx build --no-cache --platform linux/arm64 -t $(IMAGE):arm64 --load .
 
 # ── Dev local (sobe com docker compose) ──────────────────────────────────────
 .PHONY: up

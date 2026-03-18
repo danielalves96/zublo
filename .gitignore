@@ -23,3 +23,8 @@ Wallos-main/
 
 #Docker
 DOCKER.md
+
+# Frontend build artifacts
+apps/backend/pb_public/assets/*.js
+apps/backend/pb_public/assets/*.css
+apps/backend/pb_public/index.html

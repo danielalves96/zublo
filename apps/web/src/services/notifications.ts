@@ -7,7 +7,7 @@ export const notificationsService = {
     try {
       const result = await pb
         .collection("notifications_config")
-        .getList<NotificationsConfig>(1, 1, { filter: `user = "${userId}"` });
+        .getList<NotificationsConfig>(1, 1, { filter: pb.filter("user = {:userId}", { userId }) });
       return result.items[0] ?? null;
     } catch {
       return null;

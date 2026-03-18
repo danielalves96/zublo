@@ -4,6 +4,8 @@ import {
   useState,
   useEffect,
   useCallback,
+  useMemo,
+  useRef,
   type ReactNode,
 } from "react";
 import { authService } from "@/services/auth";
@@ -26,6 +28,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
+  // Cache the admin-id so login() doesn't duplicate the request made by refreshUser()
+  const adminIdRef = useRef<string | null | undefined>(undefined);
+
   const refreshUser = useCallback(async () => {
     if (!authService.isValid()) {
       setUser(null);
@@ -43,6 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // so getList+sort would always return the current user as "first".
         const res = await fetch("/api/auth/admin-id");
         const json = res.ok ? await res.json() : { adminId: null };
+        adminIdRef.current = json.adminId;
         setIsAdmin(record.id === json.adminId);
       }
     } catch {
@@ -57,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshUser();
   }, [refreshUser]);
 
-  const login = async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string) => {
     const authData = await authService.loginWithPassword(email, password);
 
     // If the user has 2FA enabled, check for a "remember this device" entry.
@@ -74,22 +80,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setUser(authData.record as unknown as User);
 
-    // Check admin status
-    const res = await fetch("/api/auth/admin-id");
-    const json = res.ok ? await res.json() : { adminId: null };
-    setIsAdmin(authData.record.id === json.adminId);
-  };
+    // Re-use the admin-id already fetched by refreshUser() when possible
+    let adminId = adminIdRef.current;
+    if (adminId === undefined) {
+      const res = await fetch("/api/auth/admin-id");
+      const json = res.ok ? await res.json() : { adminId: null };
+      adminId = json.adminId;
+      adminIdRef.current = adminId;
+    }
+    setIsAdmin(authData.record.id === adminId);
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     authService.clear();
+    adminIdRef.current = undefined;
     setUser(null);
     setIsAdmin(false);
-  };
+  }, []);
+
+  const contextValue = useMemo(
+    () => ({ user, isLoading, isAdmin, login, logout, refreshUser }),
+    [user, isLoading, isAdmin, login, logout, refreshUser],
+  );
 
   return (
-    <AuthContext.Provider
-      value={{ user, isLoading, isAdmin, login, logout, refreshUser }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

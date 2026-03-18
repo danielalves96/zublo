@@ -4,14 +4,14 @@ import type { PaymentMethod } from "@/types";
 export const paymentMethodsService = {
   list: (userId: string) =>
     pb.collection("payment_methods").getFullList<PaymentMethod>({
-      filter: `user = "${userId}"`,
+      filter: pb.filter("user = {:userId}", { userId }),
       sort: "order,name",
     }),
 
   /** Returns a sorted list for use in forms (sort by order). */
   listForForm: (userId: string) =>
     pb.collection("payment_methods").getFullList<PaymentMethod>({
-      filter: `user = "${userId}"`,
+      filter: pb.filter("user = {:userId}", { userId }),
       sort: "order",
     }),
 

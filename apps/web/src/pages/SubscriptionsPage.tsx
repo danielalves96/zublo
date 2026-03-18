@@ -10,16 +10,7 @@ import { paymentMethodsService } from "@/services/paymentMethods";
 import { householdService } from "@/services/household";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast } from "@/lib/toast";
 import {
   DropdownMenu,
@@ -383,25 +374,13 @@ export function SubscriptionsPage() {
       )}
 
       {/* Delete confirmation */}
-      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
-        <AlertDialogContent className="rounded-3xl border-border/50 shadow-2xl">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-xl font-bold">{t("delete_subscription")}</AlertDialogTitle>
-            <AlertDialogDescription className="text-base">
-              {t("confirm_delete_subscription")}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="mt-4">
-            <AlertDialogCancel className="rounded-xl">{t("cancel")}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => deleteId && deleteMutation.mutate(deleteId)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl"
-            >
-              {t("delete")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!deleteId}
+        onOpenChange={(v) => !v && setDeleteId(null)}
+        title={t("delete_subscription")}
+        description={t("confirm_delete_subscription")}
+        onConfirm={() => deleteId && deleteMutation.mutate(deleteId)}
+      />
     </div>
   );
 }

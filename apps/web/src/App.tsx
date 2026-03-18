@@ -6,7 +6,11 @@ import { createAppRouter } from "@/routes";
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { retry: 1, staleTime: 30_000 },
+    queries: {
+      retry: 1,
+      staleTime: 5 * 60_000,       // 5 minutes — data is stable; no need to refetch every 30s
+      refetchOnWindowFocus: false,  // avoid unnecessary background fetches when switching tabs
+    },
   },
 });
 

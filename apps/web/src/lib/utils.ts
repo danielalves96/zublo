@@ -106,6 +106,23 @@ function parseLocalDate(dateStr: string): Date {
 }
 
 /**
+ * Returns a URL only if it uses http or https protocol.
+ * Returns null for javascript:, data:, vbscript:, or any other unsafe protocol.
+ */
+export function sanitizeHref(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      return url;
+    }
+  } catch {
+    // Not a valid absolute URL — could be relative or malformed; reject
+  }
+  return null;
+}
+
+/**
  * Days until a date.
  */
 export function daysUntil(dateStr: string): number {
