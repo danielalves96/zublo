@@ -25,6 +25,7 @@ function InnerApp() {
     router.update({
       context: { queryClient, auth },
     });
+    router.invalidate();
   }, [router, auth]);
 
   return <RouterProvider router={router} />;

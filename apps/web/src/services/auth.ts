@@ -10,6 +10,10 @@ export const authService = {
 
   clear: () => pb.authStore.clear(),
 
+  onChange: (callback: (token: string, model: any) => void, fireImmediately?: boolean) => {
+    return pb.authStore.onChange(callback, fireImmediately);
+  },
+
   loginWithPassword: (email: string, password: string) =>
     pb.collection("users").authWithPassword<User>(email, password),
 

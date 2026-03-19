@@ -1396,27 +1396,37 @@ routerAdd("POST", "/api/ai/chat", function (e) {
         "API keys let external apps access your Zublo data without sharing your password.\n" +
         "Key format: `wk_...` — shown only once at creation. Maximum 20 keys per user.\n\n" +
         "**Available permissions:**\n" +
-        "- `subscriptions:read` — list/view subscriptions\n" +
-        "- `subscriptions:write` — create/edit subscriptions\n" +
-        "- `statistics:read` — access statistics\n" +
-        "- `calendar:read` — export iCal feed\n\n" +
+        "- `subscriptions:read`, `subscriptions:write`\n" +
+        "- `categories:read`, `categories:write`\n" +
+        "- `payment_methods:read`, `payment_methods:write`\n" +
+        "- `household:read`, `household:write`\n" +
+        "- `currencies:read`, `currencies:write`\n" +
+        "- `statistics:read`\n" +
+        "- `calendar:read` (export iCal feed)\n\n" +
         "**Create a key:**\n" +
         "1. Settings → API Keys tab.\n" +
-        "2. Click **+ Create key**.\n" +
+        "2. Click **+ New API Key**.\n" +
         "3. Give it a name and select permissions.\n" +
-        "4. Click **Create** — copy the key immediately, it won't be shown again.\n\n" +
+        "4. Click **Create API Key** — copy the key immediately, it won't be shown again.\n\n" +
+        "**Edit a key:**\n" +
+        "1. Settings → API Keys tab.\n" +
+        "2. Click the **pencil (edit) icon** next to the key.\n" +
+        "3. You can change the name and update permissions. The actual key remains the same.\n" +
+        "4. Click **Save**.\n\n" +
+        "**Delete a key:**\n" +
+        "1. Settings → API Keys tab.\n" +
+        "2. Click the **trash (delete) icon** (red color) and confirm.\n\n" +
         "**Use the key in requests:**\n" +
         "```\nAuthorization: Bearer wk_YOUR_KEY\n```\n\n" +
-        "**API endpoints:**\n" +
-        "- `GET /api/external/subscriptions` — list subscriptions\n" +
-        "- `POST /api/external/subscriptions` — create subscription\n" +
-        "- `GET /api/external/statistics` — spending totals\n" +
-        "- `GET /api/calendar/ical?key=wk_...` — iCal calendar feed\n\n" +
+        "**API endpoints (categorized in UI):**\n" +
+        "- **Subscriptions**: list all, get by ID, create, update, delete, status, mark paid, batch create.\n" +
+        "- **Cycles**: list available billing cycles (Daily, Weekly, etc).\n" +
+        "- **Categories, Payment Methods, Household, Currencies**: full CRUD available for each.\n" +
+        "- **Stats & Calendar**: get spending reports and iCal feed.\n\n" +
         "**Connect to Google Calendar / Apple Calendar:**\n" +
         "1. Create a key with `calendar:read` permission.\n" +
-        "2. Settings → API Keys → copy the iCal URL.\n" +
-        "3. In Google Calendar: + Other calendars → From URL → paste the URL.\n" +
-        "4. The calendar updates automatically.",
+        "2. Settings → API Keys → expand **Statistics & Calendar** → copy the iCal URL.\n" +
+        "3. In your calendar app: Add from URL → paste the link.",
 
       theme:
         "**Theme & visual customization:**\n\n" +

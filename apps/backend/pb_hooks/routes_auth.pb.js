@@ -13,17 +13,34 @@
  */
 
 // ================================================================
-// ROUTE: GET /api/auth/admin-id  — public, returns first user's ID
-// The listRule on "users" is "id = @request.auth.id", so the SDK
-// can't query all users. This route bypasses that to let the
-// frontend reliably determine who is the admin.
+// ROUTE: GET /api/auth/bootstrap-status — public, reveals only whether
+// at least one user exists so the login page can redirect first-run setups.
 // ================================================================
-routerAdd("GET", "/api/auth/admin-id", (e) => {
+routerAdd("GET", "/api/auth/bootstrap-status", (e) => {
+  e.response.header().set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+  e.response.header().set("Pragma", "no-cache");
+  e.response.header().set("Expires", "0");
+  const all = $app.findRecordsByFilter("users", "1=1", "+created", 1, 0);
+  return e.json(200, { hasUsers: all.length > 0 });
+});
+
+// ================================================================
+// ROUTE: GET /api/auth/is-admin — authenticated, returns only whether
+// the current user is the first registered user.
+// ================================================================
+routerAdd("GET", "/api/auth/is-admin", (e) => {
+  if (!e.auth) throw new ForbiddenError("Authentication required");
+  e.response.header().set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+  e.response.header().set("Pragma", "no-cache");
+  e.response.header().set("Expires", "0");
+  e.response.header().set("Vary", "Authorization");
+
   const all = $app.findRecordsByFilter("users", "1=1", "+created", 1, 0);
   if (all.length === 0) {
-    return e.json(200, { adminId: null });
+    return e.json(200, { isAdmin: false });
   }
-  return e.json(200, { adminId: all[0].id });
+
+  return e.json(200, { isAdmin: all[0].id === e.auth.id });
 });
 
 // ================================================================
@@ -239,6 +256,7 @@ routerAdd('POST', '/api/auth/totp/verify', function (e) {
   var user = $app.findRecordById('users', e.auth.id);
   user.set('totp_secret', secret);
   user.set('totp_enabled', true);
+  user.set('totp_configured', true);
   user.set('totp_backup_codes', JSON.stringify(bcs));
   $app.save(user);
   return e.json(200, { message: '2FA enabled' });
@@ -318,6 +336,7 @@ routerAdd('POST', '/api/auth/totp/disable', function (e) {
   if (!ok) return e.json(400, { error: 'Invalid code' });
 
   user.set('totp_enabled', false);
+  user.set('totp_configured', true);
   // Secret and backup codes are intentionally kept so the user can re-enable
   // without going through setup again. Use /delete to wipe everything.
   $app.save(user);
@@ -389,6 +408,7 @@ routerAdd('POST', '/api/auth/totp/reenable', function (e) {
   if (!secret) return e.json(400, { error: '2FA is not configured' });
   if (!iTotp(secret, code)) return e.json(400, { error: 'Invalid code' });
   user.set('totp_enabled', true);
+  user.set('totp_configured', true);
   $app.save(user);
   return e.json(200, { message: '2FA re-enabled' });
 });
@@ -468,6 +488,7 @@ routerAdd('POST', '/api/auth/totp/delete', function (e) {
   if (!ok) return e.json(400, { error: 'Invalid code' });
 
   user.set('totp_enabled', false);
+  user.set('totp_configured', false);
   user.set('totp_secret', '');
   user.set('totp_backup_codes', '[]');
   $app.save(user);

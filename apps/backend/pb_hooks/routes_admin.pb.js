@@ -315,7 +315,7 @@ routerAdd("GET", "/api/admin/settings", (e) => {
     oidc_enabled: record.getBool("oidc_enabled"),
     oidc_provider_name: record.getString("oidc_provider_name"),
     oidc_client_id: record.getString("oidc_client_id"),
-    oidc_client_secret: record.getString("oidc_client_secret"),
+    oidc_client_secret_configured: record.getString("oidc_client_secret") !== "",
     oidc_issuer_url: record.getString("oidc_issuer_url"),
     oidc_redirect_url: record.getString("oidc_redirect_url"),
     oidc_scopes: record.getString("oidc_scopes"),
@@ -354,12 +354,22 @@ routerAdd("PATCH", "/api/admin/settings", (e) => {
   }
 
   const textFields = [
-    "server_url", "oidc_provider_name", "oidc_client_id", "oidc_client_secret",
+    "server_url", "oidc_provider_name", "oidc_client_id",
     "oidc_issuer_url", "oidc_redirect_url", "oidc_scopes", "webhook_allowlist_csv",
     "latest_version",
   ];
   for (const f of textFields) {
     if (data[f] !== undefined) record.set(f, String(data[f] || ""));
+  }
+
+  if (data.oidc_client_secret !== undefined) {
+    const nextSecret = String(data.oidc_client_secret || "");
+    if (
+      nextSecret !== "" ||
+      data.oidc_client_secret_configured === false
+    ) {
+      record.set("oidc_client_secret", nextSecret);
+    }
   }
 
   if (data.max_users !== undefined) record.set("max_users", Number(data.max_users) || 0);

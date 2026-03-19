@@ -11,6 +11,7 @@ import {
 import { authService } from "@/services/auth";
 import { LS_KEYS } from "@/lib/constants";
 import type { User } from "@/types";
+import { api } from "@/lib/api";
 
 interface AuthContextType {
   user: User | null;
@@ -28,12 +29,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // Cache the admin-id so login() doesn't duplicate the request made by refreshUser()
-  const adminIdRef = useRef<string | null | undefined>(undefined);
+  // Cache the admin status so login() doesn't duplicate the request made by refreshUser()
+  const isAdminRef = useRef<boolean | undefined>(undefined);
+  const didBootstrapRef = useRef(false);
+
+  const fetchIsAdmin = useCallback(async () => {
+    const res = await api.get<{ isAdmin: boolean }>("/api/auth/is-admin", {
+      cache: "no-store",
+    });
+    isAdminRef.current = !!res.isAdmin;
+    return !!res.isAdmin;
+  }, []);
 
   const refreshUser = useCallback(async () => {
     if (!authService.isValid()) {
       setUser(null);
+      isAdminRef.current = undefined;
       setIsLoading(false);
       return;
     }
@@ -42,25 +53,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const record = authService.getModel();
       if (record) {
         setUser(record);
-        // Determine if user is admin (first registered user).
-        // We use /api/auth/admin-id because the listRule on "users" is
-        // "id = @request.auth.id" — the SDK can only see the current user,
-        // so getList+sort would always return the current user as "first".
-        const res = await fetch("/api/auth/admin-id");
-        const json = res.ok ? await res.json() : { adminId: null };
-        adminIdRef.current = json.adminId;
-        setIsAdmin(record.id === json.adminId);
+        setIsAdmin(await fetchIsAdmin());
       }
     } catch {
       authService.clear();
       setUser(null);
+      isAdminRef.current = undefined;
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [fetchIsAdmin]);
 
   useEffect(() => {
-    refreshUser();
+    if (!didBootstrapRef.current) {
+      didBootstrapRef.current = true;
+      refreshUser();
+    }
+
+    // Listen to changes in the authStore (e.g. token expiration, manual clear)
+    const unsubscribe = authService.onChange((token, model) => {
+      if (!token || !model) {
+        setUser(null);
+        setIsAdmin(false);
+      } else {
+        setUser(model as User);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, [refreshUser]);
 
   const login = useCallback(async (email: string, password: string) => {
@@ -80,20 +102,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setUser(authData.record as unknown as User);
 
-    // Re-use the admin-id already fetched by refreshUser() when possible
-    let adminId = adminIdRef.current;
-    if (adminId === undefined) {
-      const res = await fetch("/api/auth/admin-id");
-      const json = res.ok ? await res.json() : { adminId: null };
-      adminId = json.adminId;
-      adminIdRef.current = adminId;
+    // Re-use the admin status already fetched by refreshUser() when possible
+    let nextIsAdmin = isAdminRef.current;
+    if (nextIsAdmin === undefined) {
+      nextIsAdmin = await fetchIsAdmin();
     }
-    setIsAdmin(authData.record.id === adminId);
-  }, []);
+    setIsAdmin(nextIsAdmin);
+  }, [fetchIsAdmin]);
 
   const logout = useCallback(() => {
     authService.clear();
-    adminIdRef.current = undefined;
+    isAdminRef.current = undefined;
     setUser(null);
     setIsAdmin(false);
   }, []);

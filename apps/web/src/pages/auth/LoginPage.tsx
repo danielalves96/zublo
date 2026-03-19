@@ -53,10 +53,10 @@ export function LoginPage() {
   };
 
   useEffect(() => {
-    fetch("/api/auth/admin-id")
+    fetch("/api/auth/bootstrap-status", { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data && data.adminId === null) {
+        if (data && data.hasUsers === false) {
           navigate({ to: "/register", replace: true });
         }
       })

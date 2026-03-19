@@ -1,7 +1,7 @@
 import pb from "@/lib/pb";
 import { api } from "@/lib/api";
 import type { AdminSettings, User } from "@/types";
-import type { AdminUser } from "@/components/admin/types";
+import type { AdminUser } from "@/components/admin/users/types";
 
 export const adminService = {
   // ─── Users ──────────────────────────────────────────────────────────────────

@@ -96,12 +96,14 @@ async function request<T = void>(
 }
 
 export const api = {
-  get: <T = void>(path: string) => request<T>(path, { method: "GET" }),
-  post: <T = void>(path: string, json?: unknown) =>
-    request<T>(path, { method: "POST", json }),
-  patch: <T = void>(path: string, json?: unknown) =>
-    request<T>(path, { method: "PATCH", json }),
-  del: <T = void>(path: string) => request<T>(path, { method: "DELETE" }),
+  get: <T = void>(path: string, init?: RequestInit) => request<T>(path, { method: "GET", ...init }),
+  post: <T = void>(path: string, json?: unknown, init?: RequestInit) =>
+    request<T>(path, { method: "POST", json, ...init }),
+  put: <T = void>(path: string, json?: unknown, init?: RequestInit) =>
+    request<T>(path, { method: "PUT", json, ...init }),
+  patch: <T = void>(path: string, json?: unknown, init?: RequestInit) =>
+    request<T>(path, { method: "PATCH", json, ...init }),
+  del: <T = void>(path: string, init?: RequestInit) => request<T>(path, { method: "DELETE", ...init }),
 
   /**
    * Multipart/form-data upload — omits `Content-Type` so the browser sets

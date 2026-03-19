@@ -11,6 +11,10 @@ export const apiKeysService = {
     return api.post<ApiKeyCreated>("/api/api-keys", { name, permissions });
   },
 
+  async update(id: string, name: string, permissions: ApiKeyPermission[]): Promise<ApiKey> {
+    return api.put<ApiKey>(`/api/api-keys/${id}`, { name, permissions });
+  },
+
   async delete(id: string): Promise<void> {
     await api.del(`/api/api-keys/${id}`);
   },

@@ -42,7 +42,7 @@ Self-hosted subscription tracker. Docker image: `ghcr.io/danielalves96/zublo:lat
 | AI Chat | 28 tools to read + write all user data |
 | API Keys | Scoped (`wk_` prefix), shown once, max 20/user |
 | 2FA | TOTP + backup codes |
-| External API | REST: list/create subscriptions, statistics, iCal |
+| External API | REST: CRUD (List/Create/Update/Delete) for Subscriptions, Categories, Payment Methods, Household, Currencies; plus Statistics and iCal |
 | Admin | Users, registration, SMTP, OIDC/SSO, backups, cron jobs, maintenance |
 
 ---

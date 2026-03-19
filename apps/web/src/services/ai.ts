@@ -42,12 +42,13 @@ export const aiService = {
     messages: ChatMessage[],
     conversationId?: string | null,
     displayMessage?: string,
+    signal?: AbortSignal,
   ) =>
     api.post<ChatResponse>("/api/ai/chat", {
-      messages,
+      messages: messages.map(m => ({ role: m.role, content: m.content })),
       conversation_id: conversationId ?? null,
       display_message: displayMessage ?? null,
-    }),
+    }, { signal }),
 
   getConversations: () =>
     api.get<{ conversations: ChatConversation[] }>("/api/ai/conversations"),

@@ -64,7 +64,7 @@ export function DayPanel({
     <Card className="animate-in slide-in-from-top-2 duration-200">
       <CardContent className="p-0">
         {/* Panel header */}
-        <div className="flex items-center justify-between border-b px-4 py-3">
+        <div className="flex items-center justify-between px-4 py-3">
           <div>
             <p className="font-semibold">
               {dateLabel}

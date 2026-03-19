@@ -5,31 +5,33 @@
 // GET /api/calendar/ical?key=wk_xxx  (requires calendar:read permission)
 // ================================================================
 routerAdd("GET", "/api/calendar/ical", function(e) {
+  var userId = e.auth ? e.auth.id : null;
   var rawKey = e.request.url.query().get("key")
     || (e.request.header.get("Authorization") || "").replace("Bearer ", "").trim();
 
-  if (!rawKey) {
+  if (!userId && !rawKey) {
     return e.json(401, { error: "Missing API key" });
   }
 
   // Resolve via the new multi-key system (inlined — Goja scoping)
-  var userId = null;
-  try {
-    var keyHash = $security.sha256(rawKey);
-    var apiKeys = $app.findRecordsByFilter("api_keys", "key_hash = {:hash}", "", 1, 0, { hash: keyHash });
-    if (apiKeys && apiKeys.length > 0) {
-      var keyRecord = apiKeys[0];
-      var perms = [];
-      try { perms = JSON.parse(keyRecord.get("permissions") || "[]"); } catch (_) {}
-      for (var pi = 0; pi < perms.length; pi++) {
-        if (perms[pi] === "calendar:read") { userId = keyRecord.get("user"); break; }
+  if (!userId) {
+    try {
+      var keyHash = $security.sha256(rawKey);
+      var apiKeys = $app.findRecordsByFilter("api_keys", "key_hash = {:hash}", "", 1, 0, { hash: keyHash });
+      if (apiKeys && apiKeys.length > 0) {
+        var keyRecord = apiKeys[0];
+        var perms = [];
+        try { perms = JSON.parse(keyRecord.get("permissions") || "[]"); } catch (_) {}
+        for (var pi = 0; pi < perms.length; pi++) {
+          if (perms[pi] === "calendar:read") { userId = keyRecord.get("user"); break; }
+        }
+        if (userId) {
+          keyRecord.set("last_used_at", new Date().toISOString());
+          try { $app.save(keyRecord); } catch (_) {}
+        }
       }
-      if (userId) {
-        keyRecord.set("last_used_at", new Date().toISOString());
-        try { $app.save(keyRecord); } catch (_) {}
-      }
-    }
-  } catch (_) {}
+    } catch (_) {}
+  }
 
   // Legacy fallback: support the old single api_key field on users
   if (!userId) {

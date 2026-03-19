@@ -9,7 +9,7 @@ export interface User {
   language?: string;
   main_currency?: string;
   totp_enabled?: boolean;
-  totp_secret?: string;
+  totp_configured?: boolean;
   color_theme?: string;
   custom_theme_colors?: Record<string, string>;
   custom_css?: string;
@@ -22,7 +22,6 @@ export interface User {
   mobile_navigation?: boolean;
   remove_background?: boolean;
   convert_currency?: boolean;
-  api_key?: string;
   budget?: number;
   payment_tracking?: boolean;
 }
@@ -163,7 +162,8 @@ export interface FixerSettings {
   id: string;
   user: string;
   enabled: boolean;
-  api_key: string;
+  api_key?: string;
+  api_key_configured?: boolean;
   provider: "fixer" | "apilayer";
   base_currency?: string;
 }
@@ -175,6 +175,7 @@ export interface AISettings {
   type: "chatgpt" | "gemini" | "openrouter" | "ollama";
   name?: string;
   api_key?: string;
+  api_key_configured?: boolean;
   model?: string;
   url?: string;
 }
@@ -191,6 +192,8 @@ export interface AIRecommendation {
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
+  isError?: boolean;
+  aiContent?: string;
 }
 
 export interface ChatActionTaken {
@@ -224,6 +227,7 @@ export interface AdminSettings {
   oidc_display_name?: string;
   oidc_client_id?: string;
   oidc_client_secret?: string;
+  oidc_client_secret_configured?: boolean;
   oidc_issuer_url?: string;
   oidc_redirect_url?: string;
   oidc_redirect_uri?: string;
@@ -253,7 +257,15 @@ export type ApiKeyPermission =
   | "subscriptions:read"
   | "subscriptions:write"
   | "calendar:read"
-  | "statistics:read";
+  | "statistics:read"
+  | "categories:read"
+  | "categories:write"
+  | "payment_methods:read"
+  | "payment_methods:write"
+  | "household:read"
+  | "household:write"
+  | "currencies:read"
+  | "currencies:write";
 
 export interface ApiKey {
   id: string;
