@@ -232,6 +232,7 @@
   "topic": "Tópico",
   "select_provider": "Selecionar provedor",
   "select_model": "Selecionar modelo",
+  "search_model": "Buscar modelo...",
   "fetch_models": "Buscar Modelos",
   "ollama_url": "URL do Ollama",
   "ai_enabled": "Habilitar IA",

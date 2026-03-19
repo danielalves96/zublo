@@ -198,7 +198,7 @@ routerAdd("POST", "/api/cron/{job}", function(e) {
       var admins = $app.findRecordsByFilter("admin_settings", "", "", 1, 0);
       if (admins.length === 0) return e.json(200, { message: "check_updates: no admin_settings record found" });
       if (!admins[0].get("update_notification")) return e.json(200, { message: "check_updates: update notifications are disabled" });
-      var res = $http.send({ url: "https://api.github.com/repos/zublo-app/zublo/releases/latest", method: "GET", headers: { "User-Agent": "Zublo" } });
+      var res = $http.send({ url: "https://api.github.com/repos/danielalves96/zublo/releases/latest", method: "GET", headers: { "User-Agent": "Zublo" } });
       if (res.statusCode === 200 && res.json && res.json.tag_name) {
         try { admins[0].set("latest_version", res.json.tag_name); $app.save(admins[0]); } catch(_) {}
         return e.json(200, { message: "check_updates: latest version is " + res.json.tag_name });

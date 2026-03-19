@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { aiService } from "@/services/ai";
@@ -10,9 +10,10 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
-import { Bot, Save, Sparkles, RefreshCw } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Bot, Save, Sparkles, RefreshCw, ChevronsUpDown, Check, Search } from "lucide-react";
 
 export function AITab() {
   const { t } = useTranslation();
@@ -27,6 +28,9 @@ export function AITab() {
   const [model, setModel] = useState("");
   const [models, setModels] = useState<string[]>([]);
   const [fetchingModels, setFetchingModels] = useState(false);
+  const [modelOpen, setModelOpen] = useState(false);
+  const [modelSearch, setModelSearch] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const { data: aiSettings, isLoading } = useQuery({
     queryKey: queryKeys.aiSettings(user?.id ?? ""),
@@ -199,18 +203,83 @@ export function AITab() {
               </div>
 
               {models.length > 0 ? (
-                <Select value={model} onValueChange={setModel}>
-                  <SelectTrigger className="h-12 rounded-xl text-base bg-background">
-                    <SelectValue placeholder={t("select_model")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {models.map((m) => (
-                      <SelectItem key={m} value={m}>
-                        {m}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover
+                  open={modelOpen}
+                  onOpenChange={(open) => {
+                    setModelOpen(open);
+                    if (open) {
+                      setModelSearch("");
+                      setTimeout(() => searchInputRef.current?.focus(), 50);
+                    }
+                  }}
+                >
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={modelOpen}
+                      className="w-full h-12 rounded-xl text-base bg-background justify-between font-normal px-4"
+                    >
+                      <span className={cn("truncate", !model && "text-muted-foreground")}>
+                        {model || t("select_model")}
+                      </span>
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    className="p-0 w-[--radix-popover-trigger-width]"
+                    style={{ width: "var(--radix-popover-trigger-width)" }}
+                  >
+                    {/* Search input */}
+                    <div className="flex items-center gap-2 px-3 py-2 border-b">
+                      <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <input
+                        ref={searchInputRef}
+                        value={modelSearch}
+                        onChange={(e) => setModelSearch(e.target.value)}
+                        placeholder={t("search_model")}
+                        className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                      />
+                    </div>
+                    {/* Model list */}
+                    <div className="max-h-60 overflow-y-auto py-1">
+                      {models
+                        .filter((m) =>
+                          m.toLowerCase().includes(modelSearch.toLowerCase())
+                        )
+                        .map((m) => (
+                          <button
+                            key={m}
+                            type="button"
+                            onClick={() => {
+                              setModel(m);
+                              setModelOpen(false);
+                            }}
+                            className={cn(
+                              "w-full flex items-center gap-2 px-3 py-2 text-sm text-left",
+                              "hover:bg-accent hover:text-accent-foreground cursor-pointer",
+                              model === m && "bg-accent/50"
+                            )}
+                          >
+                            <Check
+                              className={cn(
+                                "h-4 w-4 shrink-0",
+                                model === m ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            <span className="truncate">{m}</span>
+                          </button>
+                        ))}
+                      {models.filter((m) =>
+                        m.toLowerCase().includes(modelSearch.toLowerCase())
+                      ).length === 0 && (
+                        <p className="px-3 py-4 text-sm text-center text-muted-foreground">
+                          {t("no_models_found")}
+                        </p>
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
               ) : (
                 <Input
                   value={model}

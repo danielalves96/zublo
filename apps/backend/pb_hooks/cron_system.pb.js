@@ -11,9 +11,8 @@ cronAdd("checkForUpdates", "0 0 * * 0", () => {
     const admin = adminRecords[0];
     if (!admin.get("update_notification")) return;
 
-    // TODO: Replace with actual Zublo GitHub repo when published
     const res = $http.send({
-      url: "https://api.github.com/repos/zublo-app/zublo/releases/latest",
+      url: "https://api.github.com/repos/danielalves96/zublo/releases/latest",
       method: "GET",
       headers: { "User-Agent": "Zublo" },
     });

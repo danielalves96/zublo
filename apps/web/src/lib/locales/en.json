@@ -242,6 +242,7 @@
   "topic": "Topic",
   "select_provider": "Select provider",
   "select_model": "Select model",
+  "search_model": "Search model...",
   "fetch_models": "Fetch Models",
   "ollama_url": "Ollama URL",
   "ai_enabled": "Enable AI",

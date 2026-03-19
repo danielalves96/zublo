@@ -112,7 +112,7 @@ routerAdd("POST", "/api/ai/chat", function (e) {
         });
       }
 
-      body = { contents: buildGeminiContents(msgs) };
+      body = { contents: buildGeminiContents(msgs), generationConfig: { maxOutputTokens: 4096 } };
       // Only include tools block when there are actual declarations;
       // an empty functionDeclarations array causes Gemini API errors.
       if (functionDeclarations.length > 0) {
@@ -128,7 +128,8 @@ routerAdd("POST", "/api/ai/chat", function (e) {
       body = {
         model: model || "gpt-3.5-turbo",
         messages: msgs,
-        temperature: 0.7
+        temperature: 0.7,
+        max_tokens: 4096
       };
       // Only include tools when there are some; omitting them forces a text-only response.
       if (tools && tools.length > 0) {
@@ -1115,6 +1116,25 @@ routerAdd("POST", "/api/ai/chat", function (e) {
 
       subscriptions:
         "**Managing subscriptions:**\n\n" +
+        "**Subscription fields:**\n" +
+        "- **Name** (required) — service name (e.g., Netflix, Spotify).\n" +
+        "- **Price** (required) — amount charged per cycle, positive number.\n" +
+        "- **Currency** (required) — ISO 4217 code (BRL, USD, EUR, etc.).\n" +
+        "- **Cycle** (required) — exactly: `Daily`, `Weekly`, `Monthly`, or `Yearly` (case-sensitive).\n" +
+        "- **Frequency** (required) — positive integer ≥ 1, default 1. Frequency=3+Monthly = quarterly.\n" +
+        "- **Next payment** (required) — ISO date `YYYY-MM-DD`.\n" +
+        "- **Start date** — when subscription began; used for progress bars.\n" +
+        "- **Category** — optional grouping (e.g., Streaming, Software).\n" +
+        "- **Payment method** — optional (e.g., Nubank, PayPal).\n" +
+        "- **Payer** — optional household member responsible for payment.\n" +
+        "- **Notes** — free-form text.\n" +
+        "- **URL** — service website link.\n" +
+        "- **Logo** — uploaded image or auto-searched by name.\n" +
+        "- **Auto-renew** — if on, daily cron marks as paid automatically.\n" +
+        "- **Inactive** — soft-cancel flag; excluded from totals.\n" +
+        "- **Cancellation date** — optional date of cancellation.\n" +
+        "- **Replacement subscription** — links old sub to the new replacement.\n" +
+        "- **Notify** — include in notification reminders.\n\n" +
         "**Add a new subscription:**\n" +
         "1. Go to the Subscriptions page.\n" +
         "2. Click the **+** (Add) button in the top-right area.\n" +
@@ -1240,58 +1260,114 @@ routerAdd("POST", "/api/ai/chat", function (e) {
 
       import_export:
         "**Import & Export:**\n\n" +
-        "**Export all subscriptions:**\n" +
-        "- Subscriptions page → click the **Export** button → choose **JSON** or **Excel (XLSX)**.\n\n" +
-        "**Import from Wallos or Zublo:**\n" +
-        "1. Settings → Import tab.\n" +
-        "2. Click **Choose File** and select your JSON export file.\n" +
-        "3. Click **Import**.\n" +
-        "4. A summary shows how many were imported vs skipped (duplicates).",
+        "**Export subscriptions:**\n" +
+        "- Subscriptions page → **Export** button → choose **JSON** or **XLSX**.\n" +
+        "- JSON exports all fields; XLSX produces a formatted spreadsheet.\n\n" +
+        "**Export calendar (iCal):**\n" +
+        "- Calendar page → **Export iCal** → creates a feed URL for Google/Apple Calendar.\n" +
+        "- Requires an API key with `calendar:read` permission.\n\n" +
+        "**Import from Wallos or Zublo JSON:**\n" +
+        "1. Subscriptions page → **Import** button → select a `.json` file.\n" +
+        "2. Duplicate names are skipped automatically.\n" +
+        "3. Missing categories, methods, currencies are auto-created.\n" +
+        "4. Import summary shows how many were imported vs skipped.\n\n" +
+        "**Import via chat (XLSX/CSV):**\n" +
+        "- In the chat, click the paperclip icon and attach a spreadsheet.\n" +
+        "- The AI shows a preview table and asks for confirmation before importing.\n\n" +
+        "**JSON file format:**\n" +
+        "Zublo format (snake_case): `name`, `price`, `currency_code`, `cycle_name` (Daily/Weekly/Monthly/Yearly), `frequency`, `next_payment` (YYYY-MM-DD), `start_date`, `category_name`, `payment_method_name`, `payer_name`, `notes`, `auto_renew`, `notify`, `inactive`.\n" +
+        "Wallos format (PascalCase): `Name`, `Price`, `Currency`, `Cycle`, `Frequency`, `Next_Payment`, `Start_Date`, `Category`, `Payment_Method`, `Notes`, `Auto_Renew`, `Notify`, `Inactive`.",
 
       statistics:
-        "**Statistics page:**\n\n" +
-        "- Go to the **Statistics** tab in the navigation.\n" +
-        "- View **Monthly cost history** chart: spending over time.\n" +
-        "- View **Cost by category** chart: breakdown per category.\n" +
-        "- View **Cost by payment method** and **by household member**.\n" +
-        "- Toggle between **monthly** and **yearly** view.\n" +
-        "- All amounts shown in your main currency (converted automatically if exchange rates are configured).",
+        "**Statistics page (/statistics):**\n\n" +
+        "**Summary cards:** monthly total, yearly total, active subscription count.\n\n" +
+        "**Grouping options** (selector at top):\n" +
+        "- **By category** (e.g., Streaming, Software, Health)\n" +
+        "- **By payment method** (e.g., Nubank, PayPal)\n" +
+        "- **By household member** (e.g., Daniel, Maria)\n\n" +
+        "**Donut chart:** proportion of spending per group. Hover for value and percentage.\n\n" +
+        "**12-month history chart:** monthly spending over time. Data comes from yearly_costs snapshots created by the cron job on the 1st of each month. If a month has no snapshot yet, the bar is missing.\n\n" +
+        "**Breakdown table:** each group with color dot, name, percentage, and monthly value.\n\n" +
+        "All amounts shown in main currency (converted using exchange rates if configured).",
 
       profile:
         "**Profile & account settings:**\n\n" +
-        "1. Settings → Profile tab.\n" +
-        "2. Update: display name, avatar image, language, theme (light/dark/auto), color theme.\n" +
-        "3. Change password: enter current password and new password → Save.\n" +
-        "4. Enable **Two-Factor Authentication (2FA/TOTP)**: Settings → Security tab → Enable TOTP → scan QR code with an authenticator app.\n" +
-        "5. Set a **budget**: Settings → Profile tab → enter your monthly budget amount.",
+        "Settings → Profile tab allows:\n" +
+        "- **Avatar**: upload a photo (auto-compressed to 512px).\n" +
+        "- **Username**: unique identifier.\n" +
+        "- **Email**: account email address.\n" +
+        "- **Monthly budget**: spending ceiling shown on dashboard. Enter amount → Save.\n" +
+        "- **Language**: select English or Portuguese-BR → Save. Interface updates immediately.\n" +
+        "- **Change password**: current password + new password (min 8 chars) + confirm → Save.\n\n" +
+        "**Delete account** (irreversible):\n" +
+        "1. Settings → Delete account tab.\n" +
+        "2. Read the warning — all data is permanently deleted.\n" +
+        "3. Type your email address in the confirmation field.\n" +
+        "4. Click **Permanently delete account**.\n" +
+        "Recovery is not possible after deletion.",
 
       admin:
-        "**Admin panel** (admin-only):\n\n" +
-        "Only the first registered user (the admin) can access these settings.\n\n" +
-        "- **Users tab**: View all registered users, disable accounts, delete users.\n" +
-        "- **Registration tab**: Enable/disable open registrations, set max user limit, require email verification.\n" +
-        "- **SMTP tab**: Configure outgoing email server for notifications and password resets.\n" +
-        "- **OIDC/SSO tab**: Configure Single Sign-On with an identity provider (Google, Okta, etc.).\n" +
-        "- **Security tab**: Webhook allowlist, security settings.\n" +
-        "- **Backup tab**: Create and download database backups.\n" +
-        "- **Cron Jobs tab**: View and manage scheduled tasks (payment reminders, currency updates).\n" +
-        "- **Maintenance tab**: System maintenance tools.\n\n" +
-        "To access: click the **Admin** link in the navigation (only visible to admins).",
+        "**Admin panel** (admin-only, /admin):\n\n" +
+        "Only the first registered user (admin) can access /admin.\n\n" +
+        "**Users tab:** view all users, promote/demote admin, disable, delete accounts.\n\n" +
+        "**Registration tab:**\n" +
+        "- Enable/disable open registrations.\n" +
+        "- Set maximum user count (0 = unlimited).\n" +
+        "- Require email verification on signup.\n" +
+        "- Set server URL (used in system emails).\n" +
+        "- Disable all logins (except admin).\n" +
+        "- Enable update notifications.\n\n" +
+        "**SMTP tab** (required for email notifications and password reset):\n" +
+        "- Host, Port, User, Password, From email, Display name, Encryption (None/TLS/STARTTLS).\n\n" +
+        "**OIDC/SSO tab** (Single Sign-On):\n" +
+        "- Enable OIDC, Provider name, Display name, Client ID, Client Secret, Issuer URL, Redirect URL, Scopes.\n" +
+        "- Once configured, an SSO button appears on the login screen.\n\n" +
+        "**Security tab:** webhook allowlist — authorized URLs for outgoing webhooks.\n\n" +
+        "**Backup tab:**\n" +
+        "- Click **Create backup** to download the full database.\n" +
+        "- Click **Restore backup** to upload a backup file. Warning: restores replace ALL current data.\n\n" +
+        "**Cronjobs tab** (manual execution):\n" +
+        "- **check_subscriptions** — advances next_payment for auto-renew subscriptions (runs daily at midnight).\n" +
+        "- **send_notifications** — dispatches payment reminders (runs hourly).\n" +
+        "- **update_exchange_rates** — fetches latest rates from Fixer/APILayer (runs 2×/day).\n" +
+        "- **save_monthly_costs** — creates yearly_costs snapshot for 12-month chart (runs 1st of month).\n" +
+        "- **check_updates** — checks GitHub for new Zublo versions (runs weekly).\n\n" +
+        "**Maintenance tab:** logo cleanup — removes orphaned logos not linked to any subscription.",
 
       ai:
         "**AI Chat & Recommendations:**\n\n" +
-        "**Configure AI:**\n" +
-        "1. Settings → AI tab.\n" +
-        "2. Select provider: ChatGPT, Gemini, OpenRouter, or Ollama (self-hosted).\n" +
-        "3. Enter your API key and select a model.\n" +
-        "4. Toggle **Enable AI** on → Save.\n\n" +
-        "**AI Chat** (`/chat`):\n" +
-        "- Ask questions about your subscriptions in natural language.\n" +
-        "- Request actions: 'Create a Netflix subscription', 'Delete Spotify', 'Show my spending'.\n" +
-        "- Get step-by-step help for any feature.\n\n" +
-        "**AI Recommendations:**\n" +
+        "**Configure AI (Settings → AI tab):**\n" +
+        "1. Enable the AI toggle.\n" +
+        "2. Choose provider:\n" +
+        "   - **Google Gemini** — native support, free tier available. Get key at aistudio.google.com.\n" +
+        "   - **OpenAI** — GPT-4o, GPT-4, GPT-3.5. Get key at platform.openai.com.\n" +
+        "   - **Ollama** — local/self-hosted models. Set base URL to your Ollama instance.\n" +
+        "   - **OpenAI-compatible** — OpenRouter, Groq, Mistral, etc. Set custom base URL + key.\n" +
+        "   - Anthropic Claude: use OpenRouter with an OpenAI-compatible setup.\n" +
+        "3. Enter API key and click **Fetch models** to list available models (or type manually).\n" +
+        "4. Save. The chat icon (/chat) appears in navigation.\n\n" +
+        "**What the AI can do via chat:**\n" +
+        "- Read and write subscriptions, categories, payment methods, household members, currencies.\n" +
+        "- Generate spending reports and payment history.\n" +
+        "- Import subscriptions from attached spreadsheets.\n" +
+        "- Export subscriptions to JSON or XLSX.\n" +
+        "- Rename categories in bulk.\n" +
+        "- Generate AI saving recommendations.\n" +
+        "- Provide step-by-step UI guidance for any feature.\n\n" +
+        "**What the AI cannot do:**\n" +
+        "- Upload files (avatars, logos, payment proof).\n" +
+        "- Set main currency (must use UI star icon).\n" +
+        "- Reorder payment methods (drag & drop only).\n" +
+        "- Configure SMTP, OIDC, create/delete API keys.\n\n" +
+        "**AI Recommendations (Dashboard):**\n" +
         "- Dashboard → AI Recommendations section → click **Generate**.\n" +
-        "- The AI analyzes your subscriptions and suggests money-saving tips.",
+        "- AI analyzes active subscriptions and suggests money-saving tips (duplicates, cheaper alternatives, underused services).\n" +
+        "- Delete individual recommendations with the trash icon.\n" +
+        "- Regenerate anytime to refresh suggestions.\n\n" +
+        "**Conversation management:**\n" +
+        "- Sidebar groups conversations by: Today, Yesterday, Last 7 days, Last 30 days, Older.\n" +
+        "- Hover a conversation to rename or delete it.\n" +
+        "- Titles are AI-generated automatically on the first message.",
 
       dashboard:
         "**Dashboard:**\n\n" +
@@ -1299,7 +1375,316 @@ routerAdd("POST", "/api/ai/chat", function (e) {
         "- Lists **upcoming payments** (subscriptions due in the next 7 days).\n" +
         "- Shows **overdue payments** if payment tracking is enabled.\n" +
         "- Displays **AI Recommendations** if AI is configured.\n" +
-        "- Quick access to add a new subscription via the **+** button."
+        "- Quick access to add a new subscription via the **+** button.",
+
+      exchange_rates:
+        "**Exchange Rates (automatic currency conversion):**\n\n" +
+        "**Configure automatic rates:**\n" +
+        "1. Go to Settings → Exchange Rates tab.\n" +
+        "2. Enable the toggle.\n" +
+        "3. Choose provider: **Fixer.io** (fixer.io) or **APILayer** (apilayer.com) — both have free tiers.\n" +
+        "4. Enter your API key.\n" +
+        "5. Click **Update now** to fetch rates immediately.\n" +
+        "6. Save.\n\n" +
+        "Rates update automatically **twice daily** (midnight and noon UTC).\n" +
+        "The main currency always has rate = 1.0. All other currencies store their rate relative to it.\n\n" +
+        "**Manual update:** Settings → Exchange Rates → **Update now** button.\n" +
+        "**View last update:** shown on the Exchange Rates tab.",
+
+      api_keys:
+        "**API Keys (external integrations):**\n\n" +
+        "API keys let external apps access your Zublo data without sharing your password.\n" +
+        "Key format: `wk_...` — shown only once at creation. Maximum 20 keys per user.\n\n" +
+        "**Available permissions:**\n" +
+        "- `subscriptions:read` — list/view subscriptions\n" +
+        "- `subscriptions:write` — create/edit subscriptions\n" +
+        "- `statistics:read` — access statistics\n" +
+        "- `calendar:read` — export iCal feed\n\n" +
+        "**Create a key:**\n" +
+        "1. Settings → API Keys tab.\n" +
+        "2. Click **+ Create key**.\n" +
+        "3. Give it a name and select permissions.\n" +
+        "4. Click **Create** — copy the key immediately, it won't be shown again.\n\n" +
+        "**Use the key in requests:**\n" +
+        "```\nAuthorization: Bearer wk_YOUR_KEY\n```\n\n" +
+        "**API endpoints:**\n" +
+        "- `GET /api/external/subscriptions` — list subscriptions\n" +
+        "- `POST /api/external/subscriptions` — create subscription\n" +
+        "- `GET /api/external/statistics` — spending totals\n" +
+        "- `GET /api/calendar/ical?key=wk_...` — iCal calendar feed\n\n" +
+        "**Connect to Google Calendar / Apple Calendar:**\n" +
+        "1. Create a key with `calendar:read` permission.\n" +
+        "2. Settings → API Keys → copy the iCal URL.\n" +
+        "3. In Google Calendar: + Other calendars → From URL → paste the URL.\n" +
+        "4. The calendar updates automatically.",
+
+      theme:
+        "**Theme & visual customization:**\n\n" +
+        "Settings → Theme tab:\n" +
+        "- **Color scheme:** Light / Dark / Auto (follows system).\n" +
+        "- **Accent color:** click the color picker to change button/link colors.\n" +
+        "- **Custom CSS:** paste any CSS rules to override the default styles.\n\n" +
+        "Changes apply immediately on save.",
+
+      display:
+        "**Display preferences** (Settings → Display tab):\n\n" +
+        "| Option | Effect |\n" +
+        "|---|---|\n" +
+        "| Convert to main currency | All prices shown in main currency using exchange rates |\n" +
+        "| Show upcoming subscriptions | 'Coming soon' section on dashboard |\n" +
+        "| Show inactive subscriptions | Cancelled subscriptions visible in list |\n" +
+        "| Show logo background | White card behind logos |\n" +
+        "| Logo background removal | Auto-remove white from logos |\n" +
+        "| Small logo | Compact logo in subscription cards |\n" +
+        "| Mobile navigation | Bottom nav bar on mobile devices |\n" +
+        "| Monthly/Yearly toggle | Dashboard default view |\n\n" +
+        "All toggles apply immediately.",
+
+      "2fa":
+        "**Two-Factor Authentication (2FA / TOTP):**\n\n" +
+        "**Enable 2FA:**\n" +
+        "1. Settings → 2FA tab.\n" +
+        "2. Click **Enable 2FA**.\n" +
+        "3. Scan the QR code with an authenticator app (Google Authenticator, Authy, Bitwarden, etc.).\n" +
+        "4. Enter the 6-digit code to confirm.\n" +
+        "5. **Save your backup codes** — they are the only recovery method if you lose your device.\n\n" +
+        "**Disable 2FA:**\n" +
+        "1. Settings → 2FA tab.\n" +
+        "2. Click **Disable 2FA** and confirm with your current TOTP code.\n\n" +
+        "**Lost device:** use one of the backup codes generated during setup.",
+
+      first_setup:
+        "**First-time setup (new Zublo install):**\n\n" +
+        "1. **Register** — open the Zublo URL. The first user to register becomes the admin.\n" +
+        "2. **Set main currency** — Settings → Currencies → Add currency → click ⭐ next to it.\n" +
+        "   Without a main currency, all dashboard totals show 0.\n" +
+        "3. **Add categories** — Settings → Categories (e.g., Streaming, Software, Health).\n" +
+        "4. **Add payment methods** — Settings → Payment Methods (e.g., Nubank, PayPal).\n" +
+        "5. **Add household members** (optional) — Settings → Household.\n" +
+        "6. **Add first subscription** — go to Subscriptions → + Add.\n" +
+        "7. **Configure AI** (optional) — Settings → AI → choose provider → enter key → enable.\n" +
+        "8. **Configure notifications** (optional) — Settings → Notifications → enable a channel → add reminder → enable Notify on subscriptions.\n" +
+        "9. **Configure exchange rates** (optional, for multi-currency) — Settings → Exchange Rates → enter Fixer/APILayer key.\n" +
+        "10. **Configure SMTP** (admin, for email) — /admin → Mail Settings.\n\n" +
+        "**Docker quick start:**\n" +
+        "```bash\ndocker run -d --name zublo -p 9597:9597 -v zublo_data:/pb/pb_data ghcr.io/danielalves96/zublo:latest\n```\n" +
+        "Then open http://localhost:9597.",
+
+      troubleshooting:
+        "**Common problems and fixes:**\n\n" +
+        "| Problem | Fix |\n" +
+        "|---|---|\n" +
+        "| Dashboard totals show 0 | Set main currency (Settings → Currencies → ⭐) AND enable 'Convert to main currency' (Settings → Display) |\n" +
+        "| AI chat icon not visible | Settings → AI → configure a provider and enable it |\n" +
+        "| Not receiving notifications | Check: (1) channel configured, (2) reminder added, (3) 'Notify' toggle ON on subscriptions |\n" +
+        "| Exchange rates not updating | Settings → Exchange Rates → add Fixer.io or APILayer key |\n" +
+        "| Can't register | Admin closed registration → ask admin to enable it at /admin |\n" +
+        "| Forgot password | Requires SMTP configured by admin. If set up, use 'Forgot password' on login screen |\n" +
+        "| Statistics 12-month chart empty | Chart builds over time (cron on 1st of month). Trigger manually: /admin → Cronjobs → save_monthly_costs |\n" +
+        "| Import skipped subscriptions | Duplicates (same name) are automatically skipped — normal behavior |\n" +
+        "| Can't delete payment method | Remove it from all subscriptions first |\n" +
+        "| Can't delete main currency | Set another currency as main first |\n" +
+        "| Lost 2FA device | Use backup codes saved during 2FA setup |",
+
+      limitations:
+        "**What the AI chat cannot do (UI-only actions):**\n\n" +
+        "These require the web UI — the AI has no tools for them:\n" +
+        "- Upload avatar, subscription logo, or payment proof (file upload)\n" +
+        "- Set main currency (must click ⭐ in Settings → Currencies)\n" +
+        "- Reorder payment methods (drag & drop only)\n" +
+        "- Apply custom CSS or choose accent color (color picker)\n" +
+        "- Scan 2FA QR code\n" +
+        "- Download or restore backup\n" +
+        "- Configure SMTP, OIDC/SSO (admin panel only)\n" +
+        "- Create or delete API keys\n\n" +
+        "**What Zublo does NOT have (features that don't exist):**\n" +
+        "- Budget per category (one global monthly budget only)\n" +
+        "- Income or expense tracking\n" +
+        "- Bank/card sync or Open Banking\n" +
+        "- Native mobile app (responsive web only)\n" +
+        "- Offline/PWA mode\n" +
+        "- Bulk edit or bulk delete subscriptions\n" +
+        "- Spending forecasts\n" +
+        "- Price change alerts\n" +
+        "- Sub-categories\n" +
+        "- Backup to S3 or external storage",
+
+      multi_user:
+        "**Multi-user instance behavior:**\n\n" +
+        "- Each user's data is **fully isolated** — users cannot see each other's subscriptions, currencies, or settings.\n" +
+        "- Categories, payment methods, currencies, household members, and AI settings are **per user**.\n" +
+        "- Admin settings (SMTP, registration, OIDC) are **global** and affect all users.\n" +
+        "- Cron jobs run for all users simultaneously.\n" +
+        "- Household members are labels, not Zublo accounts.\n\n" +
+        "**Admin capabilities (vs regular user):**\n" +
+        "- Regular users: manage own subscriptions, settings, AI, notifications.\n" +
+        "- Admin only: /admin panel, manage other users, SMTP, OIDC/SSO, backups, cron jobs, registration control.\n\n" +
+        "**Invite other users:**\n" +
+        "1. Admin goes to /admin → Registration tab.\n" +
+        "2. Enable 'Open registrations' (and optionally set a max user count).\n" +
+        "3. Share the Zublo URL — new users can register themselves.",
+
+      calendar:
+        "**Calendar page:**\n\n" +
+        "- Shows all subscriptions on a monthly calendar by their `next_payment` date.\n" +
+        "- **Colors:** green = paid, orange/red = overdue, normal = pending.\n" +
+        "- Click any day to see a detail panel with that day's subscriptions.\n\n" +
+        "**Mark as paid:**\n" +
+        "1. Click the day with the payment.\n" +
+        "2. Click **Mark as paid** on the subscription.\n" +
+        "3. Optionally enter amount paid, notes, and upload a proof file (image or PDF).\n" +
+        "4. Confirm.\n\n" +
+        "**Undo payment:** click the paid subscription → **Undo payment**.\n\n" +
+        "**Export to calendar app (Google Calendar, Apple Calendar):**\n" +
+        "1. Click **Export iCal** on the calendar page.\n" +
+        "2. If prompted, create an API key with `calendar:read` permission.\n" +
+        "3. Copy the iCal URL and import it into your calendar app.",
+
+      docker:
+        "**Running Zublo with Docker (no docker-compose needed):**\n\n" +
+        "```bash\ndocker run -d \\\n  --name zublo \\\n  -p 9597:9597 \\\n  -v zublo_data:/pb/pb_data \\\n  ghcr.io/danielalves96/zublo:latest\n```\n\n" +
+        "Then open `http://localhost:9597` in your browser.\n\n" +
+        "**What each flag does:**\n" +
+        "- `-d` — run in background (detached mode).\n" +
+        "- `--name zublo` — container name (use this in stop/rm commands).\n" +
+        "- `-p 9597:9597` — expose port 9597. Change the left side to use a different host port (e.g., `-p 8080:9597`).\n" +
+        "- `-v zublo_data:/pb/pb_data` — named volume for persistent data. **Never omit this** — without it all data is lost when the container stops.\n\n" +
+        "**First run:** first user to register becomes the admin.\n\n" +
+        "**Stop / remove:**\n" +
+        "```bash\ndocker stop zublo\ndocker rm zublo\n```\n\n" +
+        "**Update to latest version:**\n" +
+        "```bash\ndocker pull ghcr.io/danielalves96/zublo:latest\ndocker stop zublo && docker rm zublo\n# then re-run the docker run command above\n```\n" +
+        "Database migrations run automatically on startup — no manual steps needed.\n\n" +
+        "**Run as specific user (optional):**\n" +
+        "```bash\ndocker run -d \\\n  --name zublo \\\n  -p 9597:9597 \\\n  -v zublo_data:/pb/pb_data \\\n  -e PUID=1000 \\\n  -e PGID=1000 \\\n  ghcr.io/danielalves96/zublo:latest\n```\n\n" +
+        "**Custom host port example (run on port 8080):**\n" +
+        "```bash\ndocker run -d --name zublo -p 8080:9597 -v zublo_data:/pb/pb_data ghcr.io/danielalves96/zublo:latest\n```\n" +
+        "Then open `http://localhost:8080`.\n\n" +
+        "**With Docker Compose (`docker-compose.yml`):**\n" +
+        "```yaml\nservices:\n  zublo:\n    image: ghcr.io/danielalves96/zublo:latest\n    container_name: zublo\n    restart: unless-stopped\n    ports:\n      - \"9597:9597\"\n    volumes:\n      - zublo_data:/pb/pb_data\n\nvolumes:\n  zublo_data:\n```\n" +
+        "Run with: `docker compose up -d`\n" +
+        "Stop with: `docker compose down`\n" +
+        "Update: `docker compose pull && docker compose up -d`",
+
+      authentication:
+        "**Authentication flows:**\n\n" +
+        "**Login:**\n" +
+        "1. Go to /login.\n" +
+        "2. Enter email and password → click Login.\n" +
+        "3. If 2FA is enabled, you are redirected to /totp — enter the 6-digit code from your authenticator app.\n\n" +
+        "**Register:**\n" +
+        "1. Go to /register.\n" +
+        "2. Fill in username, email, and password → Create account.\n" +
+        "- Only available if admin enabled open registrations.\n" +
+        "- Admin can set a maximum user count.\n\n" +
+        "**Password reset:**\n" +
+        "1. Login screen → click **Forgot password**.\n" +
+        "2. Enter your email address.\n" +
+        "3. Check your email for a reset link (requires SMTP configured by admin).\n" +
+        "4. Follow the link and set a new password.\n\n" +
+        "**SSO/OIDC login:**\n" +
+        "- If admin configured an OIDC provider, an SSO button appears on the login screen.\n" +
+        "- Click the provider button and authenticate via the external system.",
+
+      glossary:
+        "**Zublo glossary:**\n\n" +
+        "- **Cycle**: billing period unit — Daily, Weekly, Monthly, or Yearly.\n" +
+        "- **Frequency**: how many cycles between charges (default 1). Frequency=3 + Cycle=Monthly = quarterly billing.\n" +
+        "- **Next payment**: date the next charge is expected. Advances automatically when payment is recorded.\n" +
+        "- **Start date**: when the subscription began. Used for progress bars and history.\n" +
+        "- **Payer**: household member assigned as responsible for a subscription. Used for cost-splitting reports.\n" +
+        "- **User**: the Zublo account owner. Each user has fully isolated data.\n" +
+        "- **Household member**: a person tracked for cost-splitting (e.g., family). Has no Zublo account — just a label.\n" +
+        "- **Inactive**: subscription marked as cancelled/paused. Stays in history, excluded from totals.\n" +
+        "- **Cancellation date**: optional date when an inactive subscription was/will be cancelled.\n" +
+        "- **Replacement subscription**: links an old cancelled subscription to the new one that replaced it.\n" +
+        "- **Auto-renew**: daily cron auto-marks subscription as paid on due date (no manual action needed).\n" +
+        "- **Main currency**: base for all totals and conversions. Set via ⭐ in Settings → Currencies. Source of truth: `currencies.is_main = true`.\n" +
+        "- **YearlyCosts snapshot**: monthly record created by cron on the 1st of each month. Powers the 12-month chart.\n" +
+        "- **Payment record**: individual entry for a payment event — stores date, amount, notes, optional proof file.\n" +
+        "- **API key**: scoped token (`wk_` prefix) for external integrations. Shown only once at creation.\n" +
+        "- **Budget**: monthly spending ceiling set in Settings → Profile. Dashboard warns when exceeded.\n" +
+        "- **is_main**: field on the currencies table marking which currency is the user's primary one.",
+
+      security:
+        "**Security features:**\n\n" +
+        "**Two-Factor Authentication (2FA):**\n" +
+        "- TOTP-based (works with Google Authenticator, Authy, Bitwarden, etc.).\n" +
+        "- Setup: Settings → 2FA → Enable → scan QR code → confirm with 6-digit code.\n" +
+        "- Backup codes are generated at setup — store them safely.\n" +
+        "- Lost device: use a backup code to log in.\n\n" +
+        "**API Keys:**\n" +
+        "- Scoped permissions — only grant what's needed (principle of least privilege).\n" +
+        "- Format: `wk_...` — shown only once at creation.\n" +
+        "- Revoke at any time in Settings → API Keys → Delete.\n" +
+        "- Maximum 20 keys per user.\n\n" +
+        "**SSO/OIDC:**\n" +
+        "- Configured by admin in /admin → OIDC tab.\n" +
+        "- Supports any standard OIDC provider (Google, Azure AD, Okta, etc.).\n\n" +
+        "**Data isolation:**\n" +
+        "- Each user's data is fully isolated — no cross-user access.\n" +
+        "- All data stored locally in SQLite — nothing sent to external services unless you configure integrations.",
+
+      tools_reference:
+        "**Complete AI tools reference:**\n\n" +
+        "**Read-only tools:**\n" +
+        "- `get_subscriptions(include_inactive)` — list all subscriptions.\n" +
+        "- `get_subscription_details(name_or_id)` — full details of one subscription.\n" +
+        "- `get_spending_report()` — monthly/yearly totals by category, method, member + budget.\n" +
+        "- `get_currencies()` — all currencies with rates and is_main flag.\n" +
+        "- `get_categories()` — all categories.\n" +
+        "- `get_payment_methods()` — all payment methods.\n" +
+        "- `get_household_members()` — all household members.\n" +
+        "- `get_calendar(year, month)` — subscriptions due in that month.\n" +
+        "- `get_upcoming_payments(days)` — due in next N days (default 30).\n" +
+        "- `get_payment_history(subscription_name_or_id, limit)` — payment records.\n" +
+        "- `get_ai_recommendations()` — existing saving tips.\n" +
+        "- `get_app_help(topic)` — step-by-step UI instructions for any feature.\n" +
+        "- `export_subscriptions(format)` — generate JSON or XLSX download.\n" +
+        "- `check_permission()` — check if current user is admin.\n\n" +
+        "**Write tools:**\n" +
+        "- `create_subscription(name, price, cycle, currency_code, next_payment, [frequency, category_name, payment_method_name, payer_name, notes, notify, auto_renew, start_date])` — create subscription.\n" +
+        "- `update_subscription(name_or_id, ...fields)` — edit any subscription field.\n" +
+        "- `delete_subscription(name_or_id)` — permanently delete.\n" +
+        "- `set_subscription_status(name_or_id, inactive, cancellation_date)` — cancel or reactivate.\n" +
+        "- `mark_subscription_paid(name_or_id, paid_date)` — record payment.\n" +
+        "- `batch_create_subscriptions(subscriptions[])` — bulk create from spreadsheet (after user confirmation).\n" +
+        "- `create_category(name, color)` — add category.\n" +
+        "- `update_category(old_name, new_name)` — rename category.\n" +
+        "- `delete_category(name)` — delete category.\n" +
+        "- `bulk_rename_categories(renames[{from, to}])` — rename multiple categories at once.\n" +
+        "- `create_payment_method(name)` — add payment method.\n" +
+        "- `rename_payment_method(old_name, new_name)` — rename payment method.\n" +
+        "- `delete_payment_method(name)` — delete payment method.\n" +
+        "- `create_household_member(name)` — add household member.\n" +
+        "- `rename_household_member(old_name, new_name)` — rename household member.\n" +
+        "- `delete_household_member(name)` — delete household member.\n" +
+        "- `add_currency(code, name, symbol, rate)` — add currency.\n" +
+        "- `set_main_currency(code_or_id)` — set main currency.\n" +
+        "- `remove_currency(code_or_id)` — delete currency.\n" +
+        "- `generate_ai_recommendations()` — call AI to generate saving tips.",
+
+      field_validation:
+        "**Field validation and constraints (for creating/editing data):**\n\n" +
+        "**Subscriptions:**\n" +
+        "- `name` — required, text, no uniqueness constraint (duplicates allowed).\n" +
+        "- `price` — required, positive number.\n" +
+        "- `next_payment` — required, ISO date `YYYY-MM-DD`.\n" +
+        "- `cycle` — required, exactly one of: `Daily`, `Weekly`, `Monthly`, `Yearly` (case-sensitive).\n" +
+        "- `frequency` — positive integer ≥ 1, default 1.\n" +
+        "- `currency_code` — uppercase ISO 4217 (e.g., `BRL`, `USD`, `EUR`).\n\n" +
+        "**Currencies:**\n" +
+        "- `code` — uppercase ISO 4217.\n" +
+        "- `rate` — positive float. Main currency rate = 1.0. All other rates are relative to it.\n\n" +
+        "**Categories:**\n" +
+        "- `color` — optional hex color, e.g., `#FF5733`.\n\n" +
+        "**Household members / Payment methods:**\n" +
+        "- `name` — required, must be unique per user.\n\n" +
+        "**API keys:** maximum 20 per user.\n\n" +
+        "**Notification reminders:**\n" +
+        "- `days` — integer 0–365 (0 = same day as due date).\n" +
+        "- `hour` — integer 0–23.\n\n" +
+        "**Rule:** if a required field is missing from the user's message, ask for it before calling any tool. Never use placeholder values."
     };
     return { topic: topic, content: help[topic] || help.general };
   }
@@ -1959,14 +2344,14 @@ routerAdd("POST", "/api/ai/chat", function (e) {
       type: "function",
       function: {
         name: "get_app_help",
-        description: "Returns step-by-step UI instructions for any Zublo feature. Use for how-to questions or when a task requires file uploads/UI interactions that can't be done via tools.",
+        description: "Returns step-by-step UI instructions and detailed knowledge for any Zublo feature or topic. Use for how-to questions, troubleshooting, feature questions, or when a task requires file uploads/UI interactions that can't be done via tools.",
         parameters: {
           type: "object",
           properties: {
             topic: {
               type: "string",
-              enum: ["general", "subscriptions", "payment_tracking", "notifications", "categories", "currencies", "payment_methods", "household", "import_export", "statistics", "profile", "admin", "ai", "dashboard"],
-              description: "The help topic."
+              enum: ["general", "subscriptions", "payment_tracking", "notifications", "categories", "currencies", "payment_methods", "household", "import_export", "statistics", "profile", "admin", "ai", "dashboard", "exchange_rates", "api_keys", "theme", "display", "2fa", "first_setup", "troubleshooting", "limitations", "multi_user", "calendar", "authentication", "glossary", "security", "tools_reference", "docker", "field_validation"],
+              description: "The help topic. Use 'docker' for Docker/self-hosting/installation questions, 'first_setup' for new users, 'troubleshooting' for problems, 'limitations' for what AI/Zublo can't do, 'multi_user' for multi-user questions, 'glossary' for term definitions, 'tools_reference' for the complete list of AI tools, 'authentication' for login/register/SSO/password reset, 'security' for 2FA/API keys/OIDC."
             }
           },
           required: ["topic"]
