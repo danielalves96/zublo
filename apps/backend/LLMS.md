@@ -88,6 +88,7 @@ If asked about these, say clearly they don't exist:
 - Subscription sharing between users
 - Spending forecasts / projections
 - Price change alerts
+- General inbound/outbound webhook platform for third-party integrations
 - Sub-categories
 - Backup to S3 or external storage
 - Custom notification message text

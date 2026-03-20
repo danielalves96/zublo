@@ -1111,7 +1111,7 @@ routerAdd("POST", "/api/ai/chat", function (e) {
         "- **Calendar** (`/calendar`): Payments in calendar view.\n" +
         "- **Statistics** (`/statistics`): Spending charts by month, category, payment method.\n" +
         "- **Settings** (`/settings`): Currencies, categories, payment methods, household, notifications, AI, exchange rates, profile.\n" +
-        "- **Admin Panel** (`/admin`): Admin-only. Users, registration, SMTP, OIDC, security, backups, cron jobs, maintenance.\n" +
+        "- **Admin Panel** (`/admin`): Admin-only. Users, registration, SMTP, OIDC, backups, cron jobs, maintenance.\n" +
         "- **AI Chat** (`/chat`): This chat — I can read and write your data directly.",
 
       subscriptions:
@@ -1322,7 +1322,6 @@ routerAdd("POST", "/api/ai/chat", function (e) {
         "**OIDC/SSO tab** (Single Sign-On):\n" +
         "- Enable OIDC, Provider name, Display name, Client ID, Client Secret, Issuer URL, Redirect URL, Scopes.\n" +
         "- Once configured, an SSO button appears on the login screen.\n\n" +
-        "**Security tab:** webhook allowlist — authorized URLs for outgoing webhooks.\n\n" +
         "**Backup tab:**\n" +
         "- Click **Create backup** to download the full database.\n" +
         "- Click **Restore backup** to upload a backup file. Warning: restores replace ALL current data.\n\n" +

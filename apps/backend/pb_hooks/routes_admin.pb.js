@@ -319,7 +319,6 @@ routerAdd("GET", "/api/admin/settings", (e) => {
     oidc_issuer_url: record.getString("oidc_issuer_url"),
     oidc_redirect_url: record.getString("oidc_redirect_url"),
     oidc_scopes: record.getString("oidc_scopes"),
-    webhook_allowlist_csv: record.getString("webhook_allowlist_csv"),
     latest_version: record.getString("latest_version"),
   });
 });
@@ -355,7 +354,7 @@ routerAdd("PATCH", "/api/admin/settings", (e) => {
 
   const textFields = [
     "server_url", "oidc_provider_name", "oidc_client_id",
-    "oidc_issuer_url", "oidc_redirect_url", "oidc_scopes", "webhook_allowlist_csv",
+    "oidc_issuer_url", "oidc_redirect_url", "oidc_scopes",
     "latest_version",
   ];
   for (const f of textFields) {

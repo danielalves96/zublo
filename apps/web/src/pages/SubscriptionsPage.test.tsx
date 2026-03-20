@@ -1,0 +1,359 @@
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+
+import { queryKeys } from "@/lib/queryKeys";
+import { createQueryClientWrapper } from "@/test/query-client";
+
+const mocks = vi.hoisted(() => ({
+  listSubscriptions: vi.fn(),
+  listCurrencies: vi.fn(),
+  listCategories: vi.fn(),
+  listPaymentMethods: vi.fn(),
+  listHousehold: vi.fn(),
+  deleteSubscription: vi.fn(),
+  cloneSubscription: vi.fn(),
+  renewSubscription: vi.fn(),
+  exportSubscriptions: vi.fn(),
+  importSubscriptions: vi.fn(),
+  filteredSubscriptions: vi.fn(),
+  toastSuccess: vi.fn(),
+  toastError: vi.fn(),
+  jsonUrl: vi.fn(),
+  revokeUrl: vi.fn(),
+}));
+
+vi.mock("react-i18next", () => ({
+  useTranslation: () => ({
+    t: (key: string, options?: Record<string, unknown>) =>
+      options ? `${key}:${JSON.stringify(options)}` : key,
+  }),
+}));
+
+vi.mock("@/contexts/AuthContext", () => ({
+  useAuth: () => ({
+    user: {
+      id: "user-1",
+      convert_currency: true,
+      monthly_price: true,
+      subscription_progress: true,
+    },
+  }),
+}));
+
+vi.mock("@/services/subscriptions", () => ({
+  subscriptionsService: {
+    list: mocks.listSubscriptions,
+    delete: mocks.deleteSubscription,
+    clone: mocks.cloneSubscription,
+    renew: mocks.renewSubscription,
+    export: mocks.exportSubscriptions,
+    import: mocks.importSubscriptions,
+  },
+}));
+
+vi.mock("@/services/currencies", () => ({
+  currenciesService: {
+    list: mocks.listCurrencies,
+  },
+}));
+
+vi.mock("@/services/categories", () => ({
+  categoriesService: {
+    list: mocks.listCategories,
+  },
+}));
+
+vi.mock("@/services/paymentMethods", () => ({
+  paymentMethodsService: {
+    listForForm: mocks.listPaymentMethods,
+  },
+}));
+
+vi.mock("@/services/household", () => ({
+  householdService: {
+    list: mocks.listHousehold,
+  },
+}));
+
+vi.mock("@/components/subscriptions/useFilteredSubscriptions", () => ({
+  useFilteredSubscriptions: mocks.filteredSubscriptions,
+}));
+
+vi.mock("@/lib/toast", () => ({
+  toast: {
+    success: mocks.toastSuccess,
+    error: mocks.toastError,
+  },
+}));
+
+vi.mock("@/components/subscriptions/SubscriptionsPageHeader", () => ({
+  SubscriptionsPageHeader: ({
+    onCreate,
+    onExport,
+    onImportChange,
+  }: {
+    onCreate: () => void;
+    onExport: (format: "json" | "xlsx") => void;
+    onImportChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  }) => (
+    <div>
+      <button type="button" onClick={onCreate}>
+        create-subscription
+      </button>
+      <button type="button" onClick={() => onExport("json")}>
+        export-json
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          const file = new File(['[{"id":"sub-imported"}]'], "subs.json", {
+            type: "application/json",
+          });
+          Object.defineProperty(file, "text", {
+            value: vi.fn().mockResolvedValue('[{"id":"sub-imported"}]'),
+          });
+          onImportChange({
+            target: {
+              files: [file],
+              value: "subs.json",
+            },
+          } as unknown as React.ChangeEvent<HTMLInputElement>);
+        }}
+      >
+        import-file
+      </button>
+    </div>
+  ),
+}));
+
+vi.mock("@/components/subscriptions/SubscriptionsToolbar", () => ({
+  SubscriptionsToolbar: ({
+    onSearchChange,
+    onToggleFilters,
+    onCycleSort,
+  }: {
+    onSearchChange: (value: string) => void;
+    onToggleFilters: () => void;
+    onCycleSort: () => void;
+  }) => (
+    <div>
+      <button type="button" onClick={() => onSearchChange("netflix")}>
+        change-search
+      </button>
+      <button type="button" onClick={onToggleFilters}>
+        toggle-filters
+      </button>
+      <button type="button" onClick={onCycleSort}>
+        cycle-sort
+      </button>
+    </div>
+  ),
+}));
+
+vi.mock("@/components/subscriptions/SubscriptionsFiltersPanel", () => ({
+  SubscriptionsFiltersPanel: () => <div>filters-panel</div>,
+}));
+
+vi.mock("@/components/subscriptions/SubscriptionsGrid", () => ({
+  SubscriptionsGrid: ({
+    subscriptions,
+    onEdit,
+    onClone,
+    onRenew,
+    onDelete,
+  }: {
+    subscriptions: Array<{ id: string; name: string }>;
+    onEdit: (subscription: { id: string; name: string }) => void;
+    onClone: (id: string) => void;
+    onRenew: (id: string) => void;
+    onDelete: (id: string) => void;
+  }) => (
+    <div>
+      <div>grid:{subscriptions.length}</div>
+      <button type="button" onClick={() => onEdit(subscriptions[0])}>
+        edit-subscription
+      </button>
+      <button type="button" onClick={() => onClone(subscriptions[0].id)}>
+        clone-subscription
+      </button>
+      <button type="button" onClick={() => onRenew(subscriptions[0].id)}>
+        renew-subscription
+      </button>
+      <button type="button" onClick={() => onDelete(subscriptions[0].id)}>
+        delete-subscription
+      </button>
+    </div>
+  ),
+}));
+
+vi.mock("@/components/SubscriptionFormModal", () => ({
+  SubscriptionFormModal: ({
+    sub,
+    onClose,
+    onSaved,
+  }: {
+    sub: { name?: string } | null;
+    onClose: () => void;
+    onSaved: () => void;
+  }) => (
+    <div>
+      <div>form:{sub?.name ?? "new"}</div>
+      <button type="button" onClick={onSaved}>
+        save-form
+      </button>
+      <button type="button" onClick={onClose}>
+        close-form
+      </button>
+    </div>
+  ),
+}));
+
+vi.mock("@/components/ui/confirm-dialog", () => ({
+  ConfirmDialog: ({
+    open,
+    onConfirm,
+    onOpenChange,
+  }: {
+    open: boolean;
+    onConfirm: () => void;
+    onOpenChange: (open: boolean) => void;
+  }) =>
+    open ? (
+      <div>
+        <button type="button" onClick={onConfirm}>
+          confirm-delete
+        </button>
+        <button type="button" onClick={() => onOpenChange(false)}>
+          close-delete
+        </button>
+      </div>
+    ) : null,
+}));
+
+import { SubscriptionsPage } from "./SubscriptionsPage";
+
+describe("SubscriptionsPage", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.listSubscriptions.mockResolvedValue([{ id: "sub-1", name: "Netflix" }]);
+    mocks.listCurrencies.mockResolvedValue([
+      { id: "cur-1", code: "USD", symbol: "$", is_main: true },
+    ]);
+    mocks.listCategories.mockResolvedValue([{ id: "cat-1", name: "Streaming" }]);
+    mocks.listPaymentMethods.mockResolvedValue([{ id: "pm-1", name: "Visa" }]);
+    mocks.listHousehold.mockResolvedValue([{ id: "hh-1", name: "Daniel" }]);
+    mocks.deleteSubscription.mockResolvedValue(undefined);
+    mocks.cloneSubscription.mockResolvedValue(undefined);
+    mocks.renewSubscription.mockResolvedValue(undefined);
+    mocks.exportSubscriptions.mockResolvedValue({
+      subscriptions: [{ id: "sub-1", name: "Netflix" }],
+    });
+    mocks.importSubscriptions.mockResolvedValue({ imported: 1, skipped: 0 });
+    mocks.filteredSubscriptions.mockImplementation(
+      ({ subscriptions }: { subscriptions: Array<{ id: string; name: string }> }) =>
+        subscriptions,
+    );
+    vi.stubGlobal("URL", {
+      createObjectURL: mocks.jsonUrl.mockReturnValue("blob:subscriptions"),
+      revokeObjectURL: mocks.revokeUrl,
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("renders grid data, handles filters, opens the form, exports JSON, and imports subscriptions", async () => {
+    const anchorClick = vi.fn();
+    const createElement = vi.spyOn(document, "createElement");
+    createElement.mockImplementation(((tagName: string) => {
+      const element = document.createElementNS("http://www.w3.org/1999/xhtml", tagName);
+      if (tagName === "a") {
+        Object.defineProperty(element, "click", {
+          value: anchorClick,
+        });
+      }
+      return element;
+    }) as typeof document.createElement);
+
+    const { client, Wrapper } = createQueryClientWrapper();
+    const invalidateQueries = vi
+      .spyOn(client, "invalidateQueries")
+      .mockResolvedValue(undefined);
+
+    render(<SubscriptionsPage />, { wrapper: Wrapper });
+
+    await waitFor(() => {
+      expect(mocks.listSubscriptions).toHaveBeenCalledWith("user-1");
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText((content) => content === "grid:1")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "toggle-filters" }));
+    expect(screen.getByText("filters-panel")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "create-subscription" }));
+    expect(screen.getByText("form:new")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "save-form" }));
+    await waitFor(() => {
+      expect(invalidateQueries).toHaveBeenCalledWith({
+        queryKey: queryKeys.subscriptions.all("user-1"),
+      });
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "export-json" }));
+    await waitFor(() => {
+      expect(mocks.exportSubscriptions).toHaveBeenCalledTimes(1);
+    });
+    expect(mocks.jsonUrl).toHaveBeenCalledTimes(1);
+    expect(anchorClick).toHaveBeenCalledTimes(1);
+    expect(mocks.revokeUrl).toHaveBeenCalledWith("blob:subscriptions");
+
+    fireEvent.click(screen.getByRole("button", { name: "import-file" }));
+    await waitFor(() => {
+      expect(mocks.importSubscriptions).toHaveBeenCalledWith([
+        { id: "sub-imported" },
+      ]);
+    });
+    expect(mocks.toastSuccess).toHaveBeenCalledWith(
+      'import_success:{"count":1}',
+    );
+
+    createElement.mockRestore();
+  });
+
+  it("handles edit, clone, renew, and delete flows with query invalidation", async () => {
+    const { client, Wrapper } = createQueryClientWrapper();
+    const invalidateQueries = vi
+      .spyOn(client, "invalidateQueries")
+      .mockResolvedValue(undefined);
+
+    render(<SubscriptionsPage />, { wrapper: Wrapper });
+
+    await waitFor(() => {
+      expect(screen.getByText("grid:1")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "edit-subscription" }));
+    expect(screen.getByText("form:Netflix")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "clone-subscription" }));
+    fireEvent.click(screen.getByRole("button", { name: "renew-subscription" }));
+    fireEvent.click(screen.getByRole("button", { name: "delete-subscription" }));
+    fireEvent.click(screen.getByRole("button", { name: "confirm-delete" }));
+
+    await waitFor(() => {
+      expect(mocks.cloneSubscription).toHaveBeenCalledWith("sub-1");
+      expect(mocks.renewSubscription).toHaveBeenCalledWith("sub-1");
+      expect(mocks.deleteSubscription).toHaveBeenCalledWith("sub-1");
+    });
+
+    expect(mocks.toastSuccess).toHaveBeenCalledWith("success");
+    expect(mocks.toastSuccess).toHaveBeenCalledWith("subscription_deleted");
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: queryKeys.subscriptions.all("user-1"),
+    });
+  });
+});

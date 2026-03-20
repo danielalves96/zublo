@@ -35,7 +35,10 @@
     "dev:web": "cd apps/web && bun run dev",
     "dev:pb": "cd apps/backend && ./pocketbase serve --http 127.0.0.1:8080 --hooksWatch=false",
     "build": "cd apps/web && bun run build",
-    "lint": "cd apps/web && bun run lint"
+    "lint": "cd apps/web && bun run lint",
+    "test": "cd apps/web && bun run test:run",
+    "test:run": "cd apps/web && bun run test:run",
+    "test:coverage": "cd apps/web && bun run test:coverage"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

@@ -240,7 +240,6 @@ export interface AdminSettings {
   smtp_from_name?: string;
   smtp_encryption?: string;
   smtp_enabled?: boolean;
-  webhook_allowlist_csv?: string;
 }
 
 export interface YearlyCost {
