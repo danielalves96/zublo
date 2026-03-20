@@ -1,15 +1,43 @@
-## Zublo
+<!--
+Logo slot:
+Add your primary logo asset at .github/assets/logo-main.png
+Then replace the title block below with a centered image, for example:
 
-[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](./LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/danielalves96/zublo?style=social)](https://github.com/danielalves96/zublo/stargazers)
-[![GitHub issues](https://img.shields.io/github/issues/danielalves96/zublo)](https://github.com/danielalves96/zublo/issues)
-[![Docker](https://img.shields.io/badge/deploy-Docker-2496ED?logo=docker&logoColor=white)](#deploy-in-minutes)
-[![PocketBase](https://img.shields.io/badge/backend-PocketBase-black)](https://pocketbase.io/)
-[![Self-Hosted](https://img.shields.io/badge/model-self--hosted-2f855a)](#deploy-in-minutes)
+<p align="center">
+  <img src=".github/assets/logo-main.png" alt="Zublo" width="160" />
+</p>
+-->
 
-Self-hosted subscription tracking without the bloat.
+<h1 align="center">Zublo</h1>
 
-Zublo is an open source subscription tracker for people who want every recurring payment in one place, full control over their data, and a deployment flow that takes minutes instead of a weekend. It gives you a clean web UI, recurring payment visibility, reminders, calendar and statistics views, API access, and a Docker-first setup built for self-hosters.
+<p align="center">
+  <strong>Self-hosted subscription tracking without the bloat.</strong>
+</p>
+
+<p align="center">
+  Open source. Docker-first. Built for self-hosters, homelabs, and people who want control over recurring payments.
+</p>
+
+<p align="center">
+  <a href="#deploy-in-minutes"><strong>Deploy in minutes</strong></a>
+  ·
+  <a href="#demo"><strong>See the demo section</strong></a>
+  ·
+  <a href="./ARCHITECTURE.md"><strong>Read the architecture</strong></a>
+</p>
+
+<p align="center">
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-1f6feb?style=flat-square" alt="Apache 2.0 License" /></a>
+  <a href="https://github.com/danielalves96/zublo/stargazers"><img src="https://img.shields.io/github/stars/danielalves96/zublo?style=flat-square" alt="GitHub stars" /></a>
+  <a href="https://github.com/danielalves96/zublo/issues"><img src="https://img.shields.io/github/issues/danielalves96/zublo?style=flat-square" alt="GitHub issues" /></a>
+  <a href="#deploy-in-minutes"><img src="https://img.shields.io/badge/deploy-Docker-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker deployment" /></a>
+  <a href="https://pocketbase.io/"><img src="https://img.shields.io/badge/backend-PocketBase-111111?style=flat-square" alt="PocketBase" /></a>
+  <a href="#perfect-for"><img src="https://img.shields.io/badge/model-self--hosted-2f855a?style=flat-square" alt="Self-hosted" /></a>
+</p>
+
+Zublo is an open source subscription tracker for people who want every recurring payment in one place, full control over their data, and a deployment flow that takes minutes instead of a weekend.
+
+It gives you a clean web UI, recurring payment visibility, reminders, calendar and statistics views, API access, and a Docker-first setup built for self-hosters.
 
 If you want a focused alternative to bloated finance software or closed SaaS trackers, this is the repo.
 
@@ -20,6 +48,16 @@ If you want a focused alternative to bloated finance software or closed SaaS tra
 - It is easy to deploy and easy to understand
 - It uses a compact stack instead of a pile of infrastructure
 - It is useful on day one, even if you never touch the code
+
+## At A Glance
+
+| What matters | Why it lands |
+|---|---|
+| One job, done well | Track recurring payments without turning into a full finance suite |
+| Fast deployment | A simple Docker setup gets the app running quickly |
+| Real ownership | Your data lives on your infrastructure |
+| Compact architecture | React frontend, PocketBase runtime, no unnecessary platform sprawl |
+| Forkable codebase | Small enough to understand, practical enough to extend |
 
 ## Perfect For
 
@@ -33,14 +71,14 @@ If you want a focused alternative to bloated finance software or closed SaaS tra
 
 ## Demo
 
-This section should sell the project before people read the rest.
+This section should sell the project before people read the rest. Use it like a product landing page, not a documentation appendix.
 
-Drop your best visual assets here:
+Recommended assets:
 
-- dashboard GIF
-- subscriptions management screenshot
-- calendar or statistics screenshot
-- settings or self-hosting screenshot
+- one GIF showing the main flow
+- one screenshot of the subscriptions view
+- one screenshot of calendar or statistics
+- one screenshot that reinforces self-hosting or settings depth
 
 ```md
 ![Zublo dashboard demo](./.github/assets/dashboard.gif)
@@ -48,12 +86,19 @@ Drop your best visual assets here:
 ![Zublo calendar view](./.github/assets/calendar.png)
 ```
 
-Suggested order:
+Suggested layout once the assets exist:
 
-1. a GIF showing the main flow
-2. a clean subscriptions overview
-3. a calendar or statistics shot
-4. an admin or settings screen that reinforces self-hosting
+```html
+<p align="center">
+  <img src="./.github/assets/dashboard.gif" alt="Zublo dashboard demo" width="100%" />
+</p>
+
+<p align="center">
+  <img src="./.github/assets/subscriptions.png" alt="Subscriptions view" width="32%" />
+  <img src="./.github/assets/calendar.png" alt="Calendar view" width="32%" />
+  <img src="./.github/assets/settings.png" alt="Settings view" width="32%" />
+</p>
+```
 
 ## Feature Overview
 
@@ -67,6 +112,16 @@ Suggested order:
 | API access | REST usage through scoped API keys |
 | Authentication | TOTP-based 2FA |
 | Deployment | Single self-hosted app with Docker |
+
+## Why It Feels Good To Self-Host
+
+| Characteristic | What that means in practice |
+|---|---|
+| Single app runtime | Frontend and backend ship together |
+| SQLite persistence | Simple backups and low operational overhead |
+| PocketBase core | Auth, data, and admin capabilities without a large backend stack |
+| Docker-first packaging | Easy to run on VPS, NAS, mini-PC, or homelab |
+| Narrow product scope | Less maintenance drag than a general finance platform |
 
 ## What Zublo Is Not
 
@@ -162,6 +217,9 @@ In local development:
 In production:
 
 - one container serves the frontend and backend together
+
+For the full repository-level architecture, see [ARCHITECTURE.md](./ARCHITECTURE.md).
+For frontend-specific structure and page composition rules, see [apps/web/ARCHITECTURE.md](./apps/web/ARCHITECTURE.md).
 
 ## Repository Layout
 
