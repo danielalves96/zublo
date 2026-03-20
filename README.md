@@ -1,12 +1,8 @@
-<!--
-Logo slot:
-Add your primary logo asset at .github/assets/logo-main.png
-Then replace the title block below with a centered image, for example:
 
 <p align="center">
   <img src=".github/assets/logo-main.png" alt="Zublo" width="160" />
 </p>
--->
+
 
 <h1 align="center">Zublo</h1>
 
