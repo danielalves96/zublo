@@ -1,12 +1,31 @@
 {
   "name": "zublo",
+  "description": "Web application for the Zublo self-hosted subscription tracker.",
   "private": true,
-  "version": "1.0.0",
+  "version": "0.1.0",
   "packageManager": "bun@1.3.6",
+  "license": "Apache-2.0",
   "author": {
     "name": "Daniel Luiz Alves",
     "url": "https://github.com/danielalves96"
   },
+  "homepage": "https://github.com/danielalves96/zublo/tree/main/apps/web",
+  "bugs": {
+    "url": "https://github.com/danielalves96/zublo/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/danielalves96/zublo.git",
+    "directory": "apps/web"
+  },
+  "keywords": [
+    "budget",
+    "pocketbase",
+    "react",
+    "self-hosted",
+    "subscriptions",
+    "tanstack-router"
+  ],
   "type": "module",
   "scripts": {
     "dev": "vite",

@@ -1,7 +1,5 @@
 # PocketBase binary
 pocketbase
-CHANGELOG.md
-LICENSE.md
 
 # PocketBase data
 pb_data/
@@ -19,12 +17,13 @@ dist/
 Thumbs.db
 
 # Reference
-Wallos-main/
-
-#Docker
+docs/
 DOCKER.md
 
 # Frontend build artifacts
 apps/backend/pb_public/assets/*.js
 apps/backend/pb_public/assets/*.css
 apps/backend/pb_public/index.html
+
+# Local build outputs
+zublo.tar
