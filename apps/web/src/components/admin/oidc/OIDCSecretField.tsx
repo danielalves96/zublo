@@ -1,8 +1,9 @@
+import { Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Trash2 } from "lucide-react";
 
 interface OIDCSecretFieldProps {
   secretConfigured: boolean;

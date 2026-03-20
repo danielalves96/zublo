@@ -1,14 +1,15 @@
+import { Bot, FileSpreadsheet, Send, Square, X } from "lucide-react";
 import type {
   ChangeEvent,
+  FormEvent,
   KeyboardEvent,
   RefObject,
-  FormEvent,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { Bot, FileSpreadsheet, Send, Square, X } from "lucide-react";
+
+import type { PendingFile } from "@/components/chat/chat.types";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import type { PendingFile } from "@/components/chat/chat.types";
 
 interface ChatComposerProps {
   fileInputRef: RefObject<HTMLInputElement>;

@@ -1,6 +1,7 @@
-import { useTranslation } from "react-i18next";
-import { Label } from "@/components/ui/label";
 import { Check } from "lucide-react";
+import { useTranslation } from "react-i18next";
+
+import { Label } from "@/components/ui/label";
 import { COLOR_PRESETS } from "@/lib/color-presets";
 
 interface AccentColorSelectorProps {

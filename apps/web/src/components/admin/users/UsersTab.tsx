@@ -1,18 +1,20 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus, Users } from "lucide-react";
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { useAuth } from "@/contexts/AuthContext";
+
 import { UserListItem } from "@/components/admin/users/UserListItem";
-import { adminService } from "@/services/admin";
-import { queryKeys } from "@/lib/queryKeys";
-import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Users } from "lucide-react";
-import type { AdminUser } from "./types";
-import { EditUserModal } from "./EditUserModal";
+import { useAuth } from "@/contexts/AuthContext";
+import { queryKeys } from "@/lib/queryKeys";
+import { toast } from "@/lib/toast";
+import { adminService } from "@/services/admin";
+
 import { AddUserModal } from "./AddUserModal";
+import { EditUserModal } from "./EditUserModal";
+import type { AdminUser } from "./types";
 
 export function UsersTab() {
   const { t } = useTranslation();

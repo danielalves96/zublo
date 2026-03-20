@@ -1,4 +1,3 @@
-import type { ElementType } from "react";
 import {
   Bell,
   Link as LinkIcon,
@@ -9,7 +8,9 @@ import {
   Rss,
   Send,
 } from "lucide-react";
-import type { NotificationsConfig, NotificationReminder } from "@/types";
+import type { ElementType } from "react";
+
+import type { NotificationReminder,NotificationsConfig } from "@/types";
 
 export type ProviderConfig = {
   id: string;

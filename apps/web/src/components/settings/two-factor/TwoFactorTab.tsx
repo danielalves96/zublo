@@ -1,25 +1,26 @@
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
-import { QRCodeSVG } from "qrcode.react";
-import { BackupCodesGrid } from "@/components/settings/two-factor/BackupCodesGrid";
-import { clearTrustedDevice } from "@/components/settings/two-factor/helpers";
-import { OtpDialog } from "@/components/settings/two-factor/OtpDialog";
-import { useAuth } from "@/contexts/AuthContext";
-import { totpService } from "@/services/totp";
-import { toast } from "@/lib/toast";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { Switch } from "@/components/ui/switch";
-import { OtpInput } from "@/components/ui/otp-input";
 import {
+  Copy,
+  RefreshCw,
   Shield,
   ShieldCheck,
   ShieldOff,
-  Copy,
-  RefreshCw,
   Trash2,
 } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+
+import { BackupCodesGrid } from "@/components/settings/two-factor/BackupCodesGrid";
+import { clearTrustedDevice } from "@/components/settings/two-factor/helpers";
+import { OtpDialog } from "@/components/settings/two-factor/OtpDialog";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { OtpInput } from "@/components/ui/otp-input";
+import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "@/lib/toast";
+import { totpService } from "@/services/totp";
 
 interface SetupData { secret: string; otpauthUri: string; backupCodes: string[]; }
 

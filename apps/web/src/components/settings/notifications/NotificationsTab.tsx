@@ -1,20 +1,21 @@
-import { useState, useEffect } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Bell, Save } from "lucide-react";
+import { useEffect,useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useAuth } from "@/contexts/AuthContext";
-import { notificationsService } from "@/services/notifications";
-import { queryKeys } from "@/lib/queryKeys";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "@/lib/toast";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { ProviderCard } from "@/components/settings/notifications/ProviderCard";
-import { RemindersEditor } from "@/components/settings/notifications/RemindersEditor";
+
 import {
   DEFAULT_REMINDERS,
   PROVIDERS,
 } from "@/components/settings/notifications/config";
-import { Bell, Save } from "lucide-react";
-import type { NotificationsConfig, NotificationReminder } from "@/types";
+import { ProviderCard } from "@/components/settings/notifications/ProviderCard";
+import { RemindersEditor } from "@/components/settings/notifications/RemindersEditor";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { useAuth } from "@/contexts/AuthContext";
+import { queryKeys } from "@/lib/queryKeys";
+import { toast } from "@/lib/toast";
+import { notificationsService } from "@/services/notifications";
+import type { NotificationReminder,NotificationsConfig } from "@/types";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Main component

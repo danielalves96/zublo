@@ -1,4 +1,7 @@
+import { Clock, Plus, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
+
+import { DAY_OPTIONS } from "@/components/settings/notifications/config";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -7,8 +10,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Clock, Plus, X } from "lucide-react";
-import { DAY_OPTIONS } from "@/components/settings/notifications/config";
 import type { NotificationReminder } from "@/types";
 
 export function RemindersEditor({

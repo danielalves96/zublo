@@ -1,5 +1,3 @@
-import type { RefObject } from "react";
-import { useTranslation } from "react-i18next";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Bot,
@@ -8,12 +6,15 @@ import {
   RotateCcw,
   User,
 } from "lucide-react";
+import type { RefObject } from "react";
+import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+
 import { SUGGESTED_PROMPTS } from "@/components/chat/constants";
 import { extractFileChip } from "@/components/chat/utils";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { ChatMessage } from "@/types";
 
 interface ChatMessagesPanelProps {

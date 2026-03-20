@@ -1,11 +1,12 @@
+import { CalendarClock, Play } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { adminService } from "@/services/admin";
+
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { CalendarClock, Play } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { adminService } from "@/services/admin";
 
 export function CronjobsTab() {
   const { t } = useTranslation();

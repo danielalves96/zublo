@@ -1,17 +1,18 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Mail } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
+
+import type { SMTPFormValues } from "@/components/admin/smtp/smtp.types";
 import { SMTPAuthSection } from "@/components/admin/smtp/SMTPAuthSection";
 import { SMTPSenderSection } from "@/components/admin/smtp/SMTPSenderSection";
 import { SMTPServerSection } from "@/components/admin/smtp/SMTPServerSection";
 import { SMTPStatusCard } from "@/components/admin/smtp/SMTPStatusCard";
-import type { SMTPFormValues } from "@/components/admin/smtp/smtp.types";
-import { adminService } from "@/services/admin";
-import { queryKeys } from "@/lib/queryKeys";
-import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Mail } from "lucide-react";
+import { queryKeys } from "@/lib/queryKeys";
+import { toast } from "@/lib/toast";
+import { adminService } from "@/services/admin";
 
 export function SMTPTab() {
   const { t } = useTranslation();

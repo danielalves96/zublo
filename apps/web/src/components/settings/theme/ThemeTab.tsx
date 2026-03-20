@@ -1,15 +1,16 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useAuth } from "@/contexts/AuthContext";
+
+import { useUserSettingsMutation } from "@/components/settings/shared/useUserSettingsMutation";
 import { AccentColorSelector } from "@/components/settings/theme/AccentColorSelector";
 import { ThemeModeSelector } from "@/components/settings/theme/ThemeModeSelector";
-import { useUserSettingsMutation } from "@/components/settings/shared/useUserSettingsMutation";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/contexts/AuthContext";
 import {
-  DEFAULT_COLOR,
   buildColorCSS,
+  DEFAULT_COLOR,
   getPreset,
   saveColorToStorage,
 } from "@/lib/color-presets";

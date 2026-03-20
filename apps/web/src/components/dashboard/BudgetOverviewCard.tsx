@@ -1,7 +1,8 @@
-import { useTranslation } from "react-i18next";
 import { DollarSign } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
+import { useTranslation } from "react-i18next";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { subscriptionsService } from "@/services/subscriptions";
 import type { Subscription } from "@/types";

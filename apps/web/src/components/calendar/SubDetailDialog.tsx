@@ -1,31 +1,33 @@
-import { Button } from "@/components/ui/button";
+import {
+  Banknote,
+  CalendarDays,
+  CheckCircle2,
+  CircleDot,
+  Clock,
+  CreditCard,
+  ExternalLink,
+  Eye,
+  FileText,
+  Pencil,
+  Tag,
+  Users,
+} from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { formatPrice, formatDate, daysUntil, sanitizeHref } from "@/lib/utils";
+import { daysUntil, formatDate, formatPrice, sanitizeHref } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import {
-  CalendarDays,
-  ExternalLink,
-  Pencil,
-  Tag,
-  Users,
-  Clock,
-  CreditCard,
-  Banknote,
-  CheckCircle2,
-  CircleDot,
-  FileText,
-  Eye,
-} from "lucide-react";
-import type { Subscription, Currency, PaymentRecord } from "@/types";
 import { paymentRecordsService } from "@/services/paymentRecords";
-import { toMain, getLogoUrl } from "./types";
+import type { Currency, PaymentRecord,Subscription } from "@/types";
+
 import { InfoRow } from "./InfoRow";
+import { getLogoUrl,toMain } from "./types";
 
 interface SubDetailDialogProps {
   sub: Subscription;

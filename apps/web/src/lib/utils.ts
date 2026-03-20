@@ -1,7 +1,8 @@
-import { clsx, type ClassValue } from "clsx";
+import { type ClassValue,clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+
 import { subscriptionsService } from "@/services/subscriptions";
-import type { Subscription, Currency } from "@/types";
+import type { Currency,Subscription } from "@/types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));

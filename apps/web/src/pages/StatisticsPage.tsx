@@ -1,18 +1,19 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useAuth } from "@/contexts/AuthContext";
+
+import type { StatisticsGroupBy } from "@/components/statistics/statistics.types";
 import { StatisticsBreakdownCard } from "@/components/statistics/StatisticsBreakdownCard";
 import { StatisticsDistributionCard } from "@/components/statistics/StatisticsDistributionCard";
 import { StatisticsHeader } from "@/components/statistics/StatisticsHeader";
 import { StatisticsHistoryCard } from "@/components/statistics/StatisticsHistoryCard";
 import { StatisticsSummaryCards } from "@/components/statistics/StatisticsSummaryCards";
 import { useStatisticsDerivedData } from "@/components/statistics/useStatisticsDerivedData";
-import type { StatisticsGroupBy } from "@/components/statistics/statistics.types";
-import { subscriptionsService } from "@/services/subscriptions";
-import { currenciesService } from "@/services/currencies";
-import { yearlyCostsService } from "@/services/yearlyCosts";
+import { useAuth } from "@/contexts/AuthContext";
 import { queryKeys } from "@/lib/queryKeys";
+import { currenciesService } from "@/services/currencies";
+import { subscriptionsService } from "@/services/subscriptions";
+import { yearlyCostsService } from "@/services/yearlyCosts";
 
 export function StatisticsPage() {
   const { t } = useTranslation();

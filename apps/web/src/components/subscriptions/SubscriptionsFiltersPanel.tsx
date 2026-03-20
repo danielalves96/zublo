@@ -1,8 +1,9 @@
-import { useTranslation } from "react-i18next";
 import { Filter } from "lucide-react";
+import { useTranslation } from "react-i18next";
+
+import type { SubscriptionFiltersState } from "@/components/subscriptions/subscriptionsPage.types";
 import { cn } from "@/lib/utils";
 import type { Category } from "@/types";
-import type { SubscriptionFiltersState } from "@/components/subscriptions/subscriptionsPage.types";
 
 interface SubscriptionsFiltersPanelProps {
   categories: Category[];

@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
+
 import { queryKeys } from "@/lib/queryKeys";
-import { subscriptionsService } from "@/services/subscriptions";
-import { currenciesService } from "@/services/currencies";
 import { toMonthly } from "@/lib/utils";
+import { currenciesService } from "@/services/currencies";
+import { subscriptionsService } from "@/services/subscriptions";
 import type { Subscription } from "@/types";
 
 export function useSummaryData(userId: string) {

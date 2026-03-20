@@ -1,9 +1,11 @@
-import React from "react";
-import ReactDOM from "react-dom/client";
-import App from "./App";
-import { ErrorBoundary } from "./components/ErrorBoundary";
 import "./index.css";
 import "./lib/i18n";
+
+import React from "react";
+import ReactDOM from "react-dom/client";
+
+import App from "./App";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { applyColorFromStorage } from "./lib/color-presets";
 
 // Apply saved accent color before first render to avoid flash

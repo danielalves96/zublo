@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 

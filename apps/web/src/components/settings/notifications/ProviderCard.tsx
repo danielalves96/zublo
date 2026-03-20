@@ -1,10 +1,11 @@
+import { FlaskConical } from "lucide-react";
 import { useTranslation } from "react-i18next";
+
+import type { ProviderConfig } from "@/components/settings/notifications/config";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { FlaskConical } from "lucide-react";
-import type { ProviderConfig } from "@/components/settings/notifications/config";
 import type { NotificationsConfig } from "@/types";
 
 interface ProviderCardProps {

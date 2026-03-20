@@ -1,24 +1,25 @@
-import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useAuth } from "@/contexts/AuthContext";
-import type { TotpLoginChallenge } from "@/services/auth";
-import { authService } from "@/services/auth";
-import { LS_KEYS, SS_KEYS } from "@/lib/constants";
-import { OtpInput } from "@/components/ui/otp-input";
+
+import { LogoWithName } from "@/components/AppLogo";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { OtpInput } from "@/components/ui/otp-input";
+import { Switch } from "@/components/ui/switch";
+import { useAuth } from "@/contexts/AuthContext";
+import { LS_KEYS, SS_KEYS } from "@/lib/constants";
 import { toast } from "@/lib/toast";
-import { LogoWithName } from "@/components/AppLogo";
+import type { TotpLoginChallenge } from "@/services/auth";
+import { authService } from "@/services/auth";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 

@@ -1,16 +1,16 @@
+import type { QueryClient } from "@tanstack/react-query";
 import {
   createRootRouteWithContext,
   createRoute,
   createRouter,
-  redirect,
   Outlet,
+  redirect,
 } from "@tanstack/react-router";
-import type { QueryClient } from "@tanstack/react-query";
 import { lazy } from "react";
-
-import { Layout } from "@/components/Layout";
-import { AppTheme } from "@/components/AppTheme";
 import { Toaster } from "sonner";
+
+import { AppTheme } from "@/components/AppTheme";
+import { Layout } from "@/components/Layout";
 
 // Eagerly loaded (part of the auth shell — needed immediately)
 const LoginPage = lazy(() =>
@@ -54,7 +54,7 @@ const ChatPage = lazy(() =>
 );
 
 // Types for router context
-import type { User, SettingsSearch, AdminSearch } from "@/types";
+import type { AdminSearch,SettingsSearch, User } from "@/types";
 
 export interface RouterContext {
   queryClient: QueryClient;

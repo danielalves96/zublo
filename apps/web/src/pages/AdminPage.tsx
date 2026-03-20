@@ -1,9 +1,10 @@
-import { useTranslation } from "react-i18next";
 import { useNavigate } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
+
 import {
   ADMIN_TAB_COMPONENTS,
-  getAdminPageMenuItems,
   type AdminTabKey,
+  getAdminPageMenuItems,
 } from "@/components/admin/adminPage.config";
 import { SidebarTabsLayout } from "@/components/ui/SidebarTabsLayout";
 import { useAuth } from "@/contexts/AuthContext";

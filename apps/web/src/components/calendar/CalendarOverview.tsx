@@ -1,7 +1,8 @@
-import { useTranslation } from "react-i18next";
 import { AlertTriangle, Clock, RefreshCw, TrendingUp } from "lucide-react";
-import { formatPrice } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
+
 import { StatCard } from "@/components/calendar/StatCard";
+import { formatPrice } from "@/lib/utils";
 import type { Currency } from "@/types";
 
 interface CalendarOverviewProps {

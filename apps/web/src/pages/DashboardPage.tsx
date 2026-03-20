@@ -1,22 +1,23 @@
-import { useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useTranslation } from "react-i18next";
 import { BarChart2, Calendar, DollarSign, TrendingUp } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
+
 import { AIRecommendationsCard } from "@/components/dashboard/AIRecommendationsCard";
 import { BudgetOverviewCard } from "@/components/dashboard/BudgetOverviewCard";
 import { CostHistoryCard } from "@/components/dashboard/CostHistoryCard";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { useDashboardDerivedData } from "@/components/dashboard/useDashboardDerivedData";
+import { useAuth } from "@/contexts/AuthContext";
+import { useAIRecommendations } from "@/hooks/useAIRecommendations";
+import { useSummaryData } from "@/hooks/useSummaryData";
+import { useYearlyCosts } from "@/hooks/useYearlyCosts";
 import { queryKeys } from "@/lib/queryKeys";
 import { toast } from "@/lib/toast";
 import { formatPrice } from "@/lib/utils";
 import { aiService } from "@/services/ai";
 import { yearlyCostsService } from "@/services/yearlyCosts";
-import { useAIRecommendations } from "@/hooks/useAIRecommendations";
-import { useSummaryData } from "@/hooks/useSummaryData";
-import { useYearlyCosts } from "@/hooks/useYearlyCosts";
 
 export function DashboardPage() {
   const { t } = useTranslation();

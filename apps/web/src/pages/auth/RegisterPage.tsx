@@ -1,21 +1,19 @@
-import { Link, useNavigate } from "@tanstack/react-router";
-import { useTranslation } from "react-i18next";
-import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { Controller,useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { z } from "zod";
-import { useAuth } from "@/contexts/AuthContext";
-import { authService } from "@/services/auth";
-import { currenciesService } from "@/services/currencies";
-import { usersService } from "@/services/users";
+
+import { LogoWithName } from "@/components/AppLogo";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
-  CardHeader,
   CardDescription,
+  CardHeader,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -23,10 +21,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { toast } from "@/lib/toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { SUPPORTED_LANGUAGES } from "@/lib/i18n";
-import { LogoWithName } from "@/components/AppLogo";
 import i18n from "@/lib/i18n";
+import { toast } from "@/lib/toast";
+import { authService } from "@/services/auth";
+import { currenciesService } from "@/services/currencies";
+import { usersService } from "@/services/users";
 
 const COMMON_CURRENCIES = [
   { code: "USD", symbol: "$", name: "US Dollar" },

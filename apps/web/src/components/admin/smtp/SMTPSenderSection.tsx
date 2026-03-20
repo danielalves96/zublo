@@ -1,7 +1,8 @@
 import { useTranslation } from "react-i18next";
+
+import type { SMTPFormValues } from "@/components/admin/smtp/smtp.types";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { SMTPFormValues } from "@/components/admin/smtp/smtp.types";
 
 interface SMTPSenderSectionProps {
   form: SMTPFormValues;

@@ -1,17 +1,18 @@
 import {
   createContext,
-  useContext,
-  useState,
-  useEffect,
+  type ReactNode,
   useCallback,
+  useContext,
+  useEffect,
   useMemo,
   useRef,
-  type ReactNode,
+  useState,
 } from "react";
-import { TotpRequiredError, authService } from "@/services/auth";
-import { LS_KEYS } from "@/lib/constants";
-import type { User } from "@/types";
+
 import { api } from "@/lib/api";
+import { LS_KEYS } from "@/lib/constants";
+import { authService,TotpRequiredError } from "@/services/auth";
+import type { User } from "@/types";
 
 interface AuthContextType {
   user: User | null;

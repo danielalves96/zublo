@@ -1,31 +1,32 @@
+import {
+  DragDropContext,
+  Draggable,
+  Droppable,
+  type DropResult,
+} from "@hello-pangea/dnd";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  Check,
+  CreditCard,
+  Edit2,
+  GripVertical,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { useAuth } from "@/contexts/AuthContext";
-import { paymentMethodsService } from "@/services/paymentMethods";
-import { queryKeys } from "@/lib/queryKeys";
-import { toast } from "@/lib/toast";
+
+import { IconPicker } from "@/components/settings/payment-methods/IconPicker";
+import { PaymentMethodIcon } from "@/components/settings/payment-methods/PaymentMethodIcon";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { IconPicker } from "@/components/settings/payment-methods/IconPicker";
-import { PaymentMethodIcon } from "@/components/settings/payment-methods/PaymentMethodIcon";
-import {
-  Plus,
-  Trash2,
-  Edit2,
-  Check,
-  X,
-  CreditCard,
-  GripVertical,
-} from "lucide-react";
-import {
-  DragDropContext,
-  Droppable,
-  Draggable,
-  type DropResult,
-} from "@hello-pangea/dnd";
+import { useAuth } from "@/contexts/AuthContext";
+import { queryKeys } from "@/lib/queryKeys";
+import { toast } from "@/lib/toast";
+import { paymentMethodsService } from "@/services/paymentMethods";
 import type { PaymentMethod } from "@/types";
 
 export function PaymentMethodsTab() {

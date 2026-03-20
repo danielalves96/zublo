@@ -1,7 +1,8 @@
+import { Camera } from "lucide-react";
 import type { MutableRefObject } from "react";
 import { useTranslation } from "react-i18next";
+
 import { Button } from "@/components/ui/button";
-import { Camera } from "lucide-react";
 
 interface ProfileAvatarCardProps {
   displayName: string;

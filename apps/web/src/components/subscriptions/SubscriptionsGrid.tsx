@@ -1,5 +1,6 @@
-import { useTranslation } from "react-i18next";
 import { Search } from "lucide-react";
+import { useTranslation } from "react-i18next";
+
 import { SubscriptionCard } from "@/components/subscriptions/SubscriptionCard";
 import type { Currency, Subscription } from "@/types";
 

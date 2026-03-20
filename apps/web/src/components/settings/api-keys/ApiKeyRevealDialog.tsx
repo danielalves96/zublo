@@ -1,7 +1,7 @@
+import { AlertTriangle, Check, Copy } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertTriangle, Check, Copy } from "lucide-react";
-import type { ApiKeyCreated } from "@/types";
+
 import { PermissionBadge } from "@/components/settings/api-keys/PermissionBadge";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { ApiKeyCreated } from "@/types";
 
 interface ApiKeyRevealDialogProps {
   created: ApiKeyCreated | null;

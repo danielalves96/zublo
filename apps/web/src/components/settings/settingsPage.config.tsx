@@ -1,4 +1,3 @@
-import type { ComponentType } from "react";
 import type { TFunction } from "i18next";
 import {
   Banknote,
@@ -15,6 +14,8 @@ import {
   User,
   Users,
 } from "lucide-react";
+import type { ComponentType } from "react";
+
 import { AITab } from "@/components/settings/ai/AITab";
 import { ApiKeyTab } from "@/components/settings/api-keys/ApiKeyTab";
 import { CategoriesTab } from "@/components/settings/categories/CategoriesTab";

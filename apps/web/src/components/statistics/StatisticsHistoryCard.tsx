@@ -7,9 +7,10 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+
+import type { StatisticsHistoryPoint } from "@/components/statistics/statistics.types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatPrice } from "@/lib/utils";
-import type { StatisticsHistoryPoint } from "@/components/statistics/statistics.types";
 
 interface StatisticsHistoryCardProps {
   data: StatisticsHistoryPoint[];

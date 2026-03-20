@@ -1,5 +1,5 @@
-import pb from "@/lib/pb";
 import { api } from "@/lib/api";
+import pb from "@/lib/pb";
 import type { FixerSettings } from "@/types";
 
 export const fixerService = {

@@ -1,4 +1,3 @@
-import type { ComponentType } from "react";
 import type { TFunction } from "i18next";
 import {
   CalendarClock,
@@ -10,6 +9,8 @@ import {
   Users,
   Wrench,
 } from "lucide-react";
+import type { ComponentType } from "react";
+
 import { BackupTab } from "@/components/admin/backup/BackupTab";
 import { CronjobsTab } from "@/components/admin/cronjobs/CronjobsTab";
 import { MaintenanceTab } from "@/components/admin/maintenance/MaintenanceTab";

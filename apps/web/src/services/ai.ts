@@ -1,6 +1,6 @@
-import pb from "@/lib/pb";
 import { api } from "@/lib/api";
-import type { AISettings, AIRecommendation, ChatMessage, ChatResponse, ChatConversation } from "@/types";
+import pb from "@/lib/pb";
+import type { AIRecommendation, AISettings, ChatConversation,ChatMessage, ChatResponse } from "@/types";
 
 export const aiService = {
   getSettings: async (userId: string): Promise<AISettings | null> => {

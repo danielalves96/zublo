@@ -1,12 +1,13 @@
+import { AlertTriangle,Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { MessageDialog } from "@/components/ui/message-dialog";
+import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/contexts/AuthContext";
 import { usersService } from "@/services/users";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { MessageDialog } from "@/components/ui/message-dialog";
-import { Trash2, AlertTriangle } from "lucide-react";
 
 export function DeleteAccountTab() {
   const { t } = useTranslation();

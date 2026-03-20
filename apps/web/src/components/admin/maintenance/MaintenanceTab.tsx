@@ -1,9 +1,10 @@
+import { ServerCrash, Trash2,Wrench } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { adminService } from "@/services/admin";
-import { toast } from "@/lib/toast";
+
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Wrench, ServerCrash, Trash2 } from "lucide-react";
+import { toast } from "@/lib/toast";
+import { adminService } from "@/services/admin";
 
 export function MaintenanceTab() {
   const { t } = useTranslation();

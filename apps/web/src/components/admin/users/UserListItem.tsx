@@ -1,8 +1,9 @@
+import { Crown, Pencil, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+
+import type { AdminUser } from "@/components/admin/users/types";
 import { Button } from "@/components/ui/button";
 import { adminService } from "@/services/admin";
-import { Crown, Pencil, Trash2 } from "lucide-react";
-import type { AdminUser } from "@/components/admin/users/types";
 
 interface UserListItemProps {
   currentUserId?: string;

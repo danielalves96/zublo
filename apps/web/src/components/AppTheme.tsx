@@ -1,6 +1,7 @@
 import { useEffect } from "react";
+
 import { useAuth } from "@/contexts/AuthContext";
-import { getPreset, buildColorCSS, saveColorToStorage } from "@/lib/color-presets";
+import { buildColorCSS, getPreset, saveColorToStorage } from "@/lib/color-presets";
 
 /** Applies user preferences: dark mode, color theme, custom CSS. Renders nothing. */
 export function AppTheme() {

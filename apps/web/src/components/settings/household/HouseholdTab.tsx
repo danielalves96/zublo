@@ -1,16 +1,17 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus, Users } from "lucide-react";
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { useAuth } from "@/contexts/AuthContext";
+
 import { HouseholdMemberFormRow } from "@/components/settings/household/HouseholdMemberFormRow";
 import { HouseholdMemberListItem } from "@/components/settings/household/HouseholdMemberListItem";
-import { householdService } from "@/services/household";
-import { queryKeys } from "@/lib/queryKeys";
-import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Users } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { queryKeys } from "@/lib/queryKeys";
+import { toast } from "@/lib/toast";
+import { householdService } from "@/services/household";
 
 export function HouseholdTab() {
   const { t } = useTranslation();

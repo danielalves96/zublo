@@ -1,6 +1,7 @@
-import { useTranslation } from "react-i18next";
-import { CurrencyInput } from "@/components/ui/currency-input";
 import { Wallet } from "lucide-react";
+import { useTranslation } from "react-i18next";
+
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 interface ProfileBudgetCardProps {
   budget: number;

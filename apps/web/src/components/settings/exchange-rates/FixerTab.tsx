@@ -1,16 +1,17 @@
-import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { TrendingUp } from "lucide-react";
+import { useEffect,useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useAuth } from "@/contexts/AuthContext";
+
+import { FIXER_PROVIDER_LINKS } from "@/components/settings/exchange-rates/fixer.constants";
 import { FixerActions } from "@/components/settings/exchange-rates/FixerActions";
 import { FixerApiKeyField } from "@/components/settings/exchange-rates/FixerApiKeyField";
 import { FixerProviderSelect } from "@/components/settings/exchange-rates/FixerProviderSelect";
-import { FIXER_PROVIDER_LINKS } from "@/components/settings/exchange-rates/fixer.constants";
-import { fixerService } from "@/services/fixer";
+import { Separator } from "@/components/ui/separator";
+import { useAuth } from "@/contexts/AuthContext";
 import { queryKeys } from "@/lib/queryKeys";
 import { toast } from "@/lib/toast";
-import { Separator } from "@/components/ui/separator";
-import { TrendingUp } from "lucide-react";
+import { fixerService } from "@/services/fixer";
 import type { FixerSettings } from "@/types";
 
 export function FixerTab() {

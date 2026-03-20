@@ -1,12 +1,8 @@
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Key } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
-import { queryKeys } from "@/lib/queryKeys";
-import { toast } from "@/lib/toast";
-import { apiKeysService } from "@/services/apiKeys";
-import type { ApiKey, ApiKeyCreated, ApiKeyPermission } from "@/types";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+
 import { ApiKeyEndpointsReference } from "@/components/settings/api-keys/ApiKeyEndpointsReference";
 import {
   CreateApiKeyDialog,
@@ -16,6 +12,11 @@ import { ApiKeyListCard } from "@/components/settings/api-keys/ApiKeyListCard";
 import { ApiKeyRevealDialog } from "@/components/settings/api-keys/ApiKeyRevealDialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Separator } from "@/components/ui/separator";
+import { useAuth } from "@/contexts/AuthContext";
+import { queryKeys } from "@/lib/queryKeys";
+import { toast } from "@/lib/toast";
+import { apiKeysService } from "@/services/apiKeys";
+import type { ApiKey, ApiKeyCreated, ApiKeyPermission } from "@/types";
 
 export function ApiKeyTab() {
   const { t } = useTranslation();

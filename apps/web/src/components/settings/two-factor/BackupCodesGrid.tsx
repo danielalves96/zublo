@@ -1,8 +1,9 @@
+import { Copy, Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { toast } from "@/lib/toast";
+
 import { Button } from "@/components/ui/button";
-import { Copy, Eye, EyeOff } from "lucide-react";
+import { toast } from "@/lib/toast";
 
 export function BackupCodesGrid({
   codes,

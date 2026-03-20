@@ -1,5 +1,6 @@
-import { Button } from "@/components/ui/button";
 import { Edit2, Star, Trash2 } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 import type { Currency } from "@/types";
 
 interface CurrencyListItemProps {

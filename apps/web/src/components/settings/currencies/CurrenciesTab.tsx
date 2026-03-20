@@ -1,18 +1,19 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Banknote,Plus } from "lucide-react";
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { useAuth } from "@/contexts/AuthContext";
+
 import { CurrencyFormRow } from "@/components/settings/currencies/CurrencyFormRow";
 import { CurrencyListItem } from "@/components/settings/currencies/CurrencyListItem";
-import { currenciesService } from "@/services/currencies";
-import { usersService } from "@/services/users";
-import { fixerService } from "@/services/fixer";
-import { queryKeys } from "@/lib/queryKeys";
-import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Banknote } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { queryKeys } from "@/lib/queryKeys";
+import { toast } from "@/lib/toast";
+import { currenciesService } from "@/services/currencies";
+import { fixerService } from "@/services/fixer";
+import { usersService } from "@/services/users";
 import type { Currency } from "@/types";
 
 export function CurrenciesTab() {

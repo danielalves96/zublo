@@ -1,31 +1,31 @@
-import { useRef, useEffect, useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Save } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
+import { Controller } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { ProfileAvatarCard } from "@/components/settings/profile/ProfileAvatarCard";
-import { ProfileBudgetCard } from "@/components/settings/profile/ProfileBudgetCard";
+
 import {
   buildProfileSchema,
   type ProfileFormValues,
 } from "@/components/settings/profile/profile.schema";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "@/lib/toast";
-import { SUPPORTED_LANGUAGES } from "@/lib/i18n";
-import i18n from "@/lib/i18n";
-import { usersService } from "@/services/users";
-import { currenciesService } from "@/services/currencies";
-import { queryKeys } from "@/lib/queryKeys";
-
+import { ProfileAvatarCard } from "@/components/settings/profile/ProfileAvatarCard";
+import { ProfileBudgetCard } from "@/components/settings/profile/ProfileBudgetCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Save } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { useAuth } from "@/contexts/AuthContext";
+import { SUPPORTED_LANGUAGES } from "@/lib/i18n";
+import i18n from "@/lib/i18n";
 import { compressImage } from "@/lib/image";
+import { queryKeys } from "@/lib/queryKeys";
+import { toast } from "@/lib/toast";
+import { currenciesService } from "@/services/currencies";
+import { usersService } from "@/services/users";
 import type { Currency } from "@/types";
-import { Controller } from "react-hook-form";
 
 export function ProfileTab() {
   const { t } = useTranslation();

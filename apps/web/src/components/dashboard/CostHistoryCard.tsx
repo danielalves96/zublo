@@ -1,3 +1,4 @@
+import { BarChart2, TrendingUp } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
   Area,
@@ -8,7 +9,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { BarChart2, TrendingUp } from "lucide-react";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface ChartPoint {

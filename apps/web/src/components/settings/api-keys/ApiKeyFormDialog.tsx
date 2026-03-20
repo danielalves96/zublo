@@ -1,7 +1,7 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { useTranslation } from "react-i18next";
 import { Check, Key, Pencil, Shield } from "lucide-react";
-import type { ApiKeyPermission } from "@/types";
+import { type ReactNode,useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+
 import {
   API_KEY_PERMISSION_GROUPS,
   API_KEY_PERMISSIONS,
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { ApiKeyPermission } from "@/types";
 
 const EMPTY_PERMISSIONS: ApiKeyPermission[] = [];
 

@@ -1,5 +1,3 @@
-import { useState, type ReactNode } from "react";
-import { useTranslation } from "react-i18next";
 import {
   BarChart3,
   BookOpen,
@@ -14,10 +12,13 @@ import {
   Tag,
   Users,
 } from "lucide-react";
-import type { ApiKeyPermission } from "@/types";
+import { type ReactNode,useState } from "react";
+import { useTranslation } from "react-i18next";
+
 import { PermissionBadge } from "@/components/settings/api-keys/PermissionBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import type { ApiKeyPermission } from "@/types";
 
 const SUBSCRIPTION_CREATE_BODY = `{
   "name": "Netflix",           // required

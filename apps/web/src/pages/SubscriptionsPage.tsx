@@ -1,19 +1,20 @@
-import { useRef, useState, type ChangeEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { type ChangeEvent,useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useAuth } from "@/contexts/AuthContext";
+
 import { SubscriptionFormModal } from "@/components/SubscriptionFormModal";
 import { SubscriptionsFiltersPanel } from "@/components/subscriptions/SubscriptionsFiltersPanel";
 import { SubscriptionsGrid } from "@/components/subscriptions/SubscriptionsGrid";
-import { SubscriptionsPageHeader } from "@/components/subscriptions/SubscriptionsPageHeader";
-import { SubscriptionsToolbar } from "@/components/subscriptions/SubscriptionsToolbar";
 import {
   INITIAL_SUBSCRIPTION_FILTERS,
   type SubscriptionFiltersState,
   type SubscriptionSortKey,
 } from "@/components/subscriptions/subscriptionsPage.types";
+import { SubscriptionsPageHeader } from "@/components/subscriptions/SubscriptionsPageHeader";
+import { SubscriptionsToolbar } from "@/components/subscriptions/SubscriptionsToolbar";
 import { useFilteredSubscriptions } from "@/components/subscriptions/useFilteredSubscriptions";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useAuth } from "@/contexts/AuthContext";
 import { queryKeys } from "@/lib/queryKeys";
 import { toast } from "@/lib/toast";
 import { categoriesService } from "@/services/categories";

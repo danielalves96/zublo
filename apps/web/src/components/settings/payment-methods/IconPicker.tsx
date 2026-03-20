@@ -1,7 +1,8 @@
+import { ImageOff, Upload, X } from "lucide-react";
 import { useRef } from "react";
 import { useTranslation } from "react-i18next";
+
 import { Button } from "@/components/ui/button";
-import { ImageOff, Upload, X } from "lucide-react";
 
 interface IconPickerProps {
   currentSrc: string | null;

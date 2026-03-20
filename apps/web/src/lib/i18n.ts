@@ -1,24 +1,25 @@
 import i18n from "i18next";
-import { LS_KEYS } from "@/lib/constants";
-import { initReactI18next } from "react-i18next";
 import LanguageDetector from "i18next-browser-languagedetector";
+import { initReactI18next } from "react-i18next";
 
-import en from "./locales/en.json";
-import pt_br from "./locales/pt_br.json";
+import { LS_KEYS } from "@/lib/constants";
+
+import cs from "./locales/cs.json";
+import da from "./locales/da.json";
 import de from "./locales/de.json";
+import en from "./locales/en.json";
 import es from "./locales/es.json";
 import fr from "./locales/fr.json";
 import it from "./locales/it.json";
-import nl from "./locales/nl.json";
-import pl from "./locales/pl.json";
-import ru from "./locales/ru.json";
-import zh_cn from "./locales/zh_cn.json";
 import ja from "./locales/ja.json";
 import ko from "./locales/ko.json";
+import nl from "./locales/nl.json";
+import pl from "./locales/pl.json";
+import pt_br from "./locales/pt_br.json";
+import ru from "./locales/ru.json";
 import tr from "./locales/tr.json";
 import uk from "./locales/uk.json";
-import cs from "./locales/cs.json";
-import da from "./locales/da.json";
+import zh_cn from "./locales/zh_cn.json";
 
 i18n
   .use(LanguageDetector)

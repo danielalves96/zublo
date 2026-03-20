@@ -1,11 +1,12 @@
 import { useTranslation } from "react-i18next";
+
 import { ChatComposer } from "@/components/chat/ChatComposer";
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { ChatMessagesPanel } from "@/components/chat/ChatMessagesPanel";
 import { ChatSidebar } from "@/components/chat/ChatSidebar";
 import { useChatPageController } from "@/components/chat/useChatPageController";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Card } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export function ChatPage() {
   const { t } = useTranslation();

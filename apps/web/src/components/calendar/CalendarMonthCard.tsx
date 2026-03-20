@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next";
 import {
   CalendarDays,
   CheckCircle2,
@@ -6,19 +5,21 @@ import {
   ChevronRight,
   CircleDot,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { cn, formatPrice } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
+
 import { DOW_KEYS, MONTH_KEYS } from "@/components/calendar/constants";
 import {
+  type DayEntry,
   getColorForSub,
   getLogoUrl,
   getPaymentRecord,
   toDateStr,
   toMain,
-  type DayEntry,
 } from "@/components/calendar/types";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { cn, formatPrice } from "@/lib/utils";
 import type { Currency, PaymentRecord } from "@/types";
 
 type CalendarCell = {

@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
-import { RouterProvider } from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { RouterProvider } from "@tanstack/react-router";
+import { useEffect,useState } from "react";
+
+import { AppMetadata } from "@/components/AppMetadata";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { createAppRouter } from "@/routes";
-import { AppMetadata } from "@/components/AppMetadata";
 
 const queryClient = new QueryClient({
   defaultOptions: {

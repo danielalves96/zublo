@@ -1,18 +1,19 @@
-import { useState, useEffect } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Bot, Save, Trash2 } from "lucide-react";
+import { useEffect,useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useAuth } from "@/contexts/AuthContext";
+
 import { AIModelSelector } from "@/components/settings/ai/AIModelSelector";
-import { aiService } from "@/services/ai";
-import type { AISettings } from "@/types";
-import { queryKeys } from "@/lib/queryKeys";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "@/lib/toast";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
-import { Bot, Save, Trash2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { queryKeys } from "@/lib/queryKeys";
+import { toast } from "@/lib/toast";
+import { aiService } from "@/services/ai";
+import type { AISettings } from "@/types";
 
 export function AITab() {
   const { t } = useTranslation();

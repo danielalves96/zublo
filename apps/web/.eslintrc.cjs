@@ -7,8 +7,9 @@ module.exports = {
     "eslint:recommended",
     "plugin:@typescript-eslint/recommended",
     "plugin:react-hooks/recommended",
+    "prettier",
   ],
-  plugins: ["@typescript-eslint", "react-hooks", "react-refresh"],
+  plugins: ["@typescript-eslint", "react-hooks", "react-refresh", "simple-import-sort"],
   ignorePatterns: ["dist", "node_modules", "*.config.ts", "*.config.js"],
   rules: {
     // react-refresh is a HMR concern, not a code-quality rule.
@@ -22,6 +23,8 @@ module.exports = {
       { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
     ],
     "@typescript-eslint/consistent-type-imports": ["warn", { prefer: "type-imports" }],
+    "simple-import-sort/imports": "error",
+    "simple-import-sort/exports": "error",
 
     // General
     "no-console": ["warn", { allow: ["error", "warn"] }],

@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import {
   type ChangeEvent,
   type KeyboardEvent,
@@ -8,28 +9,28 @@ import {
   useRef,
   useState,
 } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { useAuth } from "@/contexts/AuthContext";
-import { queryKeys } from "@/lib/queryKeys";
-import { aiService } from "@/services/ai";
-import { usersService } from "@/services/users";
-import type { ChatConversation, ChatMessage, ChatResponse } from "@/types";
-import {
-  FILE_MARKER,
-  MAX_FILE_SIZE_MB,
-  MAX_SPREADSHEET_ROWS,
-} from "@/components/chat/constants";
+
 import type {
   ChatConversationGroup,
   PendingFile,
 } from "@/components/chat/chat.types";
 import {
+  FILE_MARKER,
+  MAX_FILE_SIZE_MB,
+  MAX_SPREADSHEET_ROWS,
+} from "@/components/chat/constants";
+import {
   buildConversationTitle,
   groupConversations,
   triggerExportDownload,
 } from "@/components/chat/utils";
+import { useAuth } from "@/contexts/AuthContext";
+import { queryKeys } from "@/lib/queryKeys";
+import { aiService } from "@/services/ai";
+import { usersService } from "@/services/users";
+import type { ChatConversation, ChatMessage, ChatResponse } from "@/types";
 
 export function useChatPageController() {
   const { t } = useTranslation();

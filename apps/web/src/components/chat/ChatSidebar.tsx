@@ -1,5 +1,3 @@
-import type { ChangeEvent, KeyboardEvent, MouseEvent, RefObject } from "react";
-import { useTranslation } from "react-i18next";
 import {
   Check,
   Loader2,
@@ -9,8 +7,11 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import type { ChangeEvent, KeyboardEvent, MouseEvent, RefObject } from "react";
+import { useTranslation } from "react-i18next";
+
 import type { ChatConversationGroup } from "@/components/chat/chat.types";
+import { cn } from "@/lib/utils";
 
 interface ChatSidebarProps {
   conversationGroups: ChatConversationGroup[];

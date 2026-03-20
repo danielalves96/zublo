@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
-import { Label } from "@/components/ui/label";
+
 import { THEME_MODES } from "@/components/settings/theme/theme.config";
+import { Label } from "@/components/ui/label";
 
 interface ThemeModeSelectorProps {
   activeMode?: number;

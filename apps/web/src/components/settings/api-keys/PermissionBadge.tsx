@@ -1,9 +1,10 @@
 import { useTranslation } from "react-i18next";
-import type { ApiKeyPermission } from "@/types";
+
 import {
   API_KEY_PERMISSION_COLORS,
   API_KEY_PERMISSIONS,
 } from "@/components/settings/api-keys/config";
+import type { ApiKeyPermission } from "@/types";
 
 interface PermissionBadgeProps {
   perm: ApiKeyPermission;

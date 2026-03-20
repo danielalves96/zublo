@@ -1,7 +1,7 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatPrice } from "@/lib/utils";
 import { STATISTICS_COLORS } from "@/components/statistics/constants";
 import type { StatisticsPieDatum } from "@/components/statistics/statistics.types";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatPrice } from "@/lib/utils";
 
 interface StatisticsBreakdownCardProps {
   data: StatisticsPieDatum[];

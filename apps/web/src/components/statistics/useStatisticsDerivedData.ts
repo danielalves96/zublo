@@ -1,11 +1,12 @@
 import { useMemo } from "react";
-import { toMonthly } from "@/lib/utils";
-import type { Currency, Subscription, YearlyCost } from "@/types";
+
 import type {
   StatisticsGroupBy,
   StatisticsHistoryPoint,
   StatisticsPieDatum,
 } from "@/components/statistics/statistics.types";
+import { toMonthly } from "@/lib/utils";
+import type { Currency, Subscription, YearlyCost } from "@/types";
 
 interface UseStatisticsDerivedDataParams {
   subscriptions: Subscription[];

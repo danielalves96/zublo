@@ -1,13 +1,14 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Settings } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { adminService } from "@/services/admin";
-import { queryKeys } from "@/lib/queryKeys";
-import { toast } from "@/lib/toast";
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Settings } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { queryKeys } from "@/lib/queryKeys";
+import { toast } from "@/lib/toast";
+import { adminService } from "@/services/admin";
 import type { AdminSettings } from "@/types";
 
 export function RegistrationTab() {

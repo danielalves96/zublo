@@ -1,10 +1,11 @@
+import { Check, ChevronsUpDown, RefreshCw, Search } from "lucide-react";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { Check, ChevronsUpDown, RefreshCw, Search } from "lucide-react";
 
 interface AIModelSelectorProps {
   canFetchModels: boolean;

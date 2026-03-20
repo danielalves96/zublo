@@ -1,7 +1,8 @@
 import { useTranslation } from "react-i18next";
-import { cn } from "@/lib/utils";
+
 import { STATISTICS_GROUPS } from "@/components/statistics/constants";
 import type { StatisticsGroupBy } from "@/components/statistics/statistics.types";
+import { cn } from "@/lib/utils";
 
 interface StatisticsHeaderProps {
   groupBy: StatisticsGroupBy;

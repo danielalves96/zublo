@@ -1,29 +1,30 @@
+import { useQuery } from "@tanstack/react-query";
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { useTranslation } from "react-i18next";
-import { useAuth } from "@/contexts/AuthContext";
 import {
-  LayoutDashboard,
-  CreditCard,
-  Calendar,
   BarChart2,
-  Settings,
-  Shield,
-  LogOut,
-  Menu,
-  X,
+  Calendar,
   ChevronLeft,
   ChevronRight,
+  CreditCard,
+  LayoutDashboard,
+  LogOut,
+  Menu,
   MessageSquare,
+  Settings,
+  Shield,
+  X,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { usersService } from "@/services/users";
-import { aiService } from "@/services/ai";
-import { queryKeys } from "@/lib/queryKeys";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useTranslation } from "react-i18next";
+
 import { LogoIcon, LogoWithName } from "@/components/AppLogo";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useAuth } from "@/contexts/AuthContext";
+import { queryKeys } from "@/lib/queryKeys";
+import { cn } from "@/lib/utils";
+import { aiService } from "@/services/ai";
+import { usersService } from "@/services/users";
 
 const baseNavItems = [
   { key: "dashboard", path: "/dashboard" as const, icon: LayoutDashboard },

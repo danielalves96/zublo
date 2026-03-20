@@ -1,9 +1,10 @@
 import { useMemo } from "react";
-import type { Subscription } from "@/types";
+
 import type {
   SubscriptionFiltersState,
   SubscriptionSortKey,
 } from "@/components/subscriptions/subscriptionsPage.types";
+import type { Subscription } from "@/types";
 
 interface UseFilteredSubscriptionsParams {
   subscriptions: Subscription[];

@@ -1,5 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+
 import {
   getSettingsPageMenuItems,
   SETTINGS_TAB_COMPONENTS,

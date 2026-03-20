@@ -1,9 +1,10 @@
-import { useTranslation } from "react-i18next";
 import { Clock, Key, Pencil, Plus, Shield, Trash2 } from "lucide-react";
-import type { ApiKey } from "@/types";
+import { useTranslation } from "react-i18next";
+
 import { PermissionBadge } from "@/components/settings/api-keys/PermissionBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import type { ApiKey } from "@/types";
 
 function KeyRowSkeleton() {
   return (

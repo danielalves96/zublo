@@ -1,16 +1,17 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus, Tag } from "lucide-react";
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { useAuth } from "@/contexts/AuthContext";
+
 import { CategoryFormRow } from "@/components/settings/categories/CategoryFormRow";
 import { CategoryListItem } from "@/components/settings/categories/CategoryListItem";
-import { categoriesService } from "@/services/categories";
-import { queryKeys } from "@/lib/queryKeys";
-import { toast } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Tag } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { queryKeys } from "@/lib/queryKeys";
+import { toast } from "@/lib/toast";
+import { categoriesService } from "@/services/categories";
 
 export function CategoriesTab() {
   const { t } = useTranslation();

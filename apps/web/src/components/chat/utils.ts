@@ -1,6 +1,6 @@
+import type { ChatConversationGroup } from "@/components/chat/chat.types";
 import { FILE_MARKER } from "@/components/chat/constants";
 import type { ChatConversation } from "@/types";
-import type { ChatConversationGroup } from "@/components/chat/chat.types";
 
 export async function triggerExportDownload(
   format: string,

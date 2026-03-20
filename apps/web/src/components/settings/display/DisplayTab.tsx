@@ -1,13 +1,14 @@
+import { Receipt } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useAuth } from "@/contexts/AuthContext";
-import { DisplayToggleCard } from "@/components/settings/display/DisplayToggleCard";
+
 import {
   DISPLAY_TOGGLES,
   type DisplayKey,
 } from "@/components/settings/display/display.config";
+import { DisplayToggleCard } from "@/components/settings/display/DisplayToggleCard";
 import { useUserSettingsMutation } from "@/components/settings/shared/useUserSettingsMutation";
 import { Separator } from "@/components/ui/separator";
-import { Receipt } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function DisplayTab() {
   const { t } = useTranslation();
