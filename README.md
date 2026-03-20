@@ -1,6 +1,6 @@
 
 <p align="center">
-  <img src="./apps/web/public/assets/logos/logo-name-horizontal.png" alt="Zublo" width="420" />
+  <img src=".github/assets/logo-main.png" alt="Zublo" width="90%" />
 </p>
 
 <p align="center">

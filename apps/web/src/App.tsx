@@ -3,6 +3,7 @@ import { RouterProvider } from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { createAppRouter } from "@/routes";
+import { AppMetadata } from "@/components/AppMetadata";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -34,6 +35,7 @@ function InnerApp() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <AppMetadata />
       <AuthProvider>
         <InnerApp />
       </AuthProvider>

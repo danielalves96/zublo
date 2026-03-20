@@ -1,5 +1,7 @@
 {
   "app_name": "Zublo",
+  "meta_subtitle": "Self-hosted subscriptions with built-in AI.",
+  "meta_description": "Track recurring payments, manage subscriptions, and use built-in AI workflows with a self-hosted Docker-first app.",
   "login": "Login",
   "logout": "Logout",
   "register": "Register",

@@ -1,5 +1,7 @@
 {
   "app_name": "Zublo",
+  "meta_subtitle": "Controle assinaturas com IA integrada.",
+  "meta_description": "Acompanhe pagamentos recorrentes, gerencie assinaturas e use fluxos com IA em um app self-hosted com Docker.",
   "login": "Entrar",
   "logout": "Sair",
   "register": "Registrar",
