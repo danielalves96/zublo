@@ -1,13 +1,10 @@
 
 <p align="center">
-  <img src=".github/assets/logo-main.png" alt="Zublo" width="90%" />
+  <img src="./apps/web/public/assets/logos/logo-name-horizontal.png" alt="Zublo" width="420" />
 </p>
 
-
-<h1 align="center">Zublo</h1>
-
 <p align="center">
-  <strong>Self-hosted subscription tracking without the bloat.</strong>
+  <strong>Self-hosted subscription tracking with AI that is actually useful.</strong>
 </p>
 
 <p align="center">
@@ -28,12 +25,15 @@
   <a href="https://github.com/danielalves96/zublo/issues"><img src="https://img.shields.io/github/issues/danielalves96/zublo?style=flat-square" alt="GitHub issues" /></a>
   <a href="#deploy-in-minutes"><img src="https://img.shields.io/badge/deploy-Docker-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker deployment" /></a>
   <a href="https://pocketbase.io/"><img src="https://img.shields.io/badge/backend-PocketBase-111111?style=flat-square" alt="PocketBase" /></a>
+  <a href="#ai-built-in"><img src="https://img.shields.io/badge/AI-built--in-0f766e?style=flat-square" alt="AI built in" /></a>
   <a href="#perfect-for"><img src="https://img.shields.io/badge/model-self--hosted-2f855a?style=flat-square" alt="Self-hosted" /></a>
 </p>
 
 Zublo is an open source subscription tracker for people who want every recurring payment in one place, full control over their data, and a deployment flow that takes minutes instead of a weekend.
 
 It gives you a clean web UI, recurring payment visibility, reminders, calendar and statistics views, API access, and a Docker-first setup built for self-hosters.
+
+It also has one of the most differentiated parts of the product built in: an AI layer that can analyze spending, power chat-based workflows, and connect to multiple LLM providers instead of locking you into a single vendor.
 
 If you want a focused alternative to bloated finance software or closed SaaS trackers, this is the repo.
 
@@ -52,6 +52,7 @@ If you want a focused alternative to bloated finance software or closed SaaS tra
 | One job, done well | Track recurring payments without turning into a full finance suite |
 | Fast deployment | A simple Docker setup gets the app running quickly |
 | Real ownership | Your data lives on your infrastructure |
+| AI that is actually useful | Chat, recommendations, and provider flexibility are part of the product |
 | Compact architecture | React frontend, PocketBase runtime, no unnecessary platform sprawl |
 | Forkable codebase | Small enough to understand, practical enough to extend |
 
@@ -106,8 +107,29 @@ Suggested layout once the assets exist:
 | Statistics | Spending breakdowns and trend visibility |
 | Currencies | Multi-currency handling with exchange-rate sync |
 | API access | REST usage through scoped API keys |
+| AI | Chat-based workflows, recommendations, and pluggable providers |
 | Authentication | TOTP-based 2FA |
 | Deployment | Single self-hosted app with Docker |
+
+## AI Built In
+
+This is not a cosmetic AI checkbox.
+
+Zublo includes an AI layer that can work with your subscription data and support real product workflows:
+
+- AI-powered recommendations from your spending data
+- chat interface wired into app capabilities
+- support for multiple provider setups instead of a single locked vendor
+- compatibility with local or self-hosted inference paths
+
+Supported provider model includes:
+
+- Google Gemini
+- OpenAI
+- Ollama
+- OpenAI-compatible endpoints such as OpenRouter, Groq, Mistral, and similar gateways
+
+That makes Zublo interesting not only as a self-hosted subscription tracker, but also as a practical example of an AI-enabled product that still keeps deployment and ownership simple.
 
 ## Why It Feels Good To Self-Host
 
