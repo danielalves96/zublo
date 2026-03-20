@@ -231,8 +231,4 @@ declare module "@tanstack/react-router" {
   interface Register {
     router: ReturnType<typeof createAppRouter>;
   }
-  interface HistoryState {
-    email?: string;
-    password?: string;
-  }
 }

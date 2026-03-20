@@ -8,7 +8,7 @@ import {
   useRef,
   type ReactNode,
 } from "react";
-import { authService } from "@/services/auth";
+import { TotpRequiredError, authService } from "@/services/auth";
 import { LS_KEYS } from "@/lib/constants";
 import type { User } from "@/types";
 import { api } from "@/lib/api";
@@ -94,8 +94,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const trusted = localStorage.getItem(LS_KEYS.totpTrusted(authData.record.id));
       const isStillTrusted = trusted && Number(trusted) > Date.now();
       if (!isStillTrusted) {
-        authService.clear();
-        throw new Error("TOTP_REQUIRED");
+        try {
+          const challenge = await authService.startTotpLoginChallenge();
+          throw new TotpRequiredError(challenge);
+        } finally {
+          authService.clear();
+        }
       }
       // Trusted device — fall through and complete login normally
     }

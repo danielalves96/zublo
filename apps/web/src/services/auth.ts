@@ -1,5 +1,37 @@
 import pb from "@/lib/pb";
+import { api } from "@/lib/api";
 import type { User } from "@/types";
+
+interface TotpLoginChallengeResponse {
+  challenge: string;
+  expires_at: string;
+  user_id: string;
+}
+
+export interface TotpLoginChallenge {
+  challenge: string;
+  expiresAt: string;
+  userId: string;
+}
+
+interface TotpLoginVerifyResponse {
+  token: string;
+  record: User;
+}
+
+export class TotpRequiredError extends Error {
+  challenge: TotpLoginChallenge;
+
+  constructor(challenge: TotpLoginChallenge) {
+    super("TOTP_REQUIRED");
+    this.name = "TotpRequiredError";
+    this.challenge = challenge;
+  }
+}
+
+export function isTotpRequiredError(error: unknown): error is TotpRequiredError {
+  return error instanceof TotpRequiredError;
+}
 
 export const authService = {
   isValid: () => pb.authStore.isValid,
@@ -10,12 +42,26 @@ export const authService = {
 
   clear: () => pb.authStore.clear(),
 
-  onChange: (callback: (token: string, model: any) => void, fireImmediately?: boolean) => {
+  saveSession: (token: string, record: User) => pb.authStore.save(token, record),
+
+  onChange: (callback: (token: string, model: unknown) => void, fireImmediately?: boolean) => {
     return pb.authStore.onChange(callback, fireImmediately);
   },
 
   loginWithPassword: (email: string, password: string) =>
     pb.collection("users").authWithPassword<User>(email, password),
+
+  startTotpLoginChallenge: async (): Promise<TotpLoginChallenge> => {
+    const response = await api.post<TotpLoginChallengeResponse>("/api/auth/totp/login-challenge");
+    return {
+      challenge: response.challenge,
+      expiresAt: response.expires_at,
+      userId: response.user_id,
+    };
+  },
+
+  completeTotpLoginChallenge: (challenge: string, code: string) =>
+    api.post<TotpLoginVerifyResponse>("/api/auth/totp/login-verify", { challenge, code }),
 
   refresh: () => pb.collection("users").authRefresh<User>(),
 

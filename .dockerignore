@@ -23,6 +23,7 @@ apps/backend/pb_public/
 
 # Lock files for root (not needed in image)
 package-lock.json
+apps/web/package-lock.json
 
 # IDE & OS
 .vscode/

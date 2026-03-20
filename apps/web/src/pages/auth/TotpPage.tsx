@@ -1,9 +1,10 @@
-import { useState } from "react";
-import { useNavigate, useRouterState } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
+import type { TotpLoginChallenge } from "@/services/auth";
 import { authService } from "@/services/auth";
-import { LS_KEYS } from "@/lib/constants";
+import { LS_KEYS, SS_KEYS } from "@/lib/constants";
 import { OtpInput } from "@/components/ui/otp-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,31 +24,49 @@ const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 type Screen = "otp" | "backup";
 
+function clearStoredTotpChallenge() {
+  sessionStorage.removeItem(SS_KEYS.TOTP_LOGIN_CHALLENGE);
+}
+
+function readStoredTotpChallenge(): TotpLoginChallenge | null {
+  const raw = sessionStorage.getItem(SS_KEYS.TOTP_LOGIN_CHALLENGE);
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<TotpLoginChallenge>;
+    if (
+      typeof parsed.challenge !== "string"
+      || typeof parsed.expiresAt !== "string"
+      || typeof parsed.userId !== "string"
+    ) {
+      clearStoredTotpChallenge();
+      return null;
+    }
+
+    if (Date.parse(parsed.expiresAt) <= Date.now()) {
+      clearStoredTotpChallenge();
+      return null;
+    }
+
+    return {
+      challenge: parsed.challenge,
+      expiresAt: parsed.expiresAt,
+      userId: parsed.userId,
+    };
+  } catch {
+    clearStoredTotpChallenge();
+    return null;
+  }
+}
+
 async function verifyLogin(
-  email: string,
-  password: string,
+  challenge: TotpLoginChallenge,
   code: string,
   remember: boolean,
   refreshUser: () => Promise<void>,
 ) {
-  // Step 1: authenticate to get a session
-  const authData = await authService.loginWithPassword(email, password);
-
-  // Step 2: verify code with the fresh session
-  const res = await fetch("/api/auth/totp/login-verify", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${authService.getToken()}`,
-    },
-    body: JSON.stringify({ code }),
-  });
-
-  if (!res.ok) {
-    authService.clear();
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || data.message || `HTTP ${res.status}`);
-  }
+  const authData = await authService.completeTotpLoginChallenge(challenge.challenge, code);
+  authService.saveSession(authData.token, authData.record);
 
   if (remember) {
     localStorage.setItem(
@@ -56,16 +75,19 @@ async function verifyLogin(
     );
   }
 
+  clearStoredTotpChallenge();
   await refreshUser();
 }
 
 // ─── OTP screen ───────────────────────────────────────────────────────────────
 
 function OtpScreen({
-  state,
+  challenge,
+  onChallengeExpired,
   onBackupLink,
 }: {
-  state: { email: string; password: string };
+  challenge: TotpLoginChallenge;
+  onChallengeExpired: () => void;
   onBackupLink: () => void;
 }) {
   const { t } = useTranslation();
@@ -80,10 +102,17 @@ function OtpScreen({
     if (otp.length < 6) return;
     setLoading(true);
     try {
-      await verifyLogin(state.email, state.password, otp, remember, refreshUser);
+      await verifyLogin(challenge, otp, remember, refreshUser);
       navigate({ to: "/dashboard", replace: true });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("invalid_otp"));
+      const message = err instanceof Error ? err.message : t("invalid_otp");
+      if (/challenge/i.test(message)) {
+        clearStoredTotpChallenge();
+        toast.error(message);
+        onChallengeExpired();
+        return;
+      }
+      toast.error(message);
       setOtp("");
     } finally {
       setLoading(false);
@@ -115,7 +144,10 @@ function OtpScreen({
         <button
           type="button"
           className="hover:text-foreground transition-colors"
-          onClick={() => navigate({ to: "/login", replace: true })}
+          onClick={() => {
+            clearStoredTotpChallenge();
+            navigate({ to: "/login", replace: true });
+          }}
         >
           {t("back_to_login")}
         </button>
@@ -127,10 +159,12 @@ function OtpScreen({
 // ─── Backup code screen ────────────────────────────────────────────────────────
 
 function BackupScreen({
-  state,
+  challenge,
+  onChallengeExpired,
   onBack,
 }: {
-  state: { email: string; password: string };
+  challenge: TotpLoginChallenge;
+  onChallengeExpired: () => void;
   onBack: () => void;
 }) {
   const { t } = useTranslation();
@@ -145,10 +179,17 @@ function BackupScreen({
     if (stripped.length < 8) return;
     setLoading(true);
     try {
-      await verifyLogin(state.email, state.password, stripped, false, refreshUser);
+      await verifyLogin(challenge, stripped, false, refreshUser);
       navigate({ to: "/dashboard", replace: true });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("invalid_otp"));
+      const message = err instanceof Error ? err.message : t("invalid_otp");
+      if (/challenge/i.test(message)) {
+        clearStoredTotpChallenge();
+        toast.error(message);
+        onChallengeExpired();
+        return;
+      }
+      toast.error(message);
       setCode("");
     } finally {
       setLoading(false);
@@ -197,17 +238,25 @@ function BackupScreen({
 export function TotpPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const location = useRouterState({ select: (s) => s.location });
   const [screen, setScreen] = useState<Screen>("otp");
+  const [challenge, setChallenge] = useState<TotpLoginChallenge | null>(null);
 
-  const state = location.state;
+  useEffect(() => {
+    const storedChallenge = readStoredTotpChallenge();
+    if (!storedChallenge) {
+      navigate({ to: "/login", replace: true });
+      return;
+    }
+    setChallenge(storedChallenge);
+  }, [navigate]);
 
-  if (!state?.email || !state?.password) {
-    navigate({ to: "/login", replace: true });
+  if (!challenge) {
     return null;
   }
 
-  const credentials = { email: state.email, password: state.password };
+  const handleChallengeExpired = () => {
+    navigate({ to: "/login", replace: true });
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -225,9 +274,17 @@ export function TotpPage() {
         </CardHeader>
         <CardContent>
           {screen === "otp" ? (
-            <OtpScreen state={credentials} onBackupLink={() => setScreen("backup")} />
+            <OtpScreen
+              challenge={challenge}
+              onChallengeExpired={handleChallengeExpired}
+              onBackupLink={() => setScreen("backup")}
+            />
           ) : (
-            <BackupScreen state={credentials} onBack={() => setScreen("otp")} />
+            <BackupScreen
+              challenge={challenge}
+              onChallengeExpired={handleChallengeExpired}
+              onBack={() => setScreen("otp")}
+            />
           )}
         </CardContent>
       </Card>

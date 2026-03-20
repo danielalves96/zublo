@@ -2,6 +2,7 @@
   "name": "zublo",
   "private": true,
   "version": "1.0.0",
+  "packageManager": "bun@1.3.6",
   "author": {
     "name": "Daniel Luiz Alves",
     "url": "https://github.com/danielalves96"

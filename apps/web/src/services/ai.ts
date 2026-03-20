@@ -30,13 +30,11 @@ export const aiService = {
 
   generate: () => api.post<{ count: number }>("/api/ai/generate"),
 
-  getModels: (url?: string, apiKey?: string) => {
-    const params = new URLSearchParams();
-    if (url) params.append("url", url);
-    if (apiKey) params.append("api_key", apiKey);
-    const queryString = params.toString() ? `?${params.toString()}` : "";
-    return api.get<{ models: string[] }>(`/api/ai/models${queryString}`);
-  },
+  getModels: (url?: string, apiKey?: string) =>
+    api.post<{ models: string[] }>("/api/ai/models", {
+      ...(url ? { url } : {}),
+      ...(apiKey ? { api_key: apiKey } : {}),
+    }),
 
   chat: (
     messages: ChatMessage[],

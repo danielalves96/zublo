@@ -2,17 +2,18 @@
 
 // ================================================================
 // ROUTE: AI — Fetch Available Models
-// Accepts url + api_key as query params (so user can fetch before saving)
+// Accepts url + api_key in the POST body (so user can fetch before saving)
 // Falls back to saved settings if no params provided
 // ================================================================
-routerAdd("GET", "/api/ai/models", (e) => {
+routerAdd("POST", "/api/ai/models", (e) => {
   if (!e.auth) throw new ForbiddenError("Authentication required");
 
-  const qUrl = e.request.url.query().get("url");
-  const qKey = e.request.url.query().get("api_key");
+  const body = e.requestInfo().body || {};
+  const bodyUrl = typeof body.url === "string" ? body.url : "";
+  const bodyKey = typeof body.api_key === "string" ? body.api_key : "";
 
-  let apiUrl = qUrl ? qUrl.replace(/\/$/, "") : null;
-  let apiKey = qKey || null;
+  let apiUrl = bodyUrl ? bodyUrl.replace(/\/$/, "") : null;
+  let apiKey = bodyKey || null;
 
   // If not provided via params, fall back to saved settings
   if (!apiUrl || !apiKey) {
@@ -65,13 +66,12 @@ routerAdd("GET", "/api/ai/models", (e) => {
       headers: apiKey ? { "Authorization": "Bearer " + apiKey } : {},
     });
 
-    // Second attempt: key as query param (Google Gemini and similar)
+    // Second attempt: Google-compatible API key header
     if (res.statusCode === 401 && apiKey) {
-      const sep = modelsEndpoint.includes("?") ? "&" : "?";
       res = $http.send({
-        url: modelsEndpoint + sep + "key=" + apiKey,
+        url: modelsEndpoint,
         method: "GET",
-        headers: {},
+        headers: { "x-goog-api-key": apiKey },
       });
     }
 
@@ -181,8 +181,11 @@ routerAdd("POST", "/api/ai/generate", (e) => {
 
   if (isGemini) {
     const geminiModel = model || "gemini-1.5-flash";
-    aiUrl = rawUrl + "/models/" + geminiModel + ":generateContent?key=" + (apiKey || "");
-    aiHeaders = { "Content-Type": "application/json" };
+    aiUrl = rawUrl + "/models/" + geminiModel + ":generateContent";
+    aiHeaders = {
+      "Content-Type": "application/json",
+      ...(apiKey ? { "x-goog-api-key": apiKey } : {}),
+    };
     aiBody = {
       contents: [{ parts: [{ text: systemPrompt + "\n\n" + userPrompt }] }],
     };

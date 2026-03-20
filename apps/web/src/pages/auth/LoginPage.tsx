@@ -14,6 +14,8 @@ import {
   CardHeader,
   CardDescription,
 } from "@/components/ui/card";
+import { SS_KEYS } from "@/lib/constants";
+import { isTotpRequiredError } from "@/services/auth";
 import { toast } from "@/lib/toast";
 import { LogoWithName } from "@/components/AppLogo";
 
@@ -43,12 +45,14 @@ export function LoginPage() {
       await login(data.email, data.password);
       navigate({ to: "/dashboard", replace: true });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : t("unknown_error");
-      if (msg.includes("totp") || msg.includes("TOTP")) {
-        navigate({ to: "/totp", state: { email: data.email, password: data.password } });
-      } else {
-        toast.error(msg);
+      if (isTotpRequiredError(err)) {
+        sessionStorage.setItem(SS_KEYS.TOTP_LOGIN_CHALLENGE, JSON.stringify(err.challenge));
+        navigate({ to: "/totp", replace: true });
+        return;
       }
+
+      const msg = err instanceof Error ? err.message : t("unknown_error");
+      toast.error(msg);
     }
   };
 

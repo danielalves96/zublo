@@ -112,6 +112,8 @@ const CATEGORY_BULK_RENAME_BODY = `{
   "new_name": "Fun"            // required (new name)
 }`;
 
+const AUTHORIZATION_HEADER = "Authorization: Bearer YOUR_KEY";
+
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 interface ApiEndpoint {
@@ -158,53 +160,53 @@ function buildEndpointGroups(
           label: t("api_key_endpoint_subscriptions_list"),
           perm: "subscriptions:read",
           method: "GET",
-          url: `${baseUrl}/api/external/subscriptions?key=YOUR_KEY`,
+          url: `${baseUrl}/api/external/subscriptions`,
         },
         {
           label: t("api_key_endpoint_subscriptions_get"),
           perm: "subscriptions:read",
           method: "GET",
-          url: `${baseUrl}/api/external/subscriptions/{id}?key=YOUR_KEY`,
+          url: `${baseUrl}/api/external/subscriptions/{id}`,
         },
         {
           label: t("api_key_endpoint_subscriptions_create"),
           perm: "subscriptions:write",
           method: "POST",
-          url: `${baseUrl}/api/external/subscriptions?key=YOUR_KEY`,
+          url: `${baseUrl}/api/external/subscriptions`,
           bodySchema: SUBSCRIPTION_CREATE_BODY,
         },
         {
           label: t("api_key_endpoint_subscriptions_update"),
           perm: "subscriptions:write",
           method: "PUT",
-          url: `${baseUrl}/api/external/subscriptions/{id}?key=YOUR_KEY`,
+          url: `${baseUrl}/api/external/subscriptions/{id}`,
           bodySchema: SUBSCRIPTION_UPDATE_BODY,
         },
         {
           label: t("api_key_endpoint_subscriptions_delete"),
           perm: "subscriptions:write",
           method: "DELETE",
-          url: `${baseUrl}/api/external/subscriptions/{id}?key=YOUR_KEY`,
+          url: `${baseUrl}/api/external/subscriptions/{id}`,
         },
         {
           label: t("api_key_endpoint_subscriptions_status"),
           perm: "subscriptions:write",
           method: "PATCH",
-          url: `${baseUrl}/api/external/subscriptions/{id}/status?key=YOUR_KEY`,
+          url: `${baseUrl}/api/external/subscriptions/{id}/status`,
           bodySchema: SUBSCRIPTION_STATUS_BODY,
         },
         {
           label: t("api_key_endpoint_subscriptions_mark_paid"),
           perm: "subscriptions:write",
           method: "POST",
-          url: `${baseUrl}/api/external/subscriptions/{id}/mark-paid?key=YOUR_KEY`,
+          url: `${baseUrl}/api/external/subscriptions/{id}/mark-paid`,
           bodySchema: SUBSCRIPTION_MARK_PAID_BODY,
         },
         {
           label: t("api_key_endpoint_subscriptions_batch"),
           perm: "subscriptions:write",
           method: "POST",
-          url: `${baseUrl}/api/external/subscriptions/batch?key=YOUR_KEY`,
+          url: `${baseUrl}/api/external/subscriptions/batch`,
           bodySchema: SUBSCRIPTION_BATCH_BODY,
         },
       ],
@@ -218,7 +220,7 @@ function buildEndpointGroups(
           label: t("api_key_endpoint_cycles_list"),
           perm: "subscriptions:read",
           method: "GET",
-          url: `${baseUrl}/api/external/cycles?key=YOUR_KEY`,
+          url: `${baseUrl}/api/external/cycles`,
         },
       ],
     },
@@ -231,13 +233,13 @@ function buildEndpointGroups(
           label: t("api_key_endpoint_statistics"),
           perm: "statistics:read",
           method: "GET",
-          url: `${baseUrl}/api/external/statistics?key=YOUR_KEY`,
+          url: `${baseUrl}/api/external/statistics`,
         },
         {
           label: t("api_key_endpoint_calendar"),
           perm: "calendar:read",
           method: "GET",
-          url: `${baseUrl}/api/calendar/ical?key=YOUR_KEY`,
+          url: `${baseUrl}/api/calendar/ical`,
         },
       ],
     },
@@ -250,33 +252,33 @@ function buildEndpointGroups(
           label: t("api_key_endpoint_categories_list"),
           perm: "categories:read",
           method: "GET",
-          url: `${baseUrl}/api/external/categories?key=YOUR_KEY`,
+          url: `${baseUrl}/api/external/categories`,
         },
         {
           label: t("api_key_endpoint_categories_create"),
           perm: "categories:write",
           method: "POST",
-          url: `${baseUrl}/api/external/categories?key=YOUR_KEY`,
+          url: `${baseUrl}/api/external/categories`,
           bodySchema: CATEGORY_CREATE_BODY,
         },
         {
           label: t("api_key_endpoint_categories_update"),
           perm: "categories:write",
           method: "PUT",
-          url: `${baseUrl}/api/external/categories/{id}?key=YOUR_KEY`,
+          url: `${baseUrl}/api/external/categories/{id}`,
           bodySchema: CATEGORY_UPDATE_BODY,
         },
         {
           label: t("api_key_endpoint_categories_delete"),
           perm: "categories:write",
           method: "DELETE",
-          url: `${baseUrl}/api/external/categories/{id}?key=YOUR_KEY`,
+          url: `${baseUrl}/api/external/categories/{id}`,
         },
         {
           label: t("api_key_endpoint_categories_bulk_rename"),
           perm: "categories:write",
           method: "POST",
-          url: `${baseUrl}/api/external/categories/bulk-rename?key=YOUR_KEY`,
+          url: `${baseUrl}/api/external/categories/bulk-rename`,
           bodySchema: CATEGORY_BULK_RENAME_BODY,
         },
       ],
@@ -290,27 +292,27 @@ function buildEndpointGroups(
           label: t("api_key_endpoint_payment_methods_list"),
           perm: "payment_methods:read",
           method: "GET",
-          url: `${baseUrl}/api/external/payment-methods?key=YOUR_KEY`,
+          url: `${baseUrl}/api/external/payment-methods`,
         },
         {
           label: t("api_key_endpoint_payment_methods_create"),
           perm: "payment_methods:write",
           method: "POST",
-          url: `${baseUrl}/api/external/payment-methods?key=YOUR_KEY`,
+          url: `${baseUrl}/api/external/payment-methods`,
           bodySchema: PAYMENT_METHOD_CREATE_BODY,
         },
         {
           label: t("api_key_endpoint_payment_methods_update"),
           perm: "payment_methods:write",
           method: "PUT",
-          url: `${baseUrl}/api/external/payment-methods/{id}?key=YOUR_KEY`,
+          url: `${baseUrl}/api/external/payment-methods/{id}`,
           bodySchema: PAYMENT_METHOD_UPDATE_BODY,
         },
         {
           label: t("api_key_endpoint_payment_methods_delete"),
           perm: "payment_methods:write",
           method: "DELETE",
-          url: `${baseUrl}/api/external/payment-methods/{id}?key=YOUR_KEY`,
+          url: `${baseUrl}/api/external/payment-methods/{id}`,
         },
       ],
     },
@@ -323,27 +325,27 @@ function buildEndpointGroups(
           label: t("api_key_endpoint_household_list"),
           perm: "household:read",
           method: "GET",
-          url: `${baseUrl}/api/external/household?key=YOUR_KEY`,
+          url: `${baseUrl}/api/external/household`,
         },
         {
           label: t("api_key_endpoint_household_create"),
           perm: "household:write",
           method: "POST",
-          url: `${baseUrl}/api/external/household?key=YOUR_KEY`,
+          url: `${baseUrl}/api/external/household`,
           bodySchema: HOUSEHOLD_CREATE_BODY,
         },
         {
           label: t("api_key_endpoint_household_update"),
           perm: "household:write",
           method: "PUT",
-          url: `${baseUrl}/api/external/household/{id}?key=YOUR_KEY`,
+          url: `${baseUrl}/api/external/household/{id}`,
           bodySchema: HOUSEHOLD_UPDATE_BODY,
         },
         {
           label: t("api_key_endpoint_household_delete"),
           perm: "household:write",
           method: "DELETE",
-          url: `${baseUrl}/api/external/household/{id}?key=YOUR_KEY`,
+          url: `${baseUrl}/api/external/household/{id}`,
         },
       ],
     },
@@ -356,33 +358,33 @@ function buildEndpointGroups(
           label: t("api_key_endpoint_currencies_list"),
           perm: "currencies:read",
           method: "GET",
-          url: `${baseUrl}/api/external/currencies?key=YOUR_KEY`,
+          url: `${baseUrl}/api/external/currencies`,
         },
         {
           label: t("api_key_endpoint_currencies_create"),
           perm: "currencies:write",
           method: "POST",
-          url: `${baseUrl}/api/external/currencies?key=YOUR_KEY`,
+          url: `${baseUrl}/api/external/currencies`,
           bodySchema: CURRENCY_CREATE_BODY,
         },
         {
           label: t("api_key_endpoint_currencies_update"),
           perm: "currencies:write",
           method: "PUT",
-          url: `${baseUrl}/api/external/currencies/{id}?key=YOUR_KEY`,
+          url: `${baseUrl}/api/external/currencies/{id}`,
           bodySchema: CURRENCY_UPDATE_BODY,
         },
         {
           label: t("api_key_endpoint_currencies_delete"),
           perm: "currencies:write",
           method: "DELETE",
-          url: `${baseUrl}/api/external/currencies/{id}?key=YOUR_KEY`,
+          url: `${baseUrl}/api/external/currencies/{id}`,
         },
         {
           label: t("api_key_endpoint_currencies_set_main"),
           perm: "currencies:write",
           method: "PUT",
-          url: `${baseUrl}/api/external/currencies/{id}/main?key=YOUR_KEY`,
+          url: `${baseUrl}/api/external/currencies/{id}/main`,
         },
       ],
     },
@@ -455,6 +457,28 @@ export function ApiKeyEndpointsReference() {
 
       {open ? (
         <div className="divide-y border-t bg-muted/5">
+          <div className="space-y-2 px-6 py-4 bg-background/80">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Authorization Header
+            </p>
+            <div className="flex items-center gap-1.5">
+              <code className="flex-1 break-all rounded-lg border border-border/40 bg-muted/60 px-3 py-1.5 font-mono text-[11px] leading-relaxed text-muted-foreground">
+                {AUTHORIZATION_HEADER}
+              </code>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0 rounded-lg"
+                onClick={() => copyValue(AUTHORIZATION_HEADER)}
+              >
+                {copiedUrl === AUTHORIZATION_HEADER ? (
+                  <Check className="h-3.5 w-3.5 text-green-600" />
+                ) : (
+                  <Copy className="h-3.5 w-3.5" />
+                )}
+              </Button>
+            </div>
+          </div>
           {endpointGroups.map((group) => {
             const isGroupOpen = expandedGroups.has(group.id);
 

@@ -1,12 +1,13 @@
 {
   "name": "zublo",
   "private": true,
+  "packageManager": "bun@1.3.6",
   "author": {
     "name": "Daniel Luiz Alves",
     "url": "https://github.com/danielalves96"
   },
   "scripts": {
-    "dev": "concurrently -n web,pb -c blue,green \"npm run dev:web\" \"npm run dev:pb\"",
+    "dev": "concurrently -n web,pb -c blue,green \"bun run dev:web\" \"bun run dev:pb\"",
     "dev:web": "cd apps/web && bun run dev",
     "dev:pb": "cd apps/backend && ./pocketbase serve --http 127.0.0.1:8080 --hooksWatch=false",
     "build": "cd apps/web && bun run build",

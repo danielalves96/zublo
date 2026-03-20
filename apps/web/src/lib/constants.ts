@@ -10,3 +10,8 @@ export const LS_KEYS = {
   /** Returns the trusted-device key for a given user (TOTP remember-device). */
   totpTrusted: (userId: string) => `totp_trusted_${userId}`,
 } as const;
+
+/** sessionStorage keys used across the application. */
+export const SS_KEYS = {
+  TOTP_LOGIN_CHALLENGE: "zublo_totp_login_challenge",
+} as const;

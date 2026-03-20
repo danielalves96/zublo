@@ -95,6 +95,6 @@ The following already follow this pattern:
 For page refactors, run:
 
 ```bash
-npm run type-check
-npx eslint src/pages/<PageName>.tsx src/components/<feature> --ext ts,tsx
+bun run type-check
+bun run eslint src/pages/<PageName>.tsx src/components/<feature> --ext ts,tsx
 ```

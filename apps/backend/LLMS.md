@@ -40,9 +40,9 @@ Self-hosted subscription tracker. Docker image: `ghcr.io/danielalves96/zublo:lat
 | Payment Methods | CRUD + rename via chat; drag-and-drop reorder (UI only) |
 | Notifications | 10 channels (Email, Telegram, Discord, Gotify, Ntfy, Pushover, Webhook, Signal, Matrix, Apprise); configurable day/hour reminders |
 | AI Chat | 28 tools to read + write all user data |
-| API Keys | Scoped (`wk_` prefix), shown once, max 20/user |
-| 2FA | TOTP + backup codes |
-| External API | REST: CRUD (List/Create/Update/Delete) for Subscriptions, Categories, Payment Methods, Household, Currencies; plus Statistics and iCal |
+| API Keys | Scoped (`wk_` prefix), shown once, max 20/user; REST uses `Authorization: Bearer ...` |
+| 2FA | TOTP + backup codes; login uses a short-lived server-side challenge before final session issuance |
+| External API | REST: CRUD (List/Create/Update/Delete) for Subscriptions, Categories, Payment Methods, Household, Currencies; plus Statistics. iCal export is a feed URL generated in the UI |
 | Admin | Users, registration, SMTP, OIDC/SSO, backups, cron jobs, maintenance |
 
 ---
@@ -56,6 +56,9 @@ Self-hosted subscription tracker. Docker image: `ghcr.io/danielalves96/zublo:lat
 - **Inactive**: soft-cancelled subscription — kept for history, excluded from totals
 - **Auto-renew**: daily cron marks the subscription as paid automatically on due date
 - **Budget**: monthly spending ceiling set in Settings → Profile
+- **External REST auth**: send API keys in `Authorization: Bearer wk_...` headers, not query params
+- **iCal auth**: calendar apps use the generated feed URL from the UI because they usually cannot send auth headers
+- **2FA login flow**: password step creates a short-lived challenge; TOTP/backup code completes login without re-sending the password to the second screen
 
 ---
 

@@ -1394,7 +1394,8 @@ routerAdd("POST", "/api/ai/chat", function (e) {
       api_keys:
         "**API Keys (external integrations):**\n\n" +
         "API keys let external apps access your Zublo data without sharing your password.\n" +
-        "Key format: `wk_...` — shown only once at creation. Maximum 20 keys per user.\n\n" +
+        "Key format: `wk_...` — shown only once at creation. Maximum 20 keys per user.\n" +
+        "For REST integrations, send the key in the `Authorization` header. Do not put API keys in query strings.\n\n" +
         "**Available permissions:**\n" +
         "- `subscriptions:read`, `subscriptions:write`\n" +
         "- `categories:read`, `categories:write`\n" +
@@ -1416,16 +1417,17 @@ routerAdd("POST", "/api/ai/chat", function (e) {
         "**Delete a key:**\n" +
         "1. Settings → API Keys tab.\n" +
         "2. Click the **trash (delete) icon** (red color) and confirm.\n\n" +
-        "**Use the key in requests:**\n" +
+        "**Use the key in REST requests:**\n" +
         "```\nAuthorization: Bearer wk_YOUR_KEY\n```\n\n" +
         "**API endpoints (categorized in UI):**\n" +
         "- **Subscriptions**: list all, get by ID, create, update, delete, status, mark paid, batch create.\n" +
         "- **Cycles**: list available billing cycles (Daily, Weekly, etc).\n" +
         "- **Categories, Payment Methods, Household, Currencies**: full CRUD available for each.\n" +
-        "- **Stats & Calendar**: get spending reports and iCal feed.\n\n" +
+        "- **Stats**: get spending reports.\n" +
+        "- **Calendar / iCal**: use the feed URL generated in the UI for calendar apps.\n\n" +
         "**Connect to Google Calendar / Apple Calendar:**\n" +
         "1. Create a key with `calendar:read` permission.\n" +
-        "2. Settings → API Keys → expand **Statistics & Calendar** → copy the iCal URL.\n" +
+        "2. Settings → Calendar or API Keys → copy the generated iCal URL.\n" +
         "3. In your calendar app: Add from URL → paste the link.",
 
       theme:
@@ -1458,6 +1460,12 @@ routerAdd("POST", "/api/ai/chat", function (e) {
         "3. Scan the QR code with an authenticator app (Google Authenticator, Authy, Bitwarden, etc.).\n" +
         "4. Enter the 6-digit code to confirm.\n" +
         "5. **Save your backup codes** — they are the only recovery method if you lose your device.\n\n" +
+        "**Login flow with 2FA enabled:**\n" +
+        "1. Enter email and password on the login page.\n" +
+        "2. Zublo creates a short-lived server-side login challenge.\n" +
+        "3. Enter the 6-digit TOTP code or a backup code on the 2FA screen.\n" +
+        "4. If the code is valid, Zublo issues the final authenticated session.\n" +
+        "5. Optionally trust the current device for 30 days.\n\n" +
         "**Disable 2FA:**\n" +
         "1. Settings → 2FA tab.\n" +
         "2. Click **Disable 2FA** and confirm with your current TOTP code.\n\n" +

@@ -158,6 +158,54 @@ function generateBackupCodes() {
   return codes;
 }
 
+const TOTP_LOGIN_CHALLENGE_TTL_MS = 5 * 60 * 1000;
+
+function hashTotpLoginChallenge(challenge) {
+  return $security.sha256(String(challenge || ""));
+}
+
+function clearTotpLoginChallenge(user) {
+  user.set("totp_login_challenge_hash", "");
+  user.set("totp_login_challenge_expires", "");
+}
+
+function createTotpLoginChallenge(user) {
+  const challenge = $security.randomString(64);
+  const expiresAt = new Date(Date.now() + TOTP_LOGIN_CHALLENGE_TTL_MS).toISOString();
+
+  user.set("totp_login_challenge_hash", hashTotpLoginChallenge(challenge));
+  user.set("totp_login_challenge_expires", expiresAt);
+  $app.save(user);
+
+  return { challenge, expiresAt };
+}
+
+function findUserByTotpLoginChallenge(challenge) {
+  const normalizedChallenge = String(challenge || "").trim();
+  if (!normalizedChallenge) return null;
+
+  const rows = $app.findRecordsByFilter(
+    "users",
+    "totp_login_challenge_hash = {:hash}",
+    "",
+    1,
+    0,
+    { hash: hashTotpLoginChallenge(normalizedChallenge) },
+  );
+
+  if (!rows || rows.length === 0) return null;
+
+  const user = rows[0];
+  const expiresAt = String(user.get("totp_login_challenge_expires") || "");
+  if (!expiresAt || Date.parse(expiresAt) <= Date.now()) {
+    clearTotpLoginChallenge(user);
+    $app.save(user);
+    return null;
+  }
+
+  return user;
+}
+
 // ================================================================
 // ROUTE: TOTP Setup — generate secret + backup codes (not saved yet)
 // ================================================================
@@ -572,90 +620,84 @@ routerAdd('POST', '/api/auth/totp/regenerate_backup', function (e) {
 });
 
 // ================================================================
-// ROUTE: TOTP Login Verify — called after authWithPassword succeeds
-// Requires the fresh PocketBase session; verifies TOTP/backup code.
+// ROUTE: TOTP Login Challenge — issued after password auth succeeds.
+// Stores only a short-lived hashed challenge server-side.
 // ================================================================
-routerAdd('POST', '/api/auth/totp/login-verify', function (e) {
+routerAdd('POST', '/api/auth/totp/login-challenge', function (e) {
   if (!e.auth) return e.json(401, { error: 'Authentication required' });
 
-  function iSha1(bytes) {
-    var h0 = 0x67452301, h1 = 0xEFCDAB89, h2 = 0x98BADCFE, h3 = 0x10325476, h4 = 0xC3D2E1F0;
-    var p = bytes.slice(); p.push(0x80);
-    while (p.length % 64 !== 56) p.push(0);
-    var bl = bytes.length * 8; p.push(0, 0, 0, 0, (bl >>> 24) & 0xFF, (bl >>> 16) & 0xFF, (bl >>> 8) & 0xFF, bl & 0xFF);
-    for (var i = 0; i < p.length; i += 64) {
-      var w = new Array(80);
-      for (var j = 0; j < 16; j++) { var b = i + j * 4; w[j] = ((p[b] << 24) | (p[b + 1] << 16) | (p[b + 2] << 8) | p[b + 3]) | 0; }
-      for (var j = 16; j < 80; j++) { var n = w[j - 3] ^ w[j - 8] ^ w[j - 14] ^ w[j - 16]; w[j] = ((n << 1) | (n >>> 31)) | 0; }
-      var ha = h0, hb = h1, hc = h2, hd = h3, he = h4;
-      for (var j = 0; j < 80; j++) {
-        var f, k;
-        if (j < 20) { f = (hb & hc) | (~hb & hd); k = 0x5A827999; }
-        else if (j < 40) { f = hb ^ hc ^ hd; k = 0x6ED9EBA1; }
-        else if (j < 60) { f = (hb & hc) | (hb & hd) | (hc & hd); k = 0x8F1BBCDC; }
-        else { f = hb ^ hc ^ hd; k = 0xCA62C1D6; }
-        var t = (((ha << 5) | (ha >>> 27)) + f + he + k + w[j]) | 0;
-        he = hd; hd = hc; hc = ((hb << 30) | (hb >>> 2)) | 0; hb = ha; ha = t;
-      }
-      h0 = (h0 + ha) | 0; h1 = (h1 + hb) | 0; h2 = (h2 + hc) | 0; h3 = (h3 + hd) | 0; h4 = (h4 + he) | 0;
-    }
-    return [(h0 >>> 24) & 0xFF, (h0 >>> 16) & 0xFF, (h0 >>> 8) & 0xFF, h0 & 0xFF,
-    (h1 >>> 24) & 0xFF, (h1 >>> 16) & 0xFF, (h1 >>> 8) & 0xFF, h1 & 0xFF,
-    (h2 >>> 24) & 0xFF, (h2 >>> 16) & 0xFF, (h2 >>> 8) & 0xFF, h2 & 0xFF,
-    (h3 >>> 24) & 0xFF, (h3 >>> 16) & 0xFF, (h3 >>> 8) & 0xFF, h3 & 0xFF,
-    (h4 >>> 24) & 0xFF, (h4 >>> 16) & 0xFF, (h4 >>> 8) & 0xFF, h4 & 0xFF];
-  }
-  function iHmac(key, msg) {
-    var B = 64, k = key.slice();
-    if (k.length > B) k = iSha1(k);
-    while (k.length < B) k.push(0);
-    var ip = k.map(function (x) { return x ^ 0x36; }), op = k.map(function (x) { return x ^ 0x5C; });
-    return iSha1(op.concat(iSha1(ip.concat(msg))));
-  }
-  function ib32(s) {
-    var al = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567', out = [], buf = 0, bits = 0;
-    s = s.toUpperCase().replace(/[=\s]/g, '');
-    for (var ii = 0; ii < s.length; ii++) { var ix = al.indexOf(s[ii]); if (ix < 0) continue; buf = (buf << 5) | ix; bits += 5; if (bits >= 8) { out.push((buf >> (bits - 8)) & 0xFF); bits -= 8; } }
-    return out;
-  }
-  function iTotp(sec, cod) {
-    var key = ib32(sec), ctr = Math.floor(Date.now() / 1000 / 30);
-    for (var off = -1; off <= 1; off++) {
-      var c = ctr + off;
-      var msg = [0, 0, 0, 0, (c >>> 24) & 0xFF, (c >>> 16) & 0xFF, (c >>> 8) & 0xFF, c & 0xFF];
-      var h = iHmac(key, msg), pos = h[19] & 0x0F;
-      var otp = (((h[pos] & 0x7F) << 24) | ((h[pos + 1] & 0xFF) << 16) | ((h[pos + 2] & 0xFF) << 8) | (h[pos + 3] & 0xFF)) % 1000000;
-      if (String(otp).padStart(6, '0') === String(cod).trim()) return true;
-    }
-    return false;
+  var user = $app.findRecordById('users', e.auth.id);
+  if (!user.get('totp_enabled')) {
+    return e.json(400, { error: '2FA is not enabled for this account' });
   }
 
+  clearTotpLoginChallenge(user);
+  var issued = createTotpLoginChallenge(user);
+
+  return e.json(200, {
+    challenge: issued.challenge,
+    expires_at: issued.expiresAt,
+    user_id: user.id,
+  });
+});
+
+// ================================================================
+// ROUTE: TOTP Login Verify — consumes a challenge and returns a final
+// PocketBase auth token only after the second factor succeeds.
+// ================================================================
+routerAdd('POST', '/api/auth/totp/login-verify', function (e) {
   var body = e.requestInfo().body;
+  var challenge = String(body.challenge || '').trim();
   var code = String(body.code || '').replace(/\s/g, '');
+
+  if (!challenge) return e.json(400, { error: 'challenge is required' });
   if (!code) return e.json(400, { error: 'code is required' });
 
-  var user = $app.findRecordById('users', e.auth.id);
-  var secret = String(user.get('totp_secret') || '');
+  var user = findUserByTotpLoginChallenge(challenge);
+  if (!user) {
+    return e.json(401, { error: 'Invalid or expired login challenge' });
+  }
+  if (!user.get('totp_enabled')) {
+    clearTotpLoginChallenge(user);
+    $app.save(user);
+    return e.json(400, { error: '2FA is not enabled for this account' });
+  }
 
+  var secret = String(user.get('totp_secret') || '');
   var stripped = code.replace(/-/g, '');
+  var isValid = false;
+
   if (stripped.length >= 8) {
-    // Backup code path
     var rawCodes = String(user.get('totp_backup_codes') || '[]');
     var codes = [];
     try { codes = JSON.parse(rawCodes); } catch (_) { }
+
     var idx = -1;
     for (var ci = 0; ci < codes.length; ci++) {
-      if (String(codes[ci]).replace(/-/g, '') === stripped) { idx = ci; break; }
+      if (String(codes[ci]).replace(/-/g, '') === stripped) {
+        idx = ci;
+        break;
+      }
     }
-    if (idx === -1) return e.json(401, { error: 'Invalid code' });
-    codes.splice(idx, 1);
-    user.set('totp_backup_codes', JSON.stringify(codes));
-    $app.save(user);
+
+    if (idx !== -1) {
+      codes.splice(idx, 1);
+      user.set('totp_backup_codes', JSON.stringify(codes));
+      isValid = true;
+    }
   } else {
-    if (!iTotp(secret, code)) {
-      return e.json(401, { error: 'Invalid verification code' });
-    }
+    isValid = verifyTOTP(secret, code);
   }
 
-  return e.json(200, { message: 'OK' });
+  if (!isValid) {
+    return e.json(401, { error: 'Invalid verification code' });
+  }
+
+  clearTotpLoginChallenge(user);
+  $app.save(user);
+
+  return e.json(200, {
+    token: user.newAuthToken(),
+    record: user.publicExport(),
+  });
 });
