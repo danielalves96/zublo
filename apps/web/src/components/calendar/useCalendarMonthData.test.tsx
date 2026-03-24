@@ -120,4 +120,48 @@ describe("useCalendarMonthData", () => {
     expect(result.current.selectedEntries).toEqual([]);
     expect(result.current.selectedDayTotal).toBe(0);
   });
+
+  it("returns empty selectedEntries when selectedDay has no entries and uses currencyById for total", () => {
+    const mainCur = getCurrency({ id: "cur-main", is_main: true, rate: 1 });
+    const otherCur = getCurrency({ id: "cur-other", is_main: false, rate: 2 });
+
+    // Sub has no expand.currency – uses currencyById lookup for selectedDayTotal
+    const sub = getSubscription({
+      id: "sub-x",
+      price: 10,
+      currency: "cur-other",
+      next_payment: "2026-04-15",
+    });
+
+    const { result } = renderHook(() =>
+      useCalendarMonthData({
+        subscriptions: [sub],
+        cycles: [{ id: "cycle-monthly", name: "Monthly" }],
+        currencies: [mainCur, otherCur],
+        year: 2026,
+        month: 4,
+        // Day 15 has the subscription entry; total uses currencyById fallback
+        selectedDay: 15,
+      }),
+    );
+
+    expect(result.current.selectedEntries).toHaveLength(1);
+    // With no expand.currency, currencyById.get("cur-other") provides the currency
+    expect(result.current.selectedDayTotal).toBeGreaterThan(0);
+
+    // Selecting a day with no entries returns [] and total of 0
+    const { result: result2 } = renderHook(() =>
+      useCalendarMonthData({
+        subscriptions: [sub],
+        cycles: [{ id: "cycle-monthly", name: "Monthly" }],
+        currencies: [mainCur, otherCur],
+        year: 2026,
+        month: 4,
+        selectedDay: 1, // no subscription on day 1
+      }),
+    );
+
+    expect(result2.current.selectedEntries).toEqual([]);
+    expect(result2.current.selectedDayTotal).toBe(0);
+  });
 });

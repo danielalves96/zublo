@@ -122,6 +122,26 @@ describe("ChatMessagesPanel", () => {
     expect(screen.getByLabelText("AI thinking")).toBeInTheDocument();
   });
 
+  it("renders a user message as plain text without avatar when avatarUrl is null", () => {
+    mocks.extractFileChip.mockReturnValue(null);
+
+    render(
+      <ChatMessagesPanel
+        avatarUrl={null}
+        hasUserSentMessage
+        isLoading={false}
+        messages={[
+          { role: "user", content: "Hello there" },
+        ]}
+        onRetry={vi.fn()}
+        onSuggestedPrompt={vi.fn()}
+        scrollRef={{ current: null }}
+      />,
+    );
+
+    expect(screen.getByText("Hello there")).toBeInTheDocument();
+  });
+
   it("renders complex markdown elements from bot", () => {
     const markdownContent = `
 1. Ordered

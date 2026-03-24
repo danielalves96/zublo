@@ -75,4 +75,29 @@ describe("PasswordResetPage", () => {
       expect(mocks.toastError).toHaveBeenCalledWith("unknown_error");
     });
   });
+
+  it("shows the error message when an Error instance is thrown during password reset", async () => {
+    mocks.requestPasswordReset.mockRejectedValue(new Error("user not found"));
+
+    render(<PasswordResetPage />);
+
+    fireEvent.change(screen.getByLabelText("email"), {
+      target: { value: "daniel@example.com" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "send_reset_link" }));
+
+    await waitFor(() => {
+      expect(mocks.toastError).toHaveBeenCalledWith("user not found");
+    });
+  });
+
+  it("shows validation error when email field is empty", async () => {
+    render(<PasswordResetPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "send_reset_link" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("required")).toBeInTheDocument();
+    });
+  });
 });

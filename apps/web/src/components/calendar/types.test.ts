@@ -47,6 +47,8 @@ describe("calendar types helpers", () => {
     expect(toDateOnly("2026-03-05 08:00:00")).toBe("2026-03-05");
     expect(toDateOnly("2026-03-05-extra")).toBe("2026-03-05");
     expect(toDateOnly("")).toBe("");
+    // Line 36: no ISO date pattern match – falls back to slice(0, 10)
+    expect(toDateOnly("abcdefghij")).toBe("abcdefghij");
   });
 
   it("returns the latest paid payment record or the first unpaid one", () => {
@@ -171,6 +173,17 @@ describe("calendar types helpers", () => {
         cycles,
       ),
     ).toEqual([]);
+
+    // Line 103: datePart has fewer than 3 dash-segments, so the else branch executes.
+    // "2026-03" splits into ["2026","03"] (length 2), triggering cursor = new Date("2026-03")
+    expect(
+      getOccurrencesInMonth(
+        getSubscription({ next_payment: "2026-03", cycle: "monthly" }),
+        2026,
+        3,
+        cycles,
+      ),
+    ).toHaveLength(1);
   });
 
   it("converts to the main currency, delegates logo urls, and picks deterministic colors", () => {

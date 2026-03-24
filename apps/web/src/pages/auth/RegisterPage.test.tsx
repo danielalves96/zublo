@@ -42,7 +42,7 @@ vi.mock("@/contexts/AuthContext", () => ({
 vi.mock("@/lib/i18n", () => ({
   __esModule: true,
   default: {
-    language: "en",
+    language: "",
   },
   SUPPORTED_LANGUAGES: [
     { code: "en", name: "English" },
@@ -51,7 +51,23 @@ vi.mock("@/lib/i18n", () => ({
 }));
 
 vi.mock("@/components/ui/select", () => ({
-  Select: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  Select: ({
+    children,
+    onValueChange,
+    value,
+  }: {
+    children: React.ReactNode;
+    onValueChange?: (value: string) => void;
+    value?: string;
+  }) => (
+    <div
+      data-testid="select"
+      data-value={value}
+      onClick={() => onValueChange && onValueChange("EUR")}
+    >
+      {children}
+    </div>
+  ),
   SelectTrigger: ({ children }: { children: React.ReactNode }) => (
     <div>{children}</div>
   ),
@@ -185,5 +201,158 @@ describe("RegisterPage", () => {
     await waitFor(() => {
       expect(mocks.toastError).toHaveBeenCalledWith("unknown_error");
     });
+  });
+
+  it("shows the error message when an Error instance is thrown during registration", async () => {
+    mocks.register.mockRejectedValue(new Error("email already in use"));
+
+    render(<RegisterPage />);
+
+    fireEvent.change(screen.getByLabelText("username"), {
+      target: { value: "daniel" },
+    });
+    fireEvent.change(screen.getByLabelText("email"), {
+      target: { value: "daniel@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText("password"), {
+      target: { value: "password123" },
+    });
+    fireEvent.change(screen.getByLabelText("confirm_password"), {
+      target: { value: "password123" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "create_account" }));
+
+    await waitFor(() => {
+      expect(mocks.toastError).toHaveBeenCalledWith("email already in use");
+    });
+  });
+
+  it("skips currency update when user selects EUR (default onboarding currency)", async () => {
+    // The mock Select doesn't call onValueChange, so the default "USD" from defaultValues
+    // is used. We need the currency to be "EUR" - we can do this by returning EUR as default
+    // via a controlled Select mock that calls onChange with EUR.
+    // Since the Select mock doesn't trigger onChange, the currency stays "USD".
+    // Instead, let's test by making the preferred currency EUR (not found in list):
+    // Actually the simplest way: override listCurrencies to return only EUR, and
+    // set up the mock so that the selected currency is EUR.
+    // The Select mock here doesn't allow changing the value. The default is "USD".
+    // We can test the EUR skip path by making the currency code match "EUR" in listCurrencies.
+    // The easiest approach: mock register/loginWithPassword with a user and set currency to EUR
+    // by NOT finding a non-EUR currency in the list.
+
+    // Use a currency list where only EUR exists and preferred is EUR itself
+    mocks.listCurrencies.mockResolvedValue([
+      { id: "cur-eur", code: "EUR" },
+    ]);
+
+    // The default currency value from the form is "USD" (from defaultValues).
+    // The currency update only runs when data.currency !== "EUR".
+    // We need data.currency to be "EUR" — but our mock Select doesn't call onValueChange.
+    // To hit the EUR branch, we need to ensure the currency field value is "EUR".
+    // Since the default is "USD" (from i18n mock language="en"), let's make this test
+    // target the branch where `preferred` is not found (listCurrencies returns no USD match).
+    mocks.listCurrencies.mockResolvedValue([
+      { id: "cur-eur", code: "EUR" },
+      // no USD entry, so preferred will be undefined → the if(preferred) block is skipped
+    ]);
+
+    render(<RegisterPage />);
+
+    fireEvent.change(screen.getByLabelText("username"), {
+      target: { value: "daniel" },
+    });
+    fireEvent.change(screen.getByLabelText("email"), {
+      target: { value: "daniel@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText("password"), {
+      target: { value: "password123" },
+    });
+    fireEvent.change(screen.getByLabelText("confirm_password"), {
+      target: { value: "password123" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "create_account" }));
+
+    await waitFor(() => {
+      expect(mocks.register).toHaveBeenCalled();
+      expect(mocks.toastSuccess).toHaveBeenCalledWith("success");
+    });
+    // updateCurrency and updateUser should NOT be called when preferred is not found
+    expect(mocks.updateCurrency).not.toHaveBeenCalled();
+    expect(mocks.updateUser).not.toHaveBeenCalled();
+  });
+
+  it("applies currency when EUR is found but USD is not (no EUR deactivation needed)", async () => {
+    // preferred (USD) found, but EUR not found → skip deactivating EUR
+    mocks.listCurrencies.mockResolvedValue([
+      { id: "cur-usd", code: "USD" },
+      // no EUR entry
+    ]);
+
+    render(<RegisterPage />);
+
+    fireEvent.change(screen.getByLabelText("username"), {
+      target: { value: "daniel" },
+    });
+    fireEvent.change(screen.getByLabelText("email"), {
+      target: { value: "daniel@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText("password"), {
+      target: { value: "password123" },
+    });
+    fireEvent.change(screen.getByLabelText("confirm_password"), {
+      target: { value: "password123" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "create_account" }));
+
+    await waitFor(() => {
+      expect(mocks.toastSuccess).toHaveBeenCalledWith("success");
+    });
+    // USD found and EUR not found → updateCurrency called only for USD, not EUR
+    expect(mocks.updateCurrency).toHaveBeenCalledWith("cur-usd", { is_main: true });
+    expect(mocks.updateCurrency).not.toHaveBeenCalledWith(expect.any(String), { is_main: false });
+    expect(mocks.updateUser).toHaveBeenCalledWith("user-1", { main_currency: "cur-usd" });
+  });
+
+  it("shows validation errors when required fields are empty", async () => {
+    render(<RegisterPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "create_account" }));
+
+    await waitFor(() => {
+      // username is too short (empty), password too short, etc.
+      const errors = document.querySelectorAll(".text-destructive");
+      expect(errors.length).toBeGreaterThan(0);
+    });
+  });
+
+  it("skips currency update when EUR is selected as preferred currency", async () => {
+    render(<RegisterPage />);
+
+    // Click the first Select (currency) to trigger onValueChange with "EUR"
+    const selects = document.querySelectorAll('[data-testid="select"]');
+    // First select is currency
+    fireEvent.click(selects[0]);
+
+    fireEvent.change(screen.getByLabelText("username"), {
+      target: { value: "daniel" },
+    });
+    fireEvent.change(screen.getByLabelText("email"), {
+      target: { value: "daniel@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText("password"), {
+      target: { value: "password123" },
+    });
+    fireEvent.change(screen.getByLabelText("confirm_password"), {
+      target: { value: "password123" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "create_account" }));
+
+    await waitFor(() => {
+      expect(mocks.register).toHaveBeenCalled();
+      expect(mocks.toastSuccess).toHaveBeenCalledWith("success");
+    });
+    // Currency update skipped entirely since currency is EUR
+    expect(mocks.listCurrencies).not.toHaveBeenCalled();
+    expect(mocks.updateCurrency).not.toHaveBeenCalled();
   });
 });

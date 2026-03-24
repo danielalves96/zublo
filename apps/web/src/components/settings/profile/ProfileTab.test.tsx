@@ -252,4 +252,13 @@ describe("ProfileTab", () => {
 
     await waitFor(() => expect(toastError).toHaveBeenCalledWith("update failed"));
   });
+
+  it("does not set preview when avatarUrl returns null", async () => {
+    avatarUrl.mockReturnValue(null);
+    renderComponent();
+
+    await waitFor(() =>
+      expect(screen.getByTestId("avatar-preview")).toHaveTextContent("none"),
+    );
+  });
 });

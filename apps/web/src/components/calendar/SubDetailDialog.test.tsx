@@ -160,6 +160,27 @@ describe("SubDetailDialog", () => {
     expect(onEdit).toHaveBeenCalledWith(sub);
   });
 
+  it("hides the logo image on error", () => {
+    render(
+      <SubDetailDialog
+        sub={getSubscription()}
+        date={new Date("2026-03-10T00:00:00Z")}
+        currencies={[getCurrency()]}
+        mainCurrency={getCurrency()}
+        paymentTracking={false}
+        paymentRecord={undefined}
+        onClose={vi.fn()}
+        onEdit={vi.fn()}
+        onMarkAsPaid={vi.fn()}
+        t={(key) => key}
+      />,
+    );
+
+    const img = document.querySelector("img") as HTMLImageElement;
+    fireEvent.error(img);
+    expect(img.style.display).toBe("none");
+  });
+
   it("renders fallback URL text and overdue mark-as-paid state", () => {
     mocks.getLogoUrl.mockReturnValue(null);
     mocks.sanitizeHref.mockReturnValue("");

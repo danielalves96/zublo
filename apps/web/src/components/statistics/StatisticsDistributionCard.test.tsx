@@ -17,9 +17,17 @@ vi.mock("recharts", () => ({
   PieChart: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="pie-chart">{children}</div>
   ),
-  Pie: () => <div data-testid="pie" />,
+  Pie: ({ label }: { label?: (entry: { name: string; percent: number }) => string }) => (
+    <div data-testid="pie">
+      {label && <span data-testid="pie-label">{label({ name: "Netflix", percent: 0.5 })}</span>}
+    </div>
+  ),
   Cell: () => <div data-testid="cell" />,
-  Tooltip: () => <div data-testid="tooltip" />,
+  Tooltip: ({ formatter }: { formatter?: (value: number) => string }) => (
+    <div data-testid="tooltip">
+      {formatter && <span data-testid="tooltip-value">{formatter(15)}</span>}
+    </div>
+  ),
   Legend: () => <div data-testid="legend" />,
 }));
 

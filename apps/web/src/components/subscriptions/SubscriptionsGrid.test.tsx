@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -89,5 +89,28 @@ describe("SubscriptionsGrid", () => {
     );
     expect(screen.getByText("Netflix")).toBeInTheDocument();
     expect(screen.getByText("Spotify")).toBeInTheDocument();
+  });
+
+  it("calls onEdit, onClone, onRenew, and onDelete with correct subscription when cards trigger actions", () => {
+    const sub = getSub();
+    render(
+      <SubscriptionsGrid
+        isLoading={false}
+        subscriptions={[sub]}
+        {...baseHandlers}
+      />,
+    );
+
+    fireEvent.click(screen.getByTitle("edit"));
+    expect(baseHandlers.onEdit).toHaveBeenCalledWith(sub);
+
+    fireEvent.click(screen.getByTitle("clone"));
+    expect(baseHandlers.onClone).toHaveBeenCalledWith(sub.id);
+
+    fireEvent.click(screen.getByTitle("renew"));
+    expect(baseHandlers.onRenew).toHaveBeenCalledWith(sub.id);
+
+    fireEvent.click(screen.getByTitle("delete"));
+    expect(baseHandlers.onDelete).toHaveBeenCalledWith(sub.id);
   });
 });

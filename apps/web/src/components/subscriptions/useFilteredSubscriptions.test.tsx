@@ -145,6 +145,31 @@ describe("useFilteredSubscriptions", () => {
     ]);
   });
 
+  it("filters to only inactive subscriptions when state is inactive", () => {
+    const subscriptions = [
+      getSubscription({ id: "sub-1", name: "Netflix", inactive: false }),
+      getSubscription({ id: "sub-2", name: "Spotify", inactive: true }),
+      getSubscription({ id: "sub-3", name: "Hulu", inactive: true }),
+    ];
+
+    const { result } = renderHook(() =>
+      useFilteredSubscriptions({
+        subscriptions,
+        searchTerm: "",
+        filters: {
+          state: "inactive",
+          categories: [],
+          members: [],
+          payments: [],
+        },
+        sort: "name",
+        sortDir: "asc",
+      }),
+    );
+
+    expect(result.current.map((s) => s.id)).toEqual(["sub-3", "sub-2"]);
+  });
+
   it("moves inactive subscriptions to the bottom after sorting", () => {
     const subscriptions = [
       getSubscription({ id: "sub-1", name: "Zulu", inactive: false }),

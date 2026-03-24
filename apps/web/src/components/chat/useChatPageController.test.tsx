@@ -416,6 +416,282 @@ describe("useChatPageController", () => {
     expect(preventDefault).toHaveBeenCalled();
   });
 
+  it("retries the last user message by removing the error response and resending", async () => {
+    mocks.chat.mockResolvedValue({
+      message: "retry reply",
+      conversation_id: "conv-1",
+      conversation_title: "Retry Test",
+      actions_taken: [],
+    });
+
+    const { Wrapper } = createQueryClientWrapper();
+    const { result } = renderHook(() => useChatPageController(), {
+      wrapper: Wrapper,
+    });
+
+    // Manually seed messages: welcome + user + error assistant
+    act(() => {
+      result.current.setInput("Retry me");
+    });
+
+    await act(async () => {
+      await result.current.handleSend();
+    });
+
+    // Now retry the last error message (index 2)
+    await act(async () => {
+      await result.current.handleRetry(result.current.messages.length - 1);
+    });
+
+    expect(mocks.chat).toHaveBeenCalledTimes(2);
+    expect(result.current.messages.at(-1)).toEqual(
+      expect.objectContaining({ role: "assistant" }),
+    );
+  });
+
+  it("handleRetry does nothing when there is no preceding user message", async () => {
+    const { Wrapper } = createQueryClientWrapper();
+    const { result } = renderHook(() => useChatPageController(), {
+      wrapper: Wrapper,
+    });
+
+    await act(async () => {
+      // index 0 is the welcome message (assistant), no user message before it
+      await result.current.handleRetry(0);
+    });
+
+    expect(mocks.chat).not.toHaveBeenCalled();
+  });
+
+  it("handleCancel aborts an in-flight request", async () => {
+    let resolveChat!: (value: unknown) => void;
+    mocks.chat.mockImplementation(
+      () => new Promise((resolve) => { resolveChat = resolve; }),
+    );
+
+    const { Wrapper } = createQueryClientWrapper();
+    const { result } = renderHook(() => useChatPageController(), {
+      wrapper: Wrapper,
+    });
+
+    act(() => {
+      result.current.setInput("Long running");
+    });
+
+    // Start send but do not await
+    act(() => {
+      void result.current.handleSend();
+    });
+
+    act(() => {
+      result.current.handleCancel();
+    });
+
+    // Resolve the chat promise with an abort error
+    const abortError = new Error("AbortError");
+    abortError.name = "AbortError";
+    act(() => {
+      resolveChat(Promise.reject(abortError));
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+  });
+
+  it("handleNewConversation resets state and closes sidebar on mobile", async () => {
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 500,
+    });
+
+    const { Wrapper } = createQueryClientWrapper();
+    const { result } = renderHook(() => useChatPageController(), {
+      wrapper: Wrapper,
+    });
+
+    act(() => {
+      result.current.setInput("some text");
+    });
+
+    act(() => {
+      result.current.handleNewConversation();
+    });
+
+    expect(result.current.input).toBe("");
+    expect(result.current.currentConvId).toBeNull();
+    expect(result.current.sidebarOpen).toBe(false);
+  });
+
+  it("shows error toast when handleLoadConversation fails", async () => {
+    mocks.getConversationMessages.mockRejectedValue(new Error("network error"));
+
+    const { Wrapper } = createQueryClientWrapper();
+    const { result } = renderHook(() => useChatPageController(), {
+      wrapper: Wrapper,
+    });
+
+    await act(async () => {
+      await result.current.handleLoadConversation("conv-fail");
+    });
+
+    expect(mocks.toastError).toHaveBeenCalledWith("chat.error_generic");
+  });
+
+  it("shows error toast when handleConfirmDeleteConversation fails", async () => {
+    mocks.getConversations.mockResolvedValue({
+      conversations: [getConversation({ id: "conv-err", title: "Error conv" })],
+    });
+    mocks.deleteConversation.mockRejectedValue(new Error("delete failed"));
+
+    const { Wrapper } = createQueryClientWrapper();
+    const { result } = renderHook(() => useChatPageController(), {
+      wrapper: Wrapper,
+    });
+
+    await waitFor(() => {
+      expect(result.current.conversations).toHaveLength(1);
+    });
+
+    act(() => {
+      result.current.handleDeleteConversation(
+        "conv-err",
+        { stopPropagation: vi.fn() } as unknown as React.MouseEvent,
+      );
+    });
+
+    await act(async () => {
+      await result.current.handleConfirmDeleteConversation();
+    });
+
+    expect(mocks.toastError).toHaveBeenCalledWith("chat.error_generic");
+  });
+
+  it("shows error toast when handleConfirmRename fails", async () => {
+    mocks.renameConversation.mockRejectedValue(new Error("rename failed"));
+    mocks.getConversations.mockResolvedValue({
+      conversations: [getConversation({ id: "conv-r", title: "Old" })],
+    });
+
+    const { Wrapper } = createQueryClientWrapper();
+    const { result } = renderHook(() => useChatPageController(), {
+      wrapper: Wrapper,
+    });
+
+    await waitFor(() => expect(result.current.conversations).toHaveLength(1));
+
+    act(() => {
+      result.current.handleStartRename(
+        "conv-r",
+        "Old",
+        { stopPropagation: vi.fn() } as unknown as React.MouseEvent,
+      );
+    });
+
+    await act(async () => {
+      await result.current.handleConfirmRename();
+    });
+
+    expect(mocks.toastError).toHaveBeenCalledWith("chat.error_generic");
+  });
+
+  it("shows error toast when spreadsheet file is empty", async () => {
+    const emptyFile = new File(["data"], "empty.csv", { type: "text/csv" });
+    Object.defineProperty(emptyFile, "arrayBuffer", {
+      value: vi.fn().mockResolvedValue(new ArrayBuffer(8)),
+    });
+    mocks.xlsxRead.mockReturnValue({
+      SheetNames: ["Sheet1"],
+      Sheets: { Sheet1: {} },
+    });
+    mocks.xlsxSheetToJson.mockReturnValue([]); // empty rows
+
+    const { Wrapper } = createQueryClientWrapper();
+    const { result } = renderHook(() => useChatPageController(), {
+      wrapper: Wrapper,
+    });
+
+    await act(async () => {
+      await result.current.handleFileSelect({
+        target: { files: [emptyFile], value: "empty.csv" },
+      } as unknown as React.ChangeEvent<HTMLInputElement>);
+    });
+
+    expect(mocks.toastError).toHaveBeenCalledWith("chat.file_empty_error");
+  });
+
+  it("handleSend with only pendingFile and no text sends the file content", async () => {
+    mocks.chat.mockResolvedValue({
+      message: "file processed",
+      conversation_id: "conv-file",
+      conversation_title: "File Conv",
+      actions_taken: [],
+    });
+    mocks.getConversations.mockResolvedValue({ conversations: [] });
+
+    const { Wrapper } = createQueryClientWrapper();
+    const { result } = renderHook(() => useChatPageController(), {
+      wrapper: Wrapper,
+    });
+
+    act(() => {
+      result.current.setPendingFile({
+        name: "data.csv",
+        rows: [{ a: 1 }],
+        headers: ["a"],
+      });
+    });
+
+    await act(async () => {
+      await result.current.handleSend();
+    });
+
+    expect(mocks.chat).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          role: "user",
+          content: expect.stringContaining("PLANILHA ANEXADA"),
+        }),
+      ]),
+      null,
+      expect.any(String),
+      expect.any(AbortSignal),
+    );
+  });
+
+  it("handleConfirmRename clears editingConvId when editTitle is blank", async () => {
+    const { Wrapper } = createQueryClientWrapper();
+    const { result } = renderHook(() => useChatPageController(), {
+      wrapper: Wrapper,
+    });
+
+    act(() => {
+      result.current.setEditingConvId("conv-x");
+      result.current.setEditTitle("   "); // blank
+    });
+
+    await act(async () => {
+      await result.current.handleConfirmRename();
+    });
+
+    expect(result.current.editingConvId).toBeNull();
+    expect(mocks.renameConversation).not.toHaveBeenCalled();
+  });
+
+  it("handleConfirmDeleteConversation resets state when no pendingDeleteConvId", async () => {
+    const { Wrapper } = createQueryClientWrapper();
+    const { result } = renderHook(() => useChatPageController(), {
+      wrapper: Wrapper,
+    });
+
+    // pendingDeleteConvId is null by default
+    await act(async () => {
+      await result.current.handleConfirmDeleteConversation();
+    });
+
+    expect(mocks.deleteConversation).not.toHaveBeenCalled();
+  });
+
   it("deletes and renames conversations while keeping local state in sync", async () => {
     mocks.getConversations.mockResolvedValue({
       conversations: [

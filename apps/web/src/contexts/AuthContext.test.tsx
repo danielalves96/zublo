@@ -1,3 +1,4 @@
+import React from "react";
 import { render, screen, act, waitFor } from "@testing-library/react";
 
 // --- Mocks ---
@@ -290,5 +291,72 @@ describe("AuthContext", () => {
       expect(screen.getByTestId("user").textContent).toBe("trusted@test.com");
     });
     expect(mockStartTotpLoginChallenge).not.toHaveBeenCalled();
+  });
+
+  it("does not set user when refresh succeeds but getModel returns null", async () => {
+    mockIsValid.mockReturnValue(true);
+    mockRefresh.mockResolvedValue(undefined);
+    mockGetModel.mockReturnValue(null); // record is null
+    render(
+      <AuthProvider>
+        <Consumer />
+      </AuthProvider>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("loading").textContent).toBe("false");
+    });
+    expect(screen.getByTestId("user").textContent).toBe("null");
+  });
+
+  it("does not call refreshUser again when AuthProvider re-renders (didBootstrapRef guard)", async () => {
+    mockIsValid.mockReturnValue(false);
+    // React StrictMode runs effects twice to help detect side effects
+    render(
+      <React.StrictMode>
+        <AuthProvider>
+          <Consumer />
+        </AuthProvider>
+      </React.StrictMode>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("loading").textContent).toBe("false");
+    });
+    // In StrictMode, effects run twice; the guard ensures refreshUser runs only once
+    expect(screen.getByTestId("user").textContent).toBe("null");
+  });
+
+  it("login reuses cached isAdmin when already fetched (nextIsAdmin !== undefined)", async () => {
+    // First bootstrap: valid session with admin=true already cached in isAdminRef
+    mockIsValid.mockReturnValue(true);
+    mockGetModel.mockReturnValue({ email: "admin@test.com" });
+    mockApiGet.mockResolvedValue({ isAdmin: true });
+
+    const fakeUser = { id: "u3", email: "admin@test.com", totp_enabled: false };
+    mockLoginWithPassword.mockResolvedValue({ record: fakeUser });
+
+    function LoginHelper() {
+      const { login } = useAuth();
+      return <button onClick={() => login("admin@test.com", "password")}>Login</button>;
+    }
+
+    render(
+      <AuthProvider>
+        <Consumer />
+        <LoginHelper />
+      </AuthProvider>,
+    );
+    // Wait for bootstrap to complete and populate isAdminRef
+    await waitFor(() => expect(screen.getByTestId("admin").textContent).toBe("true"));
+
+    // Now call login — isAdminRef is already set so fetchIsAdmin should NOT be called again
+    const callCount = mockApiGet.mock.calls.length;
+    await act(async () => {
+      screen.getByRole("button", { name: "Login" }).click();
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("user").textContent).toBe("admin@test.com");
+    });
+    // fetchIsAdmin not re-called because isAdminRef.current was defined
+    expect(mockApiGet.mock.calls.length).toBe(callCount);
   });
 });

@@ -84,21 +84,30 @@ vi.mock("@/components/settings/api-keys/ApiKeyFormDialog", () => ({
       </div>
     ) : null,
 
-  EditApiKeyDialog: ({ open, onClose, onSubmit, isPending }: any) =>
-    open ? (
-      <div data-testid="edit-dialog">
-        <span data-testid="edit-is-pending">{String(isPending)}</span>
-        <button
-          data-testid="edit-submit"
-          onClick={() => onSubmit("updated-name", ["subscriptions:read"])}
-        >
-          submit
-        </button>
-        <button data-testid="edit-close" onClick={onClose}>
-          close
-        </button>
-      </div>
-    ) : null,
+  EditApiKeyDialog: ({ open, onClose, onSubmit, isPending }: any) => (
+    <div data-testid="edit-dialog-wrapper">
+      {open ? (
+        <div data-testid="edit-dialog">
+          <span data-testid="edit-is-pending">{String(isPending)}</span>
+          <button
+            data-testid="edit-submit"
+            onClick={() => onSubmit("updated-name", ["subscriptions:read"])}
+          >
+            submit
+          </button>
+          <button data-testid="edit-close" onClick={onClose}>
+            close
+          </button>
+        </div>
+      ) : null}
+      <button
+        data-testid="edit-submit-no-pending-key"
+        onClick={() => onSubmit("updated-name", ["subscriptions:read"])}
+      >
+        submit without pending key
+      </button>
+    </div>
+  ),
 }));
 
 vi.mock("@/components/settings/api-keys/ApiKeyRevealDialog", () => ({
@@ -391,5 +400,13 @@ describe("ApiKeyTab", () => {
     await userEvent.click(screen.getByTestId("delete-key-1"));
     await userEvent.click(screen.getByTestId("confirm-ok"));
     await waitFor(() => expect(toastError).toHaveBeenCalled());
+  });
+
+  it("does not call update mutation when onSubmit is called with no pendingEditKey", async () => {
+    const { Wrapper } = createQueryClientWrapper();
+    render(<ApiKeyTab />, { wrapper: Wrapper });
+    await waitFor(() => screen.getByTestId("edit-submit-no-pending-key"));
+    await userEvent.click(screen.getByTestId("edit-submit-no-pending-key"));
+    expect(apiKeysUpdate).not.toHaveBeenCalled();
   });
 });

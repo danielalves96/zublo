@@ -153,4 +153,74 @@ describe("LoginPage", () => {
       expect(mocks.toastError).toHaveBeenCalledWith("unknown_error");
     });
   });
+
+  it("shows the error message when an Error instance is thrown during login", async () => {
+    mocks.login.mockRejectedValue(new Error("invalid credentials"));
+    mocks.isTotpRequiredError.mockReturnValue(false);
+
+    render(<LoginPage />);
+
+    fireEvent.change(screen.getByLabelText("email"), {
+      target: { value: "daniel@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText("password"), {
+      target: { value: "password123" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "login" }));
+
+    await waitFor(() => {
+      expect(mocks.toastError).toHaveBeenCalledWith("invalid credentials");
+    });
+  });
+
+  it("shows validation error for invalid email format on submit", async () => {
+    render(<LoginPage />);
+
+    const emailInput = screen.getByLabelText("email");
+    fireEvent.change(emailInput, { target: { value: "not-valid" } });
+    fireEvent.blur(emailInput);
+    fireEvent.change(screen.getByLabelText("password"), {
+      target: { value: "pw" },
+    });
+    fireEvent.submit(document.querySelector("form")!);
+
+    await waitFor(() => {
+      expect(screen.getByText("validation_invalid_email")).toBeInTheDocument();
+    });
+  });
+
+  it("shows password required error when password field is empty on submit", async () => {
+    render(<LoginPage />);
+
+    const emailInput = screen.getByLabelText("email");
+    fireEvent.change(emailInput, { target: { value: "user@example.com" } });
+    fireEvent.blur(emailInput);
+    // Leave password empty
+    fireEvent.submit(document.querySelector("form")!);
+
+    await waitFor(() => {
+      expect(screen.getByText("required")).toBeInTheDocument();
+    });
+  });
+
+  it("does not redirect when bootstrap fetch returns non-ok response", async () => {
+    mocks.fetchMock.mockResolvedValue({ ok: false });
+
+    render(<LoginPage />);
+
+    // Wait for fetch to complete
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(mocks.navigate).not.toHaveBeenCalled();
+  });
+
+  it("does not redirect when bootstrap fetch throws", async () => {
+    mocks.fetchMock.mockRejectedValue(new Error("network error"));
+
+    render(<LoginPage />);
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(mocks.navigate).not.toHaveBeenCalled();
+  });
 });

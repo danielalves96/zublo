@@ -16,7 +16,11 @@ vi.mock("recharts", () => ({
   Line: () => <div data-testid="line" />,
   XAxis: () => <div data-testid="x-axis" />,
   YAxis: () => <div data-testid="y-axis" />,
-  Tooltip: () => <div data-testid="tooltip" />,
+  Tooltip: ({ formatter }: { formatter?: (value: number) => [string, string] }) => (
+    <div data-testid="tooltip">
+      {formatter && <span data-testid="tooltip-value">{formatter(100)[0]}</span>}
+    </div>
+  ),
 }));
 
 import { StatisticsHistoryCard } from "./StatisticsHistoryCard";

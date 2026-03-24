@@ -165,6 +165,34 @@ describe("SubscriptionCard", () => {
     expect(onDelete).toHaveBeenCalledTimes(1);
   });
 
+  it("falls back to payment method initials when payment icon image fails to load", () => {
+    mocks.paymentIconUrl.mockReturnValue("https://cdn.example.com/my-card.png");
+    render(
+      <SubscriptionCard
+        sub={getSubscription({
+          expand: {
+            currency: getCurrency({ id: "cur-2", symbol: "R$", rate: 5 }),
+            cycle: { id: "monthly", name: "Monthly" },
+            payment_method: getPaymentMethod({ name: "My Card", icon: "card.png" }),
+          },
+        })}
+        onEdit={vi.fn()}
+        onClone={vi.fn()}
+        onRenew={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+
+    const paymentImg = screen.getByAltText("My Card");
+    expect(paymentImg).toBeInTheDocument();
+
+    // Simulate load error to trigger the initials fallback
+    fireEvent.error(paymentImg);
+
+    expect(screen.queryByAltText("My Card")).not.toBeInTheDocument();
+    expect(screen.getByText("MC")).toBeInTheDocument();
+  });
+
   it("renders fallback initials and inactive state when data is limited", () => {
     render(
       <SubscriptionCard

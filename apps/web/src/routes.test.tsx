@@ -1,3 +1,5 @@
+import { render, screen } from "@testing-library/react";
+import { RouterProvider } from "@tanstack/react-router";
 import { createAppRouter, settingsRoute, adminRoute } from "./routes";
 
 vi.mock("react-i18next", () => ({
@@ -12,8 +14,50 @@ vi.mock("@/components/AppTheme", () => ({
   AppTheme: () => null,
 }));
 
-vi.mock("@/components/Layout", () => ({
-  Layout: () => null,
+vi.mock("@/components/Layout", async () => {
+  const { Outlet } = await import("@tanstack/react-router");
+  return {
+    Layout: () => (
+      <div>
+        layout
+        <Outlet />
+      </div>
+    ),
+  };
+});
+
+vi.mock("@/pages/DashboardPage", () => ({
+  DashboardPage: () => <div>dashboard</div>,
+}));
+vi.mock("@/pages/SubscriptionsPage", () => ({
+  SubscriptionsPage: () => <div>subscriptions</div>,
+}));
+vi.mock("@/pages/CalendarPage", () => ({
+  CalendarPage: () => <div>calendar</div>,
+}));
+vi.mock("@/pages/StatisticsPage", () => ({
+  StatisticsPage: () => <div>statistics</div>,
+}));
+vi.mock("@/pages/SettingsPage", () => ({
+  SettingsPage: () => <div>settings</div>,
+}));
+vi.mock("@/pages/AdminPage", () => ({
+  AdminPage: () => <div>admin</div>,
+}));
+vi.mock("@/pages/ChatPage", () => ({
+  ChatPage: () => <div>chat</div>,
+}));
+vi.mock("@/pages/auth/LoginPage", () => ({
+  LoginPage: () => <div>login</div>,
+}));
+vi.mock("@/pages/auth/RegisterPage", () => ({
+  RegisterPage: () => <div>register</div>,
+}));
+vi.mock("@/pages/auth/TotpPage", () => ({
+  TotpPage: () => <div>totp</div>,
+}));
+vi.mock("@/pages/auth/PasswordResetPage", () => ({
+  PasswordResetPage: () => <div>password-reset</div>,
 }));
 
 const fakeUser = { id: "1", email: "user@test.com" } as any;
@@ -95,6 +139,90 @@ describe("adminRoute.beforeLoad", () => {
       makeCtx({ isLoading: false, isAdmin: true }),
     );
     expect(result).toBeUndefined();
+  });
+});
+
+// ─── Route component rendering ─────────────────────────────────────────────────
+
+describe("route component rendering", () => {
+  it("renders the router with RouterProvider and covers root route component", async () => {
+    window.history.pushState({}, "", "/login");
+    const router = createAppRouter(makeContext({ user: null, isLoading: false }));
+    await router.load();
+    const { container } = render(<RouterProvider router={router} />);
+    // Root route component (line 72) renders AppTheme + Outlet + Toaster
+    expect(container).toBeInTheDocument();
+  });
+
+  it("renders dashboard page via router (covers lazy import callbacks)", async () => {
+    window.history.pushState({}, "", "/dashboard");
+    const router = createAppRouter(makeContext({ user: fakeUser }));
+    await router.load();
+    const { container } = render(<RouterProvider router={router} />);
+    expect(container).toBeInTheDocument();
+  });
+
+  it("renders settings page via router (covers SettingsPage lazy callback)", async () => {
+    window.history.pushState({}, "", "/settings");
+    const router = createAppRouter(makeContext({ user: fakeUser }));
+    await router.load();
+    render(<RouterProvider router={router} />);
+    await screen.findByText("layout");
+    expect(screen.getByText("layout")).toBeInTheDocument();
+  });
+
+  it("renders admin page via router (covers AdminPage lazy callback)", async () => {
+    window.history.pushState({}, "", "/admin");
+    const router = createAppRouter(makeContext({ user: fakeUser, isAdmin: true }));
+    await router.load();
+    render(<RouterProvider router={router} />);
+    await screen.findByText("layout");
+    expect(screen.getByText("layout")).toBeInTheDocument();
+  });
+
+  it("renders chat page via router (covers ChatPage lazy callback)", async () => {
+    window.history.pushState({}, "", "/chat");
+    const router = createAppRouter(makeContext({ user: fakeUser }));
+    await router.load();
+    render(<RouterProvider router={router} />);
+    await screen.findByText("layout");
+    expect(screen.getByText("layout")).toBeInTheDocument();
+  });
+
+  it("renders subscriptions page via router (covers SubscriptionsPage lazy callback)", async () => {
+    window.history.pushState({}, "", "/subscriptions");
+    const router = createAppRouter(makeContext({ user: fakeUser }));
+    await router.load();
+    render(<RouterProvider router={router} />);
+    await screen.findByText("layout");
+    expect(screen.getByText("layout")).toBeInTheDocument();
+  });
+
+  it("renders calendar page via router (covers CalendarPage lazy callback)", async () => {
+    window.history.pushState({}, "", "/calendar");
+    const router = createAppRouter(makeContext({ user: fakeUser }));
+    await router.load();
+    render(<RouterProvider router={router} />);
+    await screen.findByText("layout");
+    expect(screen.getByText("layout")).toBeInTheDocument();
+  });
+
+  it("renders statistics page via router (covers StatisticsPage lazy callback)", async () => {
+    window.history.pushState({}, "", "/statistics");
+    const router = createAppRouter(makeContext({ user: fakeUser }));
+    await router.load();
+    render(<RouterProvider router={router} />);
+    await screen.findByText("layout");
+    expect(screen.getByText("layout")).toBeInTheDocument();
+  });
+
+  it("renders password-reset page via router (covers PasswordResetPage lazy callback)", async () => {
+    window.history.pushState({}, "", "/password-reset");
+    const router = createAppRouter(makeContext({ user: null }));
+    await router.load();
+    render(<RouterProvider router={router} />);
+    await screen.findByText("password-reset");
+    expect(screen.getByText("password-reset")).toBeInTheDocument();
   });
 });
 

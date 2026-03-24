@@ -27,4 +27,25 @@ describe("CategoryFormRow", () => {
     fireEvent.click(buttons[1]); // cancel button
     expect(onCancel).toHaveBeenCalled();
   });
+
+  it("calls onNameChange when input value changes", () => {
+    const onNameChange = vi.fn();
+    render(<CategoryFormRow name="" onCancel={vi.fn()} onNameChange={onNameChange} onSubmit={vi.fn()} />);
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "New Category" } });
+    expect(onNameChange).toHaveBeenCalledWith("New Category");
+  });
+
+  it("calls onSubmit when Enter key is pressed in input", () => {
+    const onSubmit = vi.fn();
+    render(<CategoryFormRow name="Test" onCancel={vi.fn()} onNameChange={vi.fn()} onSubmit={onSubmit} />);
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
+    expect(onSubmit).toHaveBeenCalled();
+  });
+
+  it("does not call onSubmit when other key is pressed", () => {
+    const onSubmit = vi.fn();
+    render(<CategoryFormRow name="Test" onCancel={vi.fn()} onNameChange={vi.fn()} onSubmit={onSubmit} />);
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Escape" });
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
 });

@@ -24,4 +24,31 @@ describe("FixerActions", () => {
     fireEvent.click(screen.getByText("save"));
     expect(onSave).toHaveBeenCalled();
   });
+
+  it("shows loading text when saving", () => {
+    render(<FixerActions canSave canUpdateRates saving={true} updatingRates={false} onSave={vi.fn()} onUpdateRates={vi.fn()} />);
+    expect(screen.getByText("loading")).toBeInTheDocument();
+  });
+
+  it("disables save button when saving", () => {
+    render(<FixerActions canSave canUpdateRates saving={true} updatingRates={false} onSave={vi.fn()} onUpdateRates={vi.fn()} />);
+    expect(screen.getByText("loading").closest("button")).toBeDisabled();
+  });
+
+  it("disables update rates button when canUpdateRates is false", () => {
+    render(<FixerActions canSave={true} canUpdateRates={false} saving={false} updatingRates={false} onSave={vi.fn()} onUpdateRates={vi.fn()} />);
+    expect(screen.getByText("update_exchange").closest("button")).toBeDisabled();
+  });
+
+  it("disables update rates button when updatingRates is true", () => {
+    render(<FixerActions canSave={true} canUpdateRates={true} saving={false} updatingRates={true} onSave={vi.fn()} onUpdateRates={vi.fn()} />);
+    expect(screen.getByText("update_exchange").closest("button")).toBeDisabled();
+  });
+
+  it("calls onUpdateRates when update exchange button clicked", () => {
+    const onUpdateRates = vi.fn();
+    render(<FixerActions canSave canUpdateRates saving={false} updatingRates={false} onSave={vi.fn()} onUpdateRates={onUpdateRates} />);
+    fireEvent.click(screen.getByText("update_exchange"));
+    expect(onUpdateRates).toHaveBeenCalled();
+  });
 });

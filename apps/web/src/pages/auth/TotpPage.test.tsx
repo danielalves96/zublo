@@ -383,4 +383,54 @@ describe("TotpPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "use_authenticator_app" }));
     expect(screen.getByLabelText("otp")).toBeInTheDocument();
   });
+
+  it("does not call completeTotpLoginChallenge when OTP length is less than 6 on form submit", async () => {
+    sessionStorage.setItem(
+      SS_KEYS.TOTP_LOGIN_CHALLENGE,
+      JSON.stringify({
+        challenge: "challenge-123",
+        expiresAt: "2099-01-01T00:00:00.000Z",
+        userId: "user-1",
+      }),
+    );
+
+    render(<TotpPage />);
+
+    // Enter only 5 digits
+    fireEvent.change(screen.getByLabelText("otp"), { target: { value: "12345" } });
+
+    // Submit the form directly (bypasses the disabled button)
+    fireEvent.submit(document.querySelector("form")!);
+
+    // completeTotpLoginChallenge should not be called (early return)
+    await new Promise((r) => setTimeout(r, 20));
+    expect(mocks.completeTotpLoginChallenge).not.toHaveBeenCalled();
+  });
+
+  it("does not call completeTotpLoginChallenge when backup code is less than 8 chars on form submit", async () => {
+    sessionStorage.setItem(
+      SS_KEYS.TOTP_LOGIN_CHALLENGE,
+      JSON.stringify({
+        challenge: "challenge-123",
+        expiresAt: "2099-01-01T00:00:00.000Z",
+        userId: "user-1",
+      }),
+    );
+
+    render(<TotpPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "use_backup_code" }));
+
+    // Enter only 7 characters (less than 8 stripped)
+    fireEvent.change(screen.getByLabelText("backup_codes"), {
+      target: { value: "ABCDEFG" },
+    });
+
+    // Submit the form directly
+    const forms = document.querySelectorAll("form");
+    fireEvent.submit(forms[forms.length - 1]);
+
+    await new Promise((r) => setTimeout(r, 20));
+    expect(mocks.completeTotpLoginChallenge).not.toHaveBeenCalled();
+  });
 });

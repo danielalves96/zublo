@@ -42,15 +42,17 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
+const mockUseAuth = vi.fn(() => ({
+  user: {
+    id: "user-1",
+    convert_currency: true,
+    monthly_price: true,
+    subscription_progress: true,
+  },
+}));
+
 vi.mock("@/contexts/AuthContext", () => ({
-  useAuth: () => ({
-    user: {
-      id: "user-1",
-      convert_currency: true,
-      monthly_price: true,
-      subscription_progress: true,
-    },
-  }),
+  useAuth: () => mockUseAuth(),
 }));
 
 vi.mock("@/services/subscriptions", () => ({
@@ -295,6 +297,14 @@ import { SubscriptionsPage } from "./SubscriptionsPage";
 describe("SubscriptionsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUseAuth.mockReturnValue({
+      user: {
+        id: "user-1",
+        convert_currency: true,
+        monthly_price: true,
+        subscription_progress: true,
+      },
+    });
     mocks.listSubscriptions.mockResolvedValue([{ id: "sub-1", name: "Netflix" }]);
     mocks.listCurrencies.mockResolvedValue([
       { id: "cur-1", code: "USD", symbol: "$", is_main: true },
@@ -495,5 +505,45 @@ describe("SubscriptionsPage", () => {
     fireEvent.click(btn);
     fireEvent.click(btn);
     // Verified implicitly as code path is walked since initial is `sort=name`.
+  });
+
+  it("closes the subscription form via the close-form button (onClose handler)", async () => {
+    const { Wrapper } = createQueryClientWrapper();
+    render(<SubscriptionsPage />, { wrapper: Wrapper });
+
+    await waitFor(() => screen.getByText("grid:1"));
+
+    // Open the form
+    fireEvent.click(screen.getByRole("button", { name: "create-subscription" }));
+    expect(screen.getByText("form:new")).toBeInTheDocument();
+
+    // Close via the onClose handler (line 258)
+    fireEvent.click(screen.getByRole("button", { name: "close-form" }));
+    expect(screen.queryByText("form:new")).not.toBeInTheDocument();
+  });
+
+  it("closes the delete dialog when onOpenChange is called with true (nextOpen=true branch)", async () => {
+    const { Wrapper } = createQueryClientWrapper();
+    render(<SubscriptionsPage />, { wrapper: Wrapper });
+
+    await waitFor(() => screen.getByText("grid:1"));
+
+    // Open delete dialog
+    fireEvent.click(screen.getByRole("button", { name: "delete-subscription" }));
+    expect(screen.getByRole("button", { name: "confirm-delete" })).toBeInTheDocument();
+
+    // Close via the close-delete button which calls onOpenChange(false) → !false = true → setDeleteId(null)
+    fireEvent.click(screen.getByRole("button", { name: "close-delete" }));
+    expect(screen.queryByRole("button", { name: "confirm-delete" })).not.toBeInTheDocument();
+  });
+
+  it("renders with empty userId when user is null (covers user?.id ?? '' fallback)", () => {
+    mockUseAuth.mockReturnValue({ user: null });
+
+    const { Wrapper } = createQueryClientWrapper();
+    render(<SubscriptionsPage />, { wrapper: Wrapper });
+
+    // Page should still render (grid shows 0 items since queries are disabled with empty userId)
+    expect(screen.getByRole("button", { name: "create-subscription" })).toBeInTheDocument();
   });
 });

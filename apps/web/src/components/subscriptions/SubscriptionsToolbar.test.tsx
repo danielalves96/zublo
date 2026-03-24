@@ -34,4 +34,24 @@ describe("SubscriptionsToolbar", () => {
     expect(onToggleFilters).toHaveBeenCalledTimes(1);
     expect(onCycleSort).toHaveBeenCalledTimes(1);
   });
+
+  it("applies active styling to filter button when showFilters is true", () => {
+    const { container } = render(
+      <SubscriptionsToolbar
+        searchTerm=""
+        showFilters={true}
+        onSearchChange={vi.fn()}
+        onToggleFilters={vi.fn()}
+        onCycleSort={vi.fn()}
+      />,
+    );
+
+    const filterButton = screen.getByRole("button", { name: "filter" });
+    expect(filterButton.className).toContain("border-border");
+    expect(filterButton.className).toContain("bg-accent");
+
+    // The Filter icon inside should have text-primary class
+    const filterIcon = container.querySelector(".text-primary");
+    expect(filterIcon).toBeInTheDocument();
+  });
 });

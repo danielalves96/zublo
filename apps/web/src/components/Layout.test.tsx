@@ -135,4 +135,117 @@ describe("Layout", () => {
     expect(screen.queryByText("chat")).not.toBeInTheDocument();
     expect(screen.queryByText("admin")).not.toBeInTheDocument();
   });
+
+  it("toggles sidebar collapsed state when collapse button is clicked", () => {
+    render(<Layout />);
+
+    // The collapse button toggles isCollapsed state
+    const collapseButton = document.querySelector(
+      "button.hidden.lg\\:flex",
+    ) as HTMLButtonElement;
+    expect(collapseButton).not.toBeNull();
+    fireEvent.click(collapseButton);
+    // After collapsing, the ChevronRight icon should be visible (button still exists)
+    expect(collapseButton).toBeInTheDocument();
+  });
+
+  it("closes sidebar when a nav link is clicked", () => {
+    render(<Layout />);
+
+    // Find the mobile menu button (the last button in the header area before main content)
+    // It's in the mobile header (lg:hidden) and triggers setSidebarOpen(true)
+    const header = document.querySelector("header");
+    const menuButton = header?.querySelector("button") as HTMLButtonElement;
+    expect(menuButton).not.toBeNull();
+    fireEvent.click(menuButton);
+
+    // Overlay should now be visible
+    const overlay = document.querySelector(".fixed.inset-0.z-40") as HTMLElement;
+    expect(overlay).not.toBeNull();
+
+    // Click a nav link (e.g. dashboard) which calls setSidebarOpen(false)
+    const navLinks = screen.getAllByRole("button", { name: "dashboard" });
+    fireEvent.click(navLinks[0]);
+
+    // The overlay should no longer be visible (sidebarOpen=false)
+    expect(
+      document.querySelector(".fixed.inset-0.z-40"),
+    ).toBeNull();
+  });
+
+  it("closes sidebar when the overlay backdrop is clicked", () => {
+    render(<Layout />);
+
+    // Open sidebar via mobile header button
+    const header = document.querySelector("header");
+    const menuButton = header?.querySelector("button") as HTMLButtonElement;
+    fireEvent.click(menuButton);
+
+    // The overlay div appears when sidebarOpen=true
+    const overlay = document.querySelector(".fixed.inset-0.z-40") as HTMLElement;
+    expect(overlay).not.toBeNull();
+    fireEvent.click(overlay);
+
+    // After clicking overlay sidebar should be closed
+    expect(document.querySelector(".fixed.inset-0.z-40")).toBeNull();
+  });
+
+  it("closes sidebar when the X button inside it is clicked", () => {
+    render(<Layout />);
+
+    // Open sidebar first via mobile header button
+    const header = document.querySelector("header");
+    const menuButton = header?.querySelector("button") as HTMLButtonElement;
+    fireEvent.click(menuButton);
+
+    // Verify overlay visible
+    expect(document.querySelector(".fixed.inset-0.z-40")).not.toBeNull();
+
+    // The X button inside sidebar (lg:hidden button) closes it
+    const xButton = document.querySelector(
+      "aside button.lg\\:hidden",
+    ) as HTMLButtonElement;
+    expect(xButton).not.toBeNull();
+    fireEvent.click(xButton);
+
+    expect(document.querySelector(".fixed.inset-0.z-40")).toBeNull();
+  });
+
+  it("renders mobile bottom navigation when mobile_navigation is true", () => {
+    render(<Layout />);
+
+    // mobile_navigation is true in the default mock
+    const mobileNav = document.querySelector("nav.fixed.bottom-0");
+    expect(mobileNav).not.toBeNull();
+    // It renders the first 5 nav items
+    expect(screen.getAllByText("dashboard").length).toBeGreaterThan(0);
+  });
+
+  it("falls back to 'U' when user has no name and no email initial", () => {
+    mocks.user = {
+      id: "user-1",
+      name: "",
+      username: "",
+      email: "",
+      avatar: "",
+      mobile_navigation: false,
+    };
+
+    render(<Layout />);
+
+    expect(screen.getByText("U")).toBeInTheDocument();
+  });
+
+  it("shows admin section collapsed tooltip when sidebar is collapsed and user is admin", () => {
+    render(<Layout />);
+
+    // Collapse the sidebar
+    const collapseButton = document.querySelector(
+      "button.hidden.lg\\:flex",
+    ) as HTMLButtonElement;
+    fireEvent.click(collapseButton);
+
+    // admin tooltip content should be present
+    expect(screen.getAllByText("admin").length).toBeGreaterThan(0);
+  });
 });

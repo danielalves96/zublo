@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 
 import { getPaymentIconSrc, PaymentMethodIcon } from "./PaymentMethodIcon";
 
@@ -43,5 +43,17 @@ describe("PaymentMethodIcon", () => {
     render(<PaymentMethodIcon method={{ id: "1", name: "My Card", user: "u1" }} />);
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
     expect(screen.getByText("MC")).toBeInTheDocument();
+  });
+
+  it("falls back to initials when image fails to load (onError)", () => {
+    render(<PaymentMethodIcon method={{ id: "1", name: "Visa", user: "u1" }} />);
+    const img = screen.getByRole("img", { name: "Visa" });
+    expect(img).toBeInTheDocument();
+
+    // Simulate image load error
+    fireEvent.error(img);
+
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
+    expect(screen.getByText("V")).toBeInTheDocument();
   });
 });

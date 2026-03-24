@@ -31,6 +31,28 @@ describe("ProfileAvatarCard", () => {
     clickSpy.mockRestore();
   });
 
+  it("clicking the camera overlay button also opens the file picker", async () => {
+    const fileRef = { current: null as HTMLInputElement | null };
+    const clickSpy = vi.spyOn(HTMLInputElement.prototype, "click");
+
+    render(
+      <ProfileAvatarCard
+        displayName="Alice"
+        email="alice@example.com"
+        fileRef={fileRef}
+        preview={null}
+        onFileChange={vi.fn()}
+      />,
+    );
+
+    // buttons: [0] = avatar circle, [1] = camera overlay, [2] = change_avatar
+    const buttons = screen.getAllByRole("button");
+    await userEvent.click(buttons[1]);
+
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+    clickSpy.mockRestore();
+  });
+
   it("renders the preview image and forwards the selected file", async () => {
     const onFileChange = vi.fn();
     const fileRef = { current: null as HTMLInputElement | null };

@@ -75,6 +75,7 @@ describe("DayPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getLogoUrl.mockReturnValue("https://cdn.example.com/netflix.png");
+    mocks.getPaymentRecord.mockReturnValue(undefined);
   });
 
   it("renders the empty state and today badge", () => {
@@ -185,5 +186,183 @@ describe("DayPanel", () => {
     );
 
     expect(screen.getByText("10 $")).toBeInTheDocument(); // Currency symbol from currencies list fallback
+  });
+
+  it("shows overdue badge and circledot in no-logo div when isOverdue is true", () => {
+    mocks.getLogoUrl.mockReturnValue(null);
+
+    const entry = {
+      sub: getSubscription({ id: "sub-1" }),
+      date: new Date(2026, 2, 5),
+    };
+
+    render(
+      <DayPanel
+        day={5}
+        month={3}
+        year={2026}
+        entries={[entry]}
+        total={10}
+        mainCurrency={getCurrency()}
+        currencies={[getCurrency()]}
+        now={new Date(2026, 2, 10)}
+        t={(key) => key}
+        paymentTracking
+        paymentRecords={[]}
+        onSelectEntry={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("overdue")).toBeInTheDocument();
+  });
+
+  it("shows today badge in price section when diffDays is 0", () => {
+    const entry = {
+      sub: getSubscription({ id: "sub-1" }),
+      date: new Date(2026, 2, 10),
+    };
+
+    render(
+      <DayPanel
+        day={10}
+        month={3}
+        year={2026}
+        entries={[entry]}
+        total={10}
+        mainCurrency={getCurrency()}
+        currencies={[getCurrency()]}
+        now={new Date(2026, 2, 10)}
+        t={(key) => key}
+        paymentTracking={false}
+        paymentRecords={[]}
+        onSelectEntry={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    // today badge appears in the price section (diffDays === 0)
+    const todayBadges = screen.getAllByText("today");
+    expect(todayBadges.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("shows within-7-days badge when diffDays is between 1 and 7", () => {
+    const entry = {
+      sub: getSubscription({ id: "sub-1" }),
+      date: new Date(2026, 2, 12),
+    };
+
+    render(
+      <DayPanel
+        day={12}
+        month={3}
+        year={2026}
+        entries={[entry]}
+        total={10}
+        mainCurrency={getCurrency()}
+        currencies={[getCurrency()]}
+        now={new Date(2026, 2, 10)}
+        t={(key) => key}
+        paymentTracking={false}
+        paymentRecords={[]}
+        onSelectEntry={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("2d")).toBeInTheDocument();
+  });
+
+  it("renders 'subscriptions' (plural) label when more than one entry is present", () => {
+    const entries = [
+      { sub: getSubscription({ id: "sub-1", name: "Netflix" }), date: new Date(2026, 2, 10) },
+      { sub: getSubscription({ id: "sub-2", name: "Spotify" }), date: new Date(2026, 2, 10) },
+    ];
+
+    render(
+      <DayPanel
+        day={10}
+        month={3}
+        year={2026}
+        entries={entries}
+        total={20}
+        mainCurrency={getCurrency()}
+        currencies={[getCurrency()]}
+        now={new Date(2026, 2, 8)}
+        t={(key) => key}
+        paymentTracking={false}
+        paymentRecords={[]}
+        onSelectEntry={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("2 subscriptions ·")).toBeInTheDocument();
+  });
+
+  it("shows no_subscriptions_due when entries is non-empty but mainCurrency is undefined", () => {
+    const entry = {
+      sub: getSubscription({ id: "sub-1" }),
+      date: new Date(2026, 2, 10),
+    };
+
+    render(
+      <DayPanel
+        day={10}
+        month={3}
+        year={2026}
+        entries={[entry]}
+        total={10}
+        mainCurrency={undefined}
+        currencies={[getCurrency()]}
+        now={new Date(2026, 2, 8)}
+        t={(key) => key}
+        paymentTracking={false}
+        paymentRecords={[]}
+        onSelectEntry={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("no_subscriptions_due")).toBeInTheDocument();
+  });
+
+  it("shows paid badge in no-logo div when paymentTracking and isPaid are true", () => {
+    mocks.getLogoUrl.mockReturnValue(null);
+    const paymentRecords = [
+      {
+        id: "pr-1",
+        subscription_id: "sub-1",
+        user: "user-1",
+        due_date: "2026-03-10",
+        paid_at: "2026-03-10T10:00:00Z",
+      },
+    ];
+    mocks.getPaymentRecord.mockReturnValue(paymentRecords[0]);
+
+    const entry = {
+      sub: getSubscription({ id: "sub-1" }),
+      date: new Date(2026, 2, 10),
+    };
+
+    render(
+      <DayPanel
+        day={10}
+        month={3}
+        year={2026}
+        entries={[entry]}
+        total={10}
+        mainCurrency={getCurrency()}
+        currencies={[getCurrency()]}
+        now={new Date(2026, 2, 8)}
+        t={(key) => key}
+        paymentTracking
+        paymentRecords={paymentRecords}
+        onSelectEntry={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("paid")).toBeInTheDocument();
   });
 });

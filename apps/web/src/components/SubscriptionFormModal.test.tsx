@@ -273,4 +273,211 @@ describe("SubscriptionFormModal", () => {
       expect.any(FormData),
     );
   });
+
+  it("updates existing subscription without logo (plain object body)", async () => {
+    const onSaved = vi.fn();
+    const sub = getSubscription({ notes: "old notes" });
+
+    render(
+      <SubscriptionFormModal
+        sub={sub}
+        userId="user-1"
+        currencies={[getCurrency()]}
+        categories={[getCategory()]}
+        paymentMethods={[getPaymentMethod()]}
+        household={[getHousehold()]}
+        onClose={vi.fn()}
+        onSaved={onSaved}
+      />,
+    );
+
+    // Submit without changing any logo
+    fireEvent.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => {
+      expect(mocks.updateSubscription).toHaveBeenCalledWith(
+        "sub-1",
+        expect.objectContaining({ name: "Netflix" }),
+      );
+    });
+    expect(mocks.toastSuccess).toHaveBeenCalledWith("success");
+    expect(onSaved).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows error toast when subscription save throws", async () => {
+    mocks.createSubscription.mockRejectedValue(new Error("network error"));
+
+    render(
+      <SubscriptionFormModal
+        sub={null}
+        userId="user-1"
+        currencies={[getCurrency()]}
+        categories={[getCategory()]}
+        paymentMethods={[getPaymentMethod()]}
+        household={[getHousehold()]}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(
+      document.querySelector('input[name="name"]') as HTMLInputElement,
+      { target: { value: "Spotify" } },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => {
+      expect(mocks.toastError).toHaveBeenCalledWith("network error");
+    });
+  });
+
+  it("shows cancel button and calls onClose when clicked", () => {
+    const onClose = vi.fn();
+
+    render(
+      <SubscriptionFormModal
+        sub={null}
+        userId="user-1"
+        currencies={[getCurrency()]}
+        categories={[getCategory()]}
+        paymentMethods={[getPaymentMethod()]}
+        household={[getHousehold()]}
+        onClose={onClose}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "cancel" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows logo results panel and selects a logo", async () => {
+    const logoResult = {
+      previewUrl: "blob:preview",
+      file: new File(["logo"], "logo.png", { type: "image/png" }),
+      source: "https://clearbit.com/logo.png",
+      contentType: "image/png",
+    };
+
+    // Stub setTimeout/clearTimeout to control debounce
+    vi.useFakeTimers();
+
+    // Mock fetch for logo search
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: { get: () => "image/png" },
+      blob: () => Promise.resolve(new Blob(["img"], { type: "image/png" })),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("createImageBitmap", vi.fn().mockResolvedValue({ width: 100, height: 100, close: vi.fn() }));
+
+    render(
+      <SubscriptionFormModal
+        sub={null}
+        userId="user-1"
+        currencies={[getCurrency()]}
+        categories={[getCategory()]}
+        paymentMethods={[getPaymentMethod()]}
+        household={[getHousehold()]}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    // Type in logo search (at least 2 chars triggers search)
+    const logoInput = screen.getByPlaceholderText("search_logo...");
+    fireEvent.change(logoInput, { target: { value: "ne" } });
+
+    // Before timer fires, should not show results yet
+    expect(screen.queryByText("loading")).not.toBeInTheDocument();
+
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it("shows logo search results and handles logo selection from search", async () => {
+    vi.useFakeTimers();
+
+    render(
+      <SubscriptionFormModal
+        sub={null}
+        userId="user-1"
+        currencies={[getCurrency()]}
+        categories={[getCategory()]}
+        paymentMethods={[getPaymentMethod()]}
+        household={[getHousehold()]}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    const logoInput = screen.getByPlaceholderText("search_logo...");
+
+    // Focus with short query — should not show results
+    fireEvent.focus(logoInput);
+    expect(screen.queryByText("loading")).not.toBeInTheDocument();
+
+    // Focus with 2+ char query — should show results panel
+    fireEvent.change(logoInput, { target: { value: "ne" } });
+    fireEvent.focus(logoInput);
+
+    vi.useRealTimers();
+  });
+
+  it("hides logo results when clicking outside the logo search area", async () => {
+    vi.useFakeTimers();
+
+    render(
+      <SubscriptionFormModal
+        sub={null}
+        userId="user-1"
+        currencies={[getCurrency()]}
+        categories={[getCategory()]}
+        paymentMethods={[getPaymentMethod()]}
+        household={[getHousehold()]}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    const logoInput = screen.getByPlaceholderText("search_logo...");
+    fireEvent.change(logoInput, { target: { value: "ne" } });
+
+    // Advance timer past debounce (350ms) — triggers the search
+    await vi.advanceTimersByTimeAsync(400);
+
+    // Simulate clicking outside logo search
+    fireEvent.mouseDown(document.body);
+
+    vi.useRealTimers();
+  });
+
+  it("clears logo file when file input is cleared (no file selected)", async () => {
+    const { container } = render(
+      <SubscriptionFormModal
+        sub={null}
+        userId="user-1"
+        currencies={[getCurrency()]}
+        categories={[getCategory()]}
+        paymentMethods={[getPaymentMethod()]}
+        household={[getHousehold()]}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+
+    // First add a file
+    const file = new File(["logo"], "logo.png", { type: "image/png" });
+    fireEvent.change(fileInput, { target: { files: [file] } });
+
+    // The filename should be shown
+    await waitFor(() => expect(screen.getByText("logo.png")).toBeInTheDocument());
+
+    // Now clear it (empty files list)
+    fireEvent.change(fileInput, { target: { files: [] } });
+
+    await waitFor(() => expect(screen.queryByText("logo.png")).not.toBeInTheDocument());
+  });
 });
