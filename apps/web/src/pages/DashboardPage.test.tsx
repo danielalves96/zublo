@@ -13,6 +13,11 @@ const mocks = vi.hoisted(() => ({
   useYearlyCosts: vi.fn(),
   useAIRecommendations: vi.fn(),
   useDashboardDerivedData: vi.fn(),
+  user: {
+    id: "user-1",
+    name: "Daniel",
+    email: "daniel@example.com",
+  } as any,
 }));
 
 vi.mock("react-i18next", () => ({
@@ -23,11 +28,7 @@ vi.mock("react-i18next", () => ({
 
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({
-    user: {
-      id: "user-1",
-      name: "Daniel",
-      email: "daniel@example.com",
-    },
+    user: mocks.user,
   }),
 }));
 
@@ -224,5 +225,42 @@ describe("DashboardPage", () => {
     await waitFor(() => {
       expect(mocks.toastError).toHaveBeenCalledWith("some_error_key");
     });
+  });
+
+  it("renders safe fallbacks when user is null and summary is loading", () => {
+    mocks.user = null;
+    mocks.useSummaryData.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+    });
+
+    const { Wrapper } = createQueryClientWrapper();
+    render(<DashboardPage />, { wrapper: Wrapper });
+
+    expect(screen.getByText("— / 0")).toBeInTheDocument(); // Header fallback
+    expect(screen.getAllByText((text) => text.includes("total_monthly:—")).length).toBeGreaterThan(0);
+  });
+
+  it("uses default format symbol if mainSymbol is missing", () => {
+    mocks.useSummaryData.mockReturnValue({
+      data: {
+        count: 4,
+        totalMonthly: 50,
+        totalYearly: 600,
+        totalWeekly: 12,
+        totalDaily: 2,
+        // no mainSymbol
+      },
+      isLoading: false,
+    });
+    
+    // Also test fallback username
+    mocks.user = { id: "user-2", email: "test@example.com" }; // name is undefined
+
+    const { Wrapper } = createQueryClientWrapper();
+    render(<DashboardPage />, { wrapper: Wrapper });
+
+    expect(screen.getByText("test / 4")).toBeInTheDocument();
+    expect(screen.getByText("total_monthly:50 $")).toBeInTheDocument();
   });
 });

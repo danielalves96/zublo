@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { createQueryClientWrapper } from "@/test/query-client";
@@ -192,5 +192,55 @@ describe("MarkAsPaidModal", () => {
     await userEvent.click(screen.getByRole("button", { name: "confirm_payment" }));
 
     await waitFor(() => expect(toastError).toHaveBeenCalledWith("save failed"));
+  });
+
+  it("shows error when update returns no id", async () => {
+    update.mockResolvedValue({});
+    renderComponent({
+      id: "rec-1",
+      subscription_id: "sub-1",
+      user: "user-1",
+      due_date: "2026-03-20",
+      amount: 45,
+      notes: "",
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "confirm_payment" }));
+
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith("Falha ao atualizar registro de pagamento"));
+  });
+
+  it("allows clearing selected proof file and triggering file input click", async () => {
+    renderComponent();
+    const file = new File(["dummy"], "dummy.png", { type: "image/png" });
+
+    // Click the placeholder to trigger click on hidden input
+    const uploadButton = screen.getByRole("button", { name: "upload_proof" });
+    const clickSpy = vi.spyOn(HTMLElement.prototype, "click");
+    await userEvent.click(uploadButton);
+    expect(clickSpy).toHaveBeenCalled();
+    clickSpy.mockRestore();
+
+    // Upload file
+    await userEvent.upload(
+      document.querySelector('input[type="file"]') as HTMLInputElement,
+      file,
+    );
+
+    // Verify file name is shown
+    expect(screen.getByText("dummy.png")).toBeInTheDocument();
+
+    // Remove file (clear button)
+    // Actually we can just find it by svg inside it or something, but let's click the button that appears besides the file name
+    // It's the button inside the same div as the filename. We can find by querying all buttons and clicking the 2nd (since 1st is dialog close)
+    // Actually simpler:
+    const allButtons = screen.getAllByRole("button");
+    // "Close", "Remove file (X)", "Confirm payment"
+    // Wait, Dialog has a close button. Then we have "X" for file. Then "close" and "confirm_payment" at the bottom.
+    // The "X" button for file is the only one with no text inside.
+    await fireEvent.click(allButtons.find(b => b.textContent === "") || allButtons[1]);
+    
+    // upload_proof button should return
+    expect(screen.getByRole("button", { name: "upload_proof" })).toBeInTheDocument();
   });
 });

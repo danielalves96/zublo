@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   listCurrencies: vi.fn(),
   listYearlyCosts: vi.fn(),
   useStatisticsDerivedData: vi.fn(),
+  user: { id: "user-1" } as any,
 }));
 
 vi.mock("react-i18next", () => ({
@@ -17,9 +18,7 @@ vi.mock("react-i18next", () => ({
 
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({
-    user: {
-      id: "user-1",
-    },
+    user: mocks.user,
   }),
 }));
 
@@ -142,5 +141,13 @@ describe("StatisticsPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "member" }));
     expect(screen.getByText("distribution:cost_by_member")).toBeInTheDocument();
     expect(screen.getByText("breakdown:household")).toBeInTheDocument();
+  });
+
+  it("handles null user gracefully", () => {
+    mocks.user = null;
+    const { Wrapper } = createQueryClientWrapper();
+    render(<StatisticsPage />, { wrapper: Wrapper });
+    // Should not crash and should render layout
+    expect(screen.getByText("summary:0:50")).toBeInTheDocument();
   });
 });

@@ -59,6 +59,30 @@ describe("ChatSidebar", () => {
     expect(screen.getByText("chat.no_conversations")).toBeInTheDocument();
   });
 
+  it("applies hidden class when sidebar is closed", () => {
+    const { container } = render(
+      <ChatSidebar
+        conversationGroups={[]}
+        convsLoading={false}
+        currentConvId={null}
+        editInputRef={createRef<HTMLInputElement>()}
+        editTitle=""
+        editingConvId={null}
+        hasConversations={false}
+        onClose={vi.fn()}
+        onConfirmRename={vi.fn()}
+        onDeleteConversation={vi.fn()}
+        onEditTitleChange={vi.fn()}
+        onLoadConversation={vi.fn()}
+        onNewConversation={vi.fn()}
+        onStartRename={vi.fn()}
+        onStopRename={vi.fn()}
+        sidebarOpen={false}
+      />,
+    );
+    expect(container.firstChild).toHaveClass("hidden");
+  });
+
   it("handles conversation actions and inline renaming", () => {
     const onClose = vi.fn();
     const onConfirmRename = vi.fn();

@@ -1,19 +1,34 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
 
 import { SMTPStatusCard } from "./SMTPStatusCard";
 
 vi.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (k: string) => k }),
+  useTranslation: () => ({
+    t: (key: string) => key,
+  }),
 }));
 
 describe("SMTPStatusCard", () => {
-  it("renders enabled label", () => {
-    render(<SMTPStatusCard enabled={false} onEnabledChange={vi.fn()} />);
+  it("renders correctly", () => {
+    render(<SMTPStatusCard enabled={true} onEnabledChange={vi.fn()} />);
+    
     expect(screen.getByText("enabled")).toBeInTheDocument();
+    expect(screen.getByText("smtp_enable_description")).toBeInTheDocument();
+    
+    const switchBtn = screen.getByRole("switch");
+    expect(switchBtn).toBeChecked();
   });
 
-  it("renders description", () => {
-    render(<SMTPStatusCard enabled={false} onEnabledChange={vi.fn()} />);
-    expect(screen.getByText("smtp_enable_description")).toBeInTheDocument();
+  it("calls onEnabledChange when clicked", async () => {
+    const onEnabledChange = vi.fn();
+    render(<SMTPStatusCard enabled={false} onEnabledChange={onEnabledChange} />);
+    
+    const switchBtn = screen.getByRole("switch");
+    expect(switchBtn).not.toBeChecked();
+    
+    await userEvent.click(switchBtn);
+    expect(onEnabledChange).toHaveBeenCalledWith(true);
   });
 });

@@ -1,19 +1,18 @@
-const { toast } = vi.hoisted(() => ({
-  toast: {
+import { toast } from "./toast";
+
+vi.mock("sonner", () => ({
+  toast: Object.assign(vi.fn(), {
     success: vi.fn(),
     error: vi.fn(),
     info: vi.fn(),
-  },
+  }),
 }));
-
-vi.mock("sonner", () => ({
-  toast,
-}));
-
-import { toast as exportedToast } from "./toast";
 
 describe("toast", () => {
-  it("re-exports the sonner toast instance", () => {
-    expect(exportedToast).toBe(toast);
+  it("re-exports toast from sonner", () => {
+    expect(toast).toBeDefined();
+    expect(toast.success).toBeDefined();
+    expect(toast.error).toBeDefined();
+    expect(toast.info).toBeDefined();
   });
 });

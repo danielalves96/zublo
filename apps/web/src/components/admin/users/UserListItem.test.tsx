@@ -1,80 +1,198 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import { UserListItem } from "./UserListItem";
+import { adminService } from "@/services/admin";
 
 vi.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (k: string) => k }),
+  useTranslation: () => ({
+    t: (key: string) => key,
+  }),
 }));
 
 vi.mock("@/services/admin", () => ({
-  adminService: { avatarUrl: () => null },
+  adminService: {
+    avatarUrl: vi.fn(),
+  },
 }));
 
 describe("UserListItem", () => {
-  const baseUser = {
-    id: "u1",
-    username: "john",
-    name: "John Doe",
-    email: "john@test.com",
-    avatar: "",
-    created: "2024-01-01",
-    totp_enabled: false,
-    is_admin: false,
-  };
-
-  it("renders user name and email", () => {
-    render(
-      <ul>
-        <UserListItem user={baseUser} currentUserId="u2" onEdit={vi.fn()} onDelete={vi.fn()} />
-      </ul>,
-    );
-    expect(screen.getByText("John Doe")).toBeInTheDocument();
-    expect(screen.getByText("john@test.com")).toBeInTheDocument();
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
 
-  it("shows admin badge when user is admin", () => {
+  const defaultUser = {
+    id: "1",
+    email: "test@example.com",
+    name: "Test User",
+    username: "testuser",
+    avatar: "avatar.png",
+    is_admin: 0,
+    totp_enabled: 0,
+    created: "2023-01-01",
+  };
+
+  it("renders correctly with full data", () => {
+    vi.mocked(adminService.avatarUrl).mockReturnValue("http://localhost/avatar.png");
+    
     render(
-      <ul>
-        <UserListItem user={{ ...baseUser, is_admin: true }} currentUserId="u2" onEdit={vi.fn()} onDelete={vi.fn()} />
-      </ul>,
+      <UserListItem 
+        user={defaultUser} 
+        onDelete={vi.fn()} 
+        onEdit={vi.fn()} 
+      />
     );
+    
+    expect(screen.getByText("Test User")).toBeInTheDocument();
+    expect(screen.getByText("test@example.com")).toBeInTheDocument();
+    expect(screen.getByText("@testuser")).toBeInTheDocument();
+  });
+
+  it("renders correctly with only email", () => {
+    vi.mocked(adminService.avatarUrl).mockReturnValue(null);
+    
+    render(
+      <UserListItem 
+        user={{
+          ...defaultUser,
+          name: undefined as any,
+          username: undefined as any,
+        }} 
+        onDelete={vi.fn()} 
+        onEdit={vi.fn()} 
+      />
+    );
+    
+    expect(screen.getAllByText("test@example.com").length).toBeGreaterThan(0);
+    
+    // Fallback to "T" from "test@example.com"
+    expect(screen.getByText("T")).toBeInTheDocument();
+  });
+
+  it("renders correctly with fallback to 'U' when no display info available", () => {
+    vi.mocked(adminService.avatarUrl).mockReturnValue(null);
+    
+    render(
+      <UserListItem 
+        user={{
+          ...defaultUser,
+          name: "",
+          username: "",
+          email: "",
+        }} 
+        onDelete={vi.fn()} 
+        onEdit={vi.fn()} 
+      />
+    );
+    
+    // Fallback to "U"
+    expect(screen.getByText("U")).toBeInTheDocument();
+  });
+
+  it("shows admin badge", () => {
+    vi.mocked(adminService.avatarUrl).mockReturnValue(null);
+    
+    render(
+      <UserListItem 
+        user={{
+          ...defaultUser,
+          is_admin: 1,
+        }} 
+        onDelete={vi.fn()} 
+        onEdit={vi.fn()} 
+      />
+    );
+    
     expect(screen.getByText("admin")).toBeInTheDocument();
   });
 
-  it("shows 'you' badge when user is current user", () => {
+  it("shows self badge", () => {
+    vi.mocked(adminService.avatarUrl).mockReturnValue(null);
+    
     render(
-      <ul>
-        <UserListItem user={baseUser} currentUserId="u1" onEdit={vi.fn()} onDelete={vi.fn()} />
-      </ul>,
+      <UserListItem 
+        user={defaultUser} 
+        currentUserId="1"
+        onDelete={vi.fn()} 
+        onEdit={vi.fn()} 
+      />
     );
+    
     expect(screen.getByText("you_label")).toBeInTheDocument();
   });
 
-  it("shows 2FA badge when totp is enabled", () => {
+  it("shows 2FA badge", () => {
+    vi.mocked(adminService.avatarUrl).mockReturnValue(null);
+    
     render(
-      <ul>
-        <UserListItem user={{ ...baseUser, totp_enabled: true }} currentUserId="u2" onEdit={vi.fn()} onDelete={vi.fn()} />
-      </ul>,
+      <UserListItem 
+        user={{
+          ...defaultUser,
+          totp_enabled: 1,
+        }} 
+        onDelete={vi.fn()} 
+        onEdit={vi.fn()} 
+      />
     );
+    
     expect(screen.getByText("2FA")).toBeInTheDocument();
   });
 
-  it("disables delete button for self", () => {
+  it("calls onDelete when delete button is clicked", async () => {
+    vi.mocked(adminService.avatarUrl).mockReturnValue(null);
+    const onDelete = vi.fn();
+    
     render(
-      <ul>
-        <UserListItem user={baseUser} currentUserId="u1" onEdit={vi.fn()} onDelete={vi.fn()} />
-      </ul>,
+      <UserListItem 
+        user={defaultUser} 
+        onDelete={onDelete} 
+        onEdit={vi.fn()} 
+      />
     );
-    const deleteBtn = screen.getByTitle("cannot_delete_yourself");
-    expect(deleteBtn).toBeDisabled();
+    
+    // We expect 2 buttons (edit and delete)
+    const buttons = screen.getAllByRole("button");
+    const deleteBtn = buttons[1];
+    
+    await userEvent.click(deleteBtn);
+    expect(onDelete).toHaveBeenCalled();
   });
 
-  it("renders initials fallback when no avatar", () => {
+  it("calls onEdit when edit button is clicked", async () => {
+    vi.mocked(adminService.avatarUrl).mockReturnValue(null);
+    const onEdit = vi.fn();
+    
     render(
-      <ul>
-        <UserListItem user={baseUser} currentUserId="u2" onEdit={vi.fn()} onDelete={vi.fn()} />
-      </ul>,
+      <UserListItem 
+        user={defaultUser} 
+        onDelete={vi.fn()} 
+        onEdit={onEdit} 
+      />
     );
-    expect(screen.getByText("J")).toBeInTheDocument();
+    
+    const buttons = screen.getAllByRole("button");
+    const editBtn = buttons[0];
+    
+    await userEvent.click(editBtn);
+    expect(onEdit).toHaveBeenCalled();
+  });
+
+  it("disables delete button for self", () => {
+    vi.mocked(adminService.avatarUrl).mockReturnValue(null);
+    
+    render(
+      <UserListItem 
+        user={defaultUser} 
+        currentUserId="1"
+        onDelete={vi.fn()} 
+        onEdit={vi.fn()} 
+      />
+    );
+    
+    const buttons = screen.getAllByRole("button");
+    const deleteBtn = buttons[1];
+    
+    expect(deleteBtn).toBeDisabled();
   });
 });

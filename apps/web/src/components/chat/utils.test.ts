@@ -97,6 +97,15 @@ describe("chat utils", () => {
       text: "Plain message",
       chip: null,
     });
+    expect(extractFileChip("Text\n\n[planilha:open")).toEqual({
+      text: "Text",
+      chip: null,
+    });
+  });
+
+  it("builds conversation titles handling empty inputs", () => {
+    expect(buildConversationTitle("")).toBe("New Conversation");
+    expect(buildConversationTitle(undefined as any)).toBe("New Conversation");
   });
 
   it("builds conversation titles without attached-file markers", () => {

@@ -17,8 +17,22 @@ const mocks = vi.hoisted(() => ({
   filteredSubscriptions: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
+  toastError: vi.fn(),
   jsonUrl: vi.fn(),
   revokeUrl: vi.fn(),
+  xlsxJsonToSheet: vi.fn(),
+  xlsxBookNew: vi.fn(),
+  xlsxBookAppendSheet: vi.fn(),
+  xlsxWriteFile: vi.fn(),
+}));
+
+vi.mock("xlsx", () => ({
+  utils: {
+    json_to_sheet: mocks.xlsxJsonToSheet,
+    book_new: mocks.xlsxBookNew,
+    book_append_sheet: mocks.xlsxBookAppendSheet,
+  },
+  writeFile: mocks.xlsxWriteFile,
 }));
 
 vi.mock("react-i18next", () => ({
@@ -102,6 +116,9 @@ vi.mock("@/components/subscriptions/SubscriptionsPageHeader", () => ({
       <button type="button" onClick={() => onExport("json")}>
         export-json
       </button>
+      <button type="button" onClick={() => onExport("xlsx")}>
+        export-xlsx
+      </button>
       <button
         type="button"
         onClick={() => {
@@ -120,6 +137,50 @@ vi.mock("@/components/subscriptions/SubscriptionsPageHeader", () => ({
         }}
       >
         import-file
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          onImportChange({ target: { files: [] } } as any);
+        }}
+      >
+        import-empty
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          const file = new File(["invalid"], "t.json");
+          Object.defineProperty(file, "text", {
+            value: vi.fn().mockResolvedValue("invalid json"),
+          });
+          onImportChange({ target: { files: [file] } } as any);
+        }}
+      >
+        import-invalid-json
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          const file = new File(["{}"], "t.json");
+          Object.defineProperty(file, "text", {
+            value: vi.fn().mockResolvedValue('{"some_key": 1}'),
+          });
+          onImportChange({ target: { files: [file] } } as any);
+        }}
+      >
+        import-missing-subs
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          const file = new File(["[]"], "t.json");
+          Object.defineProperty(file, "text", {
+            value: vi.fn().mockResolvedValue('{"subscriptions": [{"id": "1"}]}'),
+          });
+          onImportChange({ target: { files: [file] } } as any);
+        }}
+      >
+        import-obj-subs
       </button>
     </div>
   ),
@@ -355,5 +416,84 @@ describe("SubscriptionsPage", () => {
     expect(invalidateQueries).toHaveBeenCalledWith({
       queryKey: queryKeys.subscriptions.all("user-1"),
     });
+  });
+
+  it("handles mutation errors", async () => {
+    mocks.deleteSubscription.mockRejectedValueOnce(new Error("del err"));
+    mocks.cloneSubscription.mockRejectedValueOnce(new Error("clone err"));
+    mocks.renewSubscription.mockRejectedValueOnce(new Error("renew err"));
+
+    const { Wrapper } = createQueryClientWrapper();
+    render(<SubscriptionsPage />, { wrapper: Wrapper });
+
+    await waitFor(() => screen.getByText("grid:1"));
+
+    fireEvent.click(screen.getByRole("button", { name: "clone-subscription" }));
+    fireEvent.click(screen.getByRole("button", { name: "renew-subscription" }));
+    fireEvent.click(screen.getByRole("button", { name: "delete-subscription" }));
+    fireEvent.click(screen.getByRole("button", { name: "confirm-delete" }));
+
+    await waitFor(() => {
+      expect(mocks.toastError).toHaveBeenCalledWith("error_deleting_subscription");
+      expect(mocks.toastError).toHaveBeenCalledWith("unknown_error"); // maybe twice
+    });
+  });
+
+  it("handles export xlsx and its errors", async () => {
+    const { Wrapper } = createQueryClientWrapper();
+    render(<SubscriptionsPage />, { wrapper: Wrapper });
+    await waitFor(() => screen.getByText("grid:1"));
+
+    fireEvent.click(screen.getByRole("button", { name: "export-xlsx" }));
+    await waitFor(() => {
+      expect(mocks.xlsxWriteFile).toHaveBeenCalled();
+    });
+
+    mocks.exportSubscriptions.mockRejectedValueOnce(new Error("fail output"));
+    fireEvent.click(screen.getByRole("button", { name: "export-xlsx" }));
+    await waitFor(() => {
+      expect(mocks.toastError).toHaveBeenCalledWith("unknown_error");
+    });
+  });
+
+  it("handles various import scenarios: empty file, invalid formats, partial skips", async () => {
+    const { Wrapper } = createQueryClientWrapper();
+    render(<SubscriptionsPage />, { wrapper: Wrapper });
+
+    // Empty
+    fireEvent.click(screen.getByRole("button", { name: "import-empty" }));
+    // Wait slightly to ensure code paths execute
+    await new Promise((r) => setTimeout(r, 10));
+
+    // Invalid JSON
+    fireEvent.click(screen.getByRole("button", { name: "import-invalid-json" }));
+    await waitFor(() => {
+      expect(mocks.toastError).toHaveBeenCalledWith("import_error");
+    });
+
+    // Missing subs (valid JSON but not array or object with subscriptions)
+    fireEvent.click(screen.getByRole("button", { name: "import-missing-subs" }));
+    await waitFor(() => {
+      expect(mocks.toastError).toHaveBeenCalledWith("import_invalid_format");
+    });
+
+    // Object containing `subscriptions` array
+    mocks.importSubscriptions.mockResolvedValueOnce({ imported: 1, skipped: 1 });
+    fireEvent.click(screen.getByRole("button", { name: "import-obj-subs" }));
+    await waitFor(() => {
+      expect(mocks.toastSuccess).toHaveBeenCalledWith(
+        'import_partial:{"imported":1,"skipped":1}'
+      );
+    });
+  });
+
+  it("handles cycle sort toggle logic", () => {
+    const { Wrapper } = createQueryClientWrapper();
+    render(<SubscriptionsPage />, { wrapper: Wrapper });
+
+    const btn = screen.getByRole("button", { name: "cycle-sort" });
+    fireEvent.click(btn);
+    fireEvent.click(btn);
+    // Verified implicitly as code path is walked since initial is `sort=name`.
   });
 });

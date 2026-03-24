@@ -350,6 +350,70 @@ describe("useChatPageController", () => {
       rows: [{ service: "Netflix", price: 20 }],
       headers: ["service", "price"],
     });
+
+    // Test parse error
+    mocks.xlsxRead.mockImplementationOnce(() => {
+      throw new Error("Parse error");
+    });
+    
+    await act(async () => {
+      await result.current.handleFileSelect({
+        target: { files: [validFile], value: "error.csv" },
+      } as unknown as React.ChangeEvent<HTMLInputElement>);
+    });
+    expect(mocks.toastError).toHaveBeenCalledWith("chat.file_parse_error");
+
+    // Test undefined file
+    await act(async () => {
+      await result.current.handleFileSelect({
+        target: { files: undefined, value: "none" },
+      } as unknown as React.ChangeEvent<HTMLInputElement>);
+    });
+  });
+
+  it("handles empty send and keydown events", async () => {
+    const { Wrapper } = createQueryClientWrapper();
+    const { result } = renderHook(() => useChatPageController(), {
+      wrapper: Wrapper,
+    });
+
+    // Handle empty send
+    result.current.setInput("");
+    await act(async () => {
+      await result.current.handleSend();
+    });
+    expect(mocks.chat).not.toHaveBeenCalled();
+
+    // KeyDown without Enter or with ShiftKey
+    const preventDefault = vi.fn();
+    act(() => {
+      result.current.handleKeyDown({
+        key: "Enter",
+        shiftKey: true,
+        preventDefault,
+      } as unknown as React.KeyboardEvent<HTMLTextAreaElement>);
+    });
+    expect(preventDefault).not.toHaveBeenCalled();
+
+    act(() => {
+      result.current.handleKeyDown({
+        key: "A",
+        shiftKey: false,
+        preventDefault,
+      } as unknown as React.KeyboardEvent<HTMLTextAreaElement>);
+    });
+    expect(preventDefault).not.toHaveBeenCalled();
+
+    // Enter without ShiftKey
+    result.current.setInput("Hello Key");
+    await act(async () => {
+      result.current.handleKeyDown({
+        key: "Enter",
+        shiftKey: false,
+        preventDefault,
+      } as unknown as React.KeyboardEvent<HTMLTextAreaElement>);
+    });
+    expect(preventDefault).toHaveBeenCalled();
   });
 
   it("deletes and renames conversations while keeping local state in sync", async () => {

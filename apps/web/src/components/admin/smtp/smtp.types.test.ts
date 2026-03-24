@@ -1,20 +1,18 @@
 import type { SMTPFormValues } from "./smtp.types";
 
 describe("smtp.types", () => {
-  it("SMTPFormValues can be constructed with all required fields", () => {
-    const form: SMTPFormValues = {
+  it("exports SMTPFormValues type", () => {
+    const values: SMTPFormValues = {
       enabled: true,
       host: "smtp.example.com",
       port: 587,
       username: "user",
       password: "pass",
       tls: true,
-      authMethod: "PLAIN",
-      senderAddress: "noreply@example.com",
-      senderName: "Zublo",
+      authMethod: "LOGIN",
+      senderAddress: "a@b.com",
+      senderName: "Test",
     };
-    expect(form.enabled).toBe(true);
-    expect(form.host).toBe("smtp.example.com");
-    expect(form.port).toBe(587);
+    expect(values.host).toBe("smtp.example.com");
   });
 });

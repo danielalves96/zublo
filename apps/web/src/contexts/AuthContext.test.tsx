@@ -41,6 +41,19 @@ vi.mock("@/lib/constants", () => ({
 
 import { AuthProvider, useAuth } from "./AuthContext";
 
+const mockGetItem = vi.fn();
+const mockSetItem = vi.fn();
+const mockRemoveItem = vi.fn();
+
+Object.defineProperty(window, "localStorage", {
+  value: {
+    getItem: mockGetItem,
+    setItem: mockSetItem,
+    removeItem: mockRemoveItem,
+  },
+  writable: true,
+});
+
 // Helper consumer component
 function Consumer() {
   const { user, isLoading, isAdmin, logout } = useAuth();
@@ -68,12 +81,12 @@ describe("AuthContext", () => {
     mockGetModel.mockReturnValue(null);
     mockApiGet.mockResolvedValue({ isAdmin: false });
     mockClear.mockClear();
+    mockStartTotpLoginChallenge.mockClear();
     mockLoginWithPassword.mockReset();
     mockOnChange.mockReturnValue(vi.fn());
-    // Clear localStorage items individually to avoid .clear() which is unsupported
-    for (const key of Object.keys(localStorage)) {
-      localStorage.removeItem(key);
-    }
+    mockGetItem.mockReset();
+    mockSetItem.mockReset();
+    mockRemoveItem.mockReset();
   });
 
   it("throws if useAuth is used outside AuthProvider", () => {
@@ -176,5 +189,106 @@ describe("AuthContext", () => {
     await waitFor(() => {
       expect(screen.getByTestId("user").textContent).toBe("user@test.com");
     });
+  });
+
+  it("onChange callback clears user when token is null", async () => {
+    let capturedOnChange: (token: string | null, model: unknown) => void = () => {};
+    mockOnChange.mockImplementation((cb: (token: string | null, model: unknown) => void) => {
+      capturedOnChange = cb;
+      return vi.fn();
+    });
+    mockIsValid.mockReturnValue(true);
+    mockGetModel.mockReturnValue({ email: "user@test.com" });
+    render(
+      <AuthProvider>
+        <Consumer />
+      </AuthProvider>,
+    );
+    await waitFor(() => expect(screen.getByTestId("user").textContent).toBe("user@test.com"));
+
+    act(() => {
+      capturedOnChange(null, null);
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("user").textContent).toBe("null");
+      expect(screen.getByTestId("admin").textContent).toBe("false");
+    });
+  });
+
+  it("onChange callback updates user when model is provided", async () => {
+    let capturedOnChange: (token: string | null, model: unknown) => void = () => {};
+    mockOnChange.mockImplementation((cb: (token: string | null, model: unknown) => void) => {
+      capturedOnChange = cb;
+      return vi.fn();
+    });
+    mockIsValid.mockReturnValue(false);
+    render(
+      <AuthProvider>
+        <Consumer />
+      </AuthProvider>,
+    );
+    await waitFor(() => expect(screen.getByTestId("loading").textContent).toBe("false"));
+
+    act(() => {
+      capturedOnChange("token123", { email: "updated@test.com" });
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("user").textContent).toBe("updated@test.com");
+    });
+  });
+
+  it("login throws TotpRequiredError for untrusted device with TOTP", async () => {
+    const fakeUser = { id: "u1", email: "totp@test.com", totp_enabled: true };
+    mockLoginWithPassword.mockResolvedValue({ record: fakeUser });
+    mockStartTotpLoginChallenge.mockResolvedValue({ challengeId: "ch1" });
+    // Ensure no trusted entry
+    mockGetItem.mockReturnValue(null);
+
+    let loginFn: (email: string, password: string) => Promise<void>;
+    function LoginHelper() {
+      const { login } = useAuth();
+      loginFn = login;
+      return null;
+    }
+
+    render(
+      <AuthProvider>
+        <LoginHelper />
+      </AuthProvider>,
+    );
+    await waitFor(() => {});
+
+    await expect(act(() => loginFn!("totp@test.com", "password"))).rejects.toThrow("totp_required");
+    expect(mockStartTotpLoginChallenge).toHaveBeenCalled();
+    expect(mockClear).toHaveBeenCalled();
+  });
+
+  it("login skips TOTP check for trusted device", async () => {
+    const fakeUser = { id: "u2", email: "trusted@test.com", totp_enabled: true };
+    mockLoginWithPassword.mockResolvedValue({ record: fakeUser });
+    // Set trusted entry far in the future
+    mockGetItem.mockReturnValue(String(Date.now() + 999999999));
+    mockApiGet.mockResolvedValue({ isAdmin: false });
+
+    function LoginHelper() {
+      const { login } = useAuth();
+      return <button onClick={() => login("trusted@test.com", "password")}>Login</button>;
+    }
+
+    render(
+      <AuthProvider>
+        <Consumer />
+        <LoginHelper />
+      </AuthProvider>,
+    );
+    await waitFor(() => expect(screen.getByTestId("loading").textContent).toBe("false"));
+
+    await act(async () => {
+      screen.getByRole("button", { name: "Login" }).click();
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("user").textContent).toBe("trusted@test.com");
+    });
+    expect(mockStartTotpLoginChallenge).not.toHaveBeenCalled();
   });
 });

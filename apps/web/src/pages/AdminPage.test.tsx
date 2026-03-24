@@ -103,4 +103,18 @@ describe("AdminPage", () => {
       replace: true,
     });
   });
+
+  it("defaults to users tab when search.tab is undefined or invalid", () => {
+    // 1. undefined tab
+    mocks.useSearch.mockReturnValue({} as any);
+    const { rerender } = render(<AdminPage />);
+    expect(screen.getByTestId("active-tab")).toHaveTextContent("users");
+    expect(screen.getByText("Users Tab")).toBeInTheDocument();
+
+    // 2. invalid tab
+    mocks.useSearch.mockReturnValue({ tab: "invalid_tab" });
+    rerender(<AdminPage />);
+    expect(screen.getByTestId("active-tab")).toHaveTextContent("invalid_tab");
+    expect(screen.getByText("Users Tab")).toBeInTheDocument();
+  });
 });

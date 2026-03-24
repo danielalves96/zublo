@@ -121,4 +121,50 @@ describe("ChatMessagesPanel", () => {
 
     expect(screen.getByLabelText("AI thinking")).toBeInTheDocument();
   });
+
+  it("renders complex markdown elements from bot", () => {
+    const markdownContent = `
+1. Ordered
+*Emphasized*
+\`Inline code\`
+\`\`\`
+Block code
+\`\`\`
+# Heading 1
+## Heading 2
+### Heading 3
+| Header |
+| ------ |
+| Cell   |
+> Blockquote
+    `;
+
+    render(
+      <ChatMessagesPanel
+        avatarUrl={null}
+        hasUserSentMessage={true}
+        isLoading={false}
+        messages={[
+          {
+            role: "assistant", // it checks for role !== "user"
+            content: markdownContent,
+          },
+        ]}
+        onRetry={vi.fn()}
+        onSuggestedPrompt={vi.fn()}
+        scrollRef={vi.fn() as any}
+      />,
+    );
+
+    expect(screen.getByText("Ordered")).toBeInTheDocument();
+    expect(screen.getByText("Emphasized")).toBeInTheDocument();
+    expect(screen.getByText("Inline code")).toBeInTheDocument();
+    expect(screen.getByText("Block code")).toBeInTheDocument();
+    expect(screen.getByText("Heading 1")).toBeInTheDocument();
+    expect(screen.getByText("Heading 2")).toBeInTheDocument();
+    expect(screen.getByText("Heading 3")).toBeInTheDocument();
+    expect(screen.getByText("Header")).toBeInTheDocument();
+    expect(screen.getByText("Cell")).toBeInTheDocument();
+    expect(screen.getByText("Blockquote")).toBeInTheDocument();
+  });
 });

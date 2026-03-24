@@ -1,5 +1,7 @@
 import { render, screen } from "@testing-library/react";
 
+const capturedTooltipProps: Record<string, unknown> = {};
+
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string) => key,
@@ -17,7 +19,10 @@ vi.mock("recharts", () => ({
   CartesianGrid: () => <div data-testid="cartesian-grid" />,
   XAxis: () => <div data-testid="x-axis" />,
   YAxis: () => <div data-testid="y-axis" />,
-  Tooltip: () => <div data-testid="tooltip" />,
+  Tooltip: (props: Record<string, unknown>) => {
+    Object.assign(capturedTooltipProps, props);
+    return <div data-testid="tooltip" />;
+  },
 }));
 
 import { CostHistoryCard } from "./CostHistoryCard";
@@ -46,5 +51,17 @@ describe("CostHistoryCard", () => {
     expect(screen.getByText("cost_history")).toBeInTheDocument();
     expect(screen.getByText("no_results")).toBeInTheDocument();
     expect(screen.queryByTestId("area-chart")).not.toBeInTheDocument();
+  });
+
+  it("tooltip formatter calls formatValue", () => {
+    const data = [{ name: "Jan", cost: 42 }];
+    render(
+      <CostHistoryCard data={data} formatValue={(v) => `$${v}`} />,
+    );
+
+    const formatter = capturedTooltipProps.formatter as (value: number) => [string, string];
+    expect(formatter).toBeDefined();
+    const result = formatter(42);
+    expect(result).toEqual(["$42", "cost"]);
   });
 });

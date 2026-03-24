@@ -96,10 +96,15 @@ describe("fixerService", () => {
       items: [{ last_update: "2026-03-21T10:00:00Z" }],
     });
     const getFailure = vi.fn().mockRejectedValue(new Error("boom"));
+    const getEmpty = vi.fn().mockResolvedValue({ items: [] });
+    const getMissing = vi.fn().mockResolvedValue({ items: [{}] });
+
     (pb.collection as unknown as ReturnType<typeof vi.fn>)
       .mockReturnValueOnce(getCollectionMock({ getList: getWithGetter }))
       .mockReturnValueOnce(getCollectionMock({ getList: getWithProperty }))
-      .mockReturnValueOnce(getCollectionMock({ getList: getFailure }));
+      .mockReturnValueOnce(getCollectionMock({ getList: getFailure }))
+      .mockReturnValueOnce(getCollectionMock({ getList: getEmpty }))
+      .mockReturnValueOnce(getCollectionMock({ getList: getMissing }));
 
     await expect(fixerService.getLastUpdate()).resolves.toBe(
       "2026-03-20T10:00:00Z",
@@ -107,7 +112,9 @@ describe("fixerService", () => {
     await expect(fixerService.getLastUpdate()).resolves.toBe(
       "2026-03-21T10:00:00Z",
     );
-    await expect(fixerService.getLastUpdate()).resolves.toBeNull();
+    await expect(fixerService.getLastUpdate()).resolves.toBeNull(); // failure
+    await expect(fixerService.getLastUpdate()).resolves.toBeNull(); // empty
+    await expect(fixerService.getLastUpdate()).resolves.toBeNull(); // missing
 
     expect(getWithGetter).toHaveBeenCalledWith(1, 1, { sort: "-last_update" });
   });

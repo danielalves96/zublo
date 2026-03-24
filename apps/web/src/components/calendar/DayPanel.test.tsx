@@ -153,5 +153,37 @@ describe("DayPanel", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Netflix/i }));
     expect(onSelectEntry).toHaveBeenCalledWith(entry);
+
+    // Cover image error (line 143)
+    const img = screen.getByRole("img");
+    fireEvent.error(img);
+    expect(img.style.display).toBe("none");
+  });
+
+  it("falls back to currencies prop when sub.expand.currency is missing", () => {
+    const entry = {
+      sub: { ...getSubscription(), expand: undefined },
+      date: new Date("2026-03-10T00:00:00Z"),
+    };
+
+    render(
+      <DayPanel
+        day={10}
+        month={3}
+        year={2026}
+        entries={[entry]}
+        total={10}
+        mainCurrency={getCurrency({ id: "cur-2", symbol: "€" })}
+        currencies={[getCurrency()]}
+        now={new Date(2026, 2, 8)}
+        t={(key) => key}
+        paymentTracking={false}
+        paymentRecords={[]}
+        onSelectEntry={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("10 $")).toBeInTheDocument(); // Currency symbol from currencies list fallback
   });
 });

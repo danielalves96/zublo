@@ -205,6 +205,7 @@ describe("ChatPage", () => {
     const { container } = render(<ChatPage />);
 
     fireEvent.click(screen.getByText("close-dialog"));
+    fireEvent.click(screen.getByText("reopen-dialog"));
     fireEvent.click(screen.getByText("confirm-dialog"));
     fireEvent.click(container.querySelector(".fixed.inset-0.z-20")!);
     fireEvent.click(screen.getByText("close-sidebar"));
@@ -227,6 +228,14 @@ describe("ChatPage", () => {
     expect(mocks.setEditingConvId).toHaveBeenCalledWith(null);
     expect(mocks.handleNewConversation).toHaveBeenCalledTimes(2);
     expect(mocks.setSidebarOpen).toHaveBeenCalledWith(expect.any(Function));
+
+    const updateFn = mocks.setSidebarOpen.mock.calls.find(
+      (args) => typeof args[0] === "function"
+    )?.[0];
+    expect(updateFn).toBeDefined();
+    expect(updateFn(true)).toBe(false);
+    expect(updateFn(false)).toBe(true);
+
     expect(mocks.handleRetry).toHaveBeenCalledWith(1);
     expect(mocks.handleSend).toHaveBeenCalledWith("suggested");
     expect(mocks.handleCancel).toHaveBeenCalledTimes(1);

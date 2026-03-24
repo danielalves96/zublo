@@ -13,6 +13,11 @@ const mocks = vi.hoisted(() => ({
   listPaymentRecords: vi.fn(),
   useCalendarMonthData: vi.fn(),
   getPaymentRecord: vi.fn(),
+  user: {
+    id: "user-1",
+    budget: 100,
+    payment_tracking: true,
+  } as any,
 }));
 
 vi.mock("react-i18next", () => ({
@@ -23,11 +28,7 @@ vi.mock("react-i18next", () => ({
 
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({
-    user: {
-      id: "user-1",
-      budget: 100,
-      payment_tracking: true,
-    },
+    user: mocks.user,
   }),
 }));
 
@@ -373,7 +374,92 @@ describe("CalendarPage", () => {
       });
     });
 
+    // test mark as paid close
+    fireEvent.click(screen.getByRole("button", { name: "open-detail" }));
+    fireEvent.click(screen.getByRole("button", { name: "mark-as-paid" }));
+    fireEvent.click(screen.getByRole("button", { name: "close-payment" }));
+    expect(screen.queryByRole("button", { name: "save-payment" })).not.toBeInTheDocument();
+
+    // test edit modal close
+    fireEvent.click(screen.getByRole("button", { name: "open-detail" }));
+    fireEvent.click(screen.getByRole("button", { name: "edit-detail" }));
+    fireEvent.click(screen.getByRole("button", { name: "close-edit" }));
+    expect(screen.queryByText("edit-form:Netflix")).not.toBeInTheDocument();
+
+    // test sub detail close
+    fireEvent.click(screen.getByRole("button", { name: "open-detail" }));
+    fireEvent.click(screen.getByRole("button", { name: "close-detail" }));
+
     createElement.mockRestore();
     appendChild.mockRestore();
+  });
+
+  it("handles payment_tracking = false and handles fetch ical errors", async () => {
+    // Modify user to disable tracking
+    mocks.user = {
+      id: "user-1",
+      budget: 100,
+      payment_tracking: false,
+    };
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const { Wrapper } = createQueryClientWrapper();
+    render(<CalendarPage />, { wrapper: Wrapper });
+
+    fireEvent.click(screen.getByRole("button", { name: "export-ical" }));
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalled();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "select-day" }));
+    fireEvent.click(screen.getByRole("button", { name: "open-detail" }));
+    // Here we assert that it renders without crashing (paymentTracking branch covered)
+
+    errorSpy.mockRestore();
+  });
+
+  it("handles user = null", () => {
+    mocks.user = null;
+    const { Wrapper } = createQueryClientWrapper();
+    render(<CalendarPage />, { wrapper: Wrapper });
+    // Should render gracefully without crashing
+    expect(screen.getByText("overview:1:10")).toBeInTheDocument();
+  });
+
+  it("navigates months including year wrap around and day panel closing", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-10T00:00:00Z"));
+
+    const { Wrapper } = createQueryClientWrapper();
+    const { unmount } = render(<CalendarPage />, { wrapper: Wrapper });
+
+    // Jan -> Dec (prev year)
+    fireEvent.click(screen.getByRole("button", { name: "prev-month" }));
+
+    // Select and close day
+    fireEvent.click(screen.getByRole("button", { name: "select-day" }));
+    fireEvent.click(screen.getByRole("button", { name: "close-day" }));
+
+    unmount();
+
+    vi.setSystemTime(new Date("2026-12-10T00:00:00Z"));
+    render(<CalendarPage />, { wrapper: Wrapper });
+    
+    // Dec -> Jan (next year)
+    fireEvent.click(screen.getByRole("button", { name: "next-month" }));
+
+    // Normal month increments
+    vi.setSystemTime(new Date("2026-05-10T00:00:00Z"));
+    fireEvent.click(screen.getByRole("button", { name: "today-month" }));
+    fireEvent.click(screen.getByRole("button", { name: "prev-month" }));
+    fireEvent.click(screen.getByRole("button", { name: "next-month" }));
+
+    vi.useRealTimers();
   });
 });

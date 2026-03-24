@@ -50,4 +50,24 @@ describe("AppMetadata", () => {
     const metas = document.head.querySelectorAll('meta[name="description"]');
     expect(metas.length).toBe(1);
   });
+
+  it("falls back to i18n.language when resolvedLanguage is undefined", () => {
+    vi.resetModules();
+    vi.doMock("react-i18next", () => ({
+      useTranslation: () => ({
+        t: (key: string, options?: { defaultValue?: string }) =>
+          options?.defaultValue ?? key,
+        i18n: {
+          resolvedLanguage: undefined,
+          language: "pt",
+        },
+      }),
+    }));
+
+    // Re-import to pick up new mock
+    return import("./AppMetadata").then(({ AppMetadata: FreshAppMetadata }) => {
+      render(<FreshAppMetadata />);
+      expect(document.documentElement.lang).toBe("pt");
+    });
+  });
 });

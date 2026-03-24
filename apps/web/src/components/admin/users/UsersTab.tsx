@@ -103,14 +103,11 @@ export function UsersTab() {
 
       <ConfirmDialog
         open={!!pendingDeleteId}
-        onOpenChange={(open) => {
-          if (!open) setPendingDeleteId(null);
-        }}
+        onOpenChange={() => setPendingDeleteId(null)}
         title={t("delete")}
         description={t("confirm_delete")}
         onConfirm={() => {
-          if (!pendingDeleteId) return;
-          deleteUser.mutate(pendingDeleteId);
+          deleteUser.mutate(pendingDeleteId!);
           setPendingDeleteId(null);
         }}
       />

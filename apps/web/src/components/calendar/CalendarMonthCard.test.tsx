@@ -201,5 +201,48 @@ describe("CalendarMonthCard", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "11" }));
     expect(onSelectDay).toHaveBeenCalledWith(11);
+
+    // Cover disabled/other-month button click (line 172)
+    const otherMonthButton = screen.getByRole("button", { name: "30" });
+    fireEvent.click(otherMonthButton);
+    expect(onSelectDay).not.toHaveBeenCalledWith(30);
+  });
+
+  it("renders image logo directly without paymentTracking and handles onError", () => {
+    const subscriptionA = getSubscription({ id: "sub-1", name: "Netflix", price: 10 });
+    mocks.getLogoUrl.mockReturnValue("https://cdn.example.com/netflix.png");
+    
+    render(
+      <CalendarMonthCard
+        month={4}
+        year={2026}
+        now={new Date(2026, 3, 15)}
+        daysInMonth={30}
+        isCurrentMonth={true}
+        loading={false}
+        statsCount={4}
+        selectedDay={10}
+        allCells={[
+          { day: 10, type: "current" },
+        ]}
+        entriesByDay={{
+          10: [
+            { sub: subscriptionA, date: new Date(2026, 3, 10) },
+          ],
+        }}
+        mainCurrency={getCurrency()}
+        currencyById={new Map([["cur-1", getCurrency()]])}
+        paymentTracking={false}
+        paymentRecords={[]}
+        onPrev={vi.fn()}
+        onNext={vi.fn()}
+        onGoToday={vi.fn()}
+        onSelectDay={vi.fn()}
+      />,
+    );
+
+    const img = document.querySelector("img") as HTMLImageElement;
+    fireEvent.error(img);
+    expect(img.style.display).toBe("none");
   });
 });

@@ -98,4 +98,36 @@ describe("AppTheme", () => {
     render(<AppTheme />);
     expect(document.getElementById("custom-css")?.textContent).toBe("");
   });
+
+  it("reuses existing color-theme style element", () => {
+    const existing = document.createElement("style");
+    existing.id = "color-theme";
+    document.head.appendChild(existing);
+
+    mockUseAuth.mockReturnValue({ user: makeUser({ color_theme: "red" }) });
+    render(<AppTheme />);
+    expect(document.querySelectorAll("#color-theme").length).toBe(1);
+    expect(existing.textContent).toBe(":root { --primary: #000; }");
+  });
+
+  it("reuses existing custom-css style element", () => {
+    const existing = document.createElement("style");
+    existing.id = "custom-css";
+    document.head.appendChild(existing);
+
+    mockUseAuth.mockReturnValue({ user: makeUser({ custom_css: "h1 { color: blue; }" }) });
+    render(<AppTheme />);
+    expect(document.querySelectorAll("#custom-css").length).toBe(1);
+    expect(existing.textContent).toBe("h1 { color: blue; }");
+  });
+
+  it("does not add dark class when system prefers light", () => {
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      value: vi.fn().mockReturnValue({ matches: false }),
+    });
+    mockUseAuth.mockReturnValue({ user: makeUser({ dark_theme_mode: 2 }) });
+    render(<AppTheme />);
+    expect(document.documentElement.classList.contains("dark")).toBe(false);
+  });
 });

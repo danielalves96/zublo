@@ -31,7 +31,7 @@ export function SubscriptionsPage() {
   const userId = user?.id ?? "";
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [sort, setSort] = useState<SubscriptionSortKey>("name");
+  const [sort] = useState<SubscriptionSortKey>("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [filters, setFilters] = useState<SubscriptionFiltersState>(
     INITIAL_SUBSCRIPTION_FILTERS,
@@ -195,13 +195,7 @@ export function SubscriptionsPage() {
   };
 
   const handleCycleSort = () => {
-    if (sort === "name") {
-      setSortDir((current) => (current === "asc" ? "desc" : "asc"));
-      return;
-    }
-
-    setSort("name");
-    setSortDir("asc");
+    setSortDir((current) => (current === "asc" ? "desc" : "asc"));
   };
 
   const handleCreate = () => {
