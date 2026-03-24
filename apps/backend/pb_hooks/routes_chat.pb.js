@@ -1,5 +1,8 @@
 /// <reference path="../pb_data/types.d.ts" />
 
+var aiParsers = require(__hooks + "/lib/pure/ai-parsers.js");
+var chatAi = require(__hooks + "/lib/pure/chat-ai.js");
+
 // ================================================================
 // ROUTE: POST /api/ai/chat
 // NOTE: All helpers are defined inside the routerAdd callback.
@@ -33,167 +36,24 @@ routerAdd("POST", "/api/ai/chat", function (e) {
 
   // ── Helpers ────────────────────────────────────────────────────
 
-  function getResponseText(res) {
-    if (typeof res.text === "string" && res.text.length > 0) return res.text;
-    if (typeof res.body === "string" && res.body.length > 0) return res.body;
-    if (typeof res.raw === "string" && res.raw.length > 0) return res.raw;
-    return String(res.text !== undefined ? res.text : (res.body !== undefined ? res.body : ""));
-  }
-
-  function buildGeminiContents(msgs) {
-    var result = [];
-    var i = 0;
-    while (i < msgs.length) {
-      var m = msgs[i];
-      if (m.role === "system") { i++; continue; }
-
-      if (m.role === "tool") {
-        var toolParts = [];
-        while (i < msgs.length && msgs[i].role === "tool") {
-          var t = msgs[i];
-          toolParts.push({ functionResponse: { name: t.name, response: { output: t.content } } });
-          i++;
-        }
-        result.push({ role: "user", parts: toolParts });
-        continue;
-      }
-
-      if (m.role === "assistant" && m.tool_calls) {
-        var parts = [];
-        for (var k = 0; k < m.tool_calls.length; k++) {
-          var tc = m.tool_calls[k];
-          parts.push({
-            functionCall: {
-              name: tc.function.name,
-              args: typeof tc.function.arguments === "string"
-                ? JSON.parse(tc.function.arguments)
-                : (tc.function.arguments || {})
-            }
-          });
-        }
-        result.push({ role: "model", parts: parts });
-        i++;
-        continue;
-      }
-
-      result.push({
-        role: m.role === "assistant" ? "model" : "user",
-        parts: [{ text: m.content || "" }]
-      });
-      i++;
-    }
-    return result;
-  }
-
   function callAI(aiSettings, msgs, tools) {
     var rawUrl = (aiSettings.get("url") || "").replace(/\/$/, "");
     var apiKey = aiSettings.get("api_key");
     var model = aiSettings.get("model");
-    var isGemini = rawUrl.indexOf("generativelanguage.googleapis.com") !== -1;
-
-    var url, headers, body;
-
-    if (isGemini) {
-      var geminiModel = model || "gemini-1.5-flash";
-      url = rawUrl + "/models/" + geminiModel + ":generateContent?key=" + (apiKey || "");
-      headers = { "Content-Type": "application/json" };
-
-      var systemMsg = null;
-      for (var si = 0; si < msgs.length; si++) {
-        if (msgs[si].role === "system") { systemMsg = msgs[si]; break; }
-      }
-
-      var functionDeclarations = [];
-      for (var ti = 0; ti < tools.length; ti++) {
-        functionDeclarations.push({
-          name: tools[ti].function.name,
-          description: tools[ti].function.description,
-          parameters: tools[ti].function.parameters
-        });
-      }
-
-      body = { contents: buildGeminiContents(msgs), generationConfig: { maxOutputTokens: 4096 } };
-      // Only include tools block when there are actual declarations;
-      // an empty functionDeclarations array causes Gemini API errors.
-      if (functionDeclarations.length > 0) {
-        body.tools = [{ functionDeclarations: functionDeclarations }];
-      }
-      if (systemMsg) {
-        body.systemInstruction = { parts: [{ text: systemMsg.content }] };
-      }
-    } else {
-      url = rawUrl + "/chat/completions";
-      headers = { "Content-Type": "application/json" };
-      if (apiKey) headers["Authorization"] = "Bearer " + apiKey;
-      body = {
-        model: model || "gpt-3.5-turbo",
-        messages: msgs,
-        temperature: 0.7,
-        max_tokens: 4096
-      };
-      // Only include tools when there are some; omitting them forces a text-only response.
-      if (tools && tools.length > 0) {
-        body.tools = tools;
-        body.tool_choice = "auto";
-      }
-    }
-
-    var res = $http.send({ url: url, method: "POST", headers: headers, body: JSON.stringify(body) });
+    var requestConfig = chatAi.buildChatRequest(rawUrl, apiKey, model, msgs, tools);
+    var res = $http.send({
+      url: requestConfig.url,
+      method: "POST",
+      headers: requestConfig.headers,
+      body: JSON.stringify(requestConfig.body)
+    });
 
     if (res.statusCode !== 200) {
-      throw new Error("AI API error " + res.statusCode + ": " + getResponseText(res));
+      throw new Error("AI API error " + res.statusCode + ": " + aiParsers.getRawResponseText(res));
     }
 
-    var resData = JSON.parse(getResponseText(res));
-
-    if (isGemini) {
-      var candidate = resData.candidates && resData.candidates[0];
-      if (!candidate || !candidate.content || !candidate.content.parts) {
-        throw new Error("Unexpected Gemini response format");
-      }
-      var gParts = candidate.content.parts;
-      var funcCalls = [];
-      for (var pi = 0; pi < gParts.length; pi++) {
-        if (gParts[pi].functionCall) funcCalls.push(gParts[pi]);
-      }
-      if (funcCalls.length > 0) {
-        var tcs = [];
-        for (var fi = 0; fi < funcCalls.length; fi++) {
-          var fc = funcCalls[fi].functionCall;
-          tcs.push({ id: "gemini_" + fc.name + "_" + fi, name: fc.name, arguments: fc.args || {} });
-        }
-        return { tool_calls: tcs };
-      }
-      var textParts = [];
-      for (var xi = 0; xi < gParts.length; xi++) {
-        if (gParts[xi].text) textParts.push(gParts[xi].text);
-      }
-      return { text: textParts.join("") };
-    } else {
-      var choice = resData.choices && resData.choices[0];
-      if (!choice || !choice.message) {
-        if (resData.message && resData.message.content) {
-          return { text: resData.message.content };
-        }
-        throw new Error("Unexpected AI response format");
-      }
-      var msg = choice.message;
-      if (msg.tool_calls && msg.tool_calls.length > 0) {
-        var toolCalls = [];
-        for (var ci = 0; ci < msg.tool_calls.length; ci++) {
-          var tc2 = msg.tool_calls[ci];
-          toolCalls.push({
-            id: tc2.id,
-            name: tc2.function.name,
-            arguments: typeof tc2.function.arguments === "string"
-              ? JSON.parse(tc2.function.arguments)
-              : (tc2.function.arguments || {})
-          });
-        }
-        return { tool_calls: toolCalls, reasoning_content: msg.reasoning_content || null };
-      }
-      return { text: msg.content || "" };
-    }
+    var resData = JSON.parse(aiParsers.getRawResponseText(res));
+    return chatAi.parseChatResponse(resData, requestConfig.isGemini);
   }
 
   // ── Tool executors ─────────────────────────────────────────────

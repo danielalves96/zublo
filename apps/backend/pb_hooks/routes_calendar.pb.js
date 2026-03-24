@@ -1,5 +1,8 @@
 /// <reference path="../pb_data/types.d.ts" />
 
+var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+var calendarUtils = require(__hooks + "/lib/pure/calendar-utils.js");
+
 // ================================================================
 // ROUTE: Calendar iCal Feed
 // GET /api/calendar/ical?key=wk_xxx  (requires calendar:read permission)
@@ -7,7 +10,7 @@
 routerAdd("GET", "/api/calendar/ical", function(e) {
   var userId = e.auth ? e.auth.id : null;
   var rawKey = e.request.url.query().get("key")
-    || (e.request.header.get("Authorization") || "").replace("Bearer ", "").trim();
+    || authHeaders.extractBearerToken(e.request.header.get("Authorization"));
 
   if (!userId && !rawKey) {
     return e.json(401, { error: "Missing API key" });
@@ -65,23 +68,19 @@ routerAdd("GET", "/api/calendar/ical", function(e) {
     const nextPayment = sub.get("next_payment");
     if (!nextPayment) continue;
 
-    const date = new Date(nextPayment);
-    const dtstart = date.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
-    const dateStr = dtstart.substring(0, 8);
-
     let currencySymbol = "$";
     try {
       const cur = $app.findRecordById("currencies", sub.get("currency"));
       currencySymbol = cur.get("symbol");
     } catch (_) { }
 
-    ical += "BEGIN:VEVENT\r\n";
-    ical += "UID:" + sub.id + "@zublo\r\n";
-    ical += "DTSTART;VALUE=DATE:" + dateStr + "\r\n";
-    ical += "DTEND;VALUE=DATE:" + dateStr + "\r\n";
-    ical += "SUMMARY:" + sub.get("name") + " - " + currencySymbol + sub.get("price") + "\r\n";
-    ical += "DESCRIPTION:Payment due for " + sub.get("name") + "\r\n";
-    ical += "END:VEVENT\r\n";
+    ical += calendarUtils.buildIcalEvent({
+      id: sub.id,
+      name: sub.get("name"),
+      price: sub.get("price"),
+      currencySymbol: currencySymbol,
+      nextPayment: nextPayment,
+    });
   }
 
   ical += "END:VCALENDAR\r\n";
@@ -102,17 +101,14 @@ routerAdd("GET", "/api/calendar/data", (e) => {
   const year = parseInt(e.request.url.query().get("year")) || new Date().getFullYear();
 
   // Calculate date range for the month
-  const startDate = year + "-" + String(month).padStart(2, "0") + "-01";
-  const endMonth = month === 12 ? 1 : month + 1;
-  const endYear = month === 12 ? year + 1 : year;
-  const endDate = endYear + "-" + String(endMonth).padStart(2, "0") + "-01";
+  const range = calendarUtils.buildMonthRange(month, year);
 
   const subs = $app.findRecordsByFilter(
     "subscriptions",
     "user = {:userId} && inactive = false && next_payment >= {:startDate} && next_payment < {:endDate}",
     "next_payment",
     0, 0,
-    { userId: userId, startDate: startDate, endDate: endDate }
+    { userId: userId, startDate: range.startDate, endDate: range.endDate }
   );
 
   const events = [];

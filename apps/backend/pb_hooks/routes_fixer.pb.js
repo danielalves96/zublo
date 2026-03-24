@@ -1,5 +1,7 @@
 /// <reference path="../pb_data/types.d.ts" />
 
+var exchangeRates = require(__hooks + "/lib/pure/exchange-rates.js");
+
 // ================================================================
 // ROUTE: Update exchange rates for the authenticated user
 // POST /api/fixer/update
@@ -66,37 +68,27 @@ routerAdd("POST", "/api/fixer/update", (e) => {
 
   // EUR-based rates from the API (e.g. { USD: 1.08, BRL: 5.4, EUR: 1.0 })
   const eurRates = res.json.rates;
+  const currencies = $app.findRecordsByFilter("currencies", "user = {:u}", "", 0, 0, { u: userId });
 
-  // EUR itself may or may not be included in the rates object
-  eurRates["EUR"] = 1;
-
-  // Rate of the main currency relative to EUR
-  const mainEurRate = eurRates[mainCode];
-  if (!mainEurRate) {
+  let normalizedRates;
+  try {
+    normalizedRates = exchangeRates.normalizeRatesByMainCurrency(
+      eurRates,
+      mainCode,
+      currencies.map(function (record) { return record.get("code"); })
+    );
+  } catch (_) {
     return e.json(400, {
       error: "Main currency '" + mainCode + "' was not found in the API response. " +
              "Make sure you have the correct currency code (e.g. BRL, USD, EUR)."
     });
   }
-
-  // Normalize every currency so rates are relative to the main currency:
-  //   stored_rate[X] = eurRates[X] / eurRates[mainCode]
-  // Examples (main = BRL, eurRates = { USD:1.08, BRL:5.4 }):
-  //   stored_rate[USD] = 1.08 / 5.4 = 0.2   → 1 BRL = 0.2 USD
-  //   stored_rate[EUR] = 1    / 5.4 = 0.185  → 1 BRL = 0.185 EUR
-  //   stored_rate[BRL] = 1   (main, always 1)
-  const currencies = $app.findRecordsByFilter("currencies", "user = {:u}", "", 0, 0, { u: userId });
   let updated = 0;
 
   for (let i = 0; i < currencies.length; i++) {
     const code = currencies[i].get("code");
-    if (code === mainCode) {
-      currencies[i].set("rate", 1);
-      $app.save(currencies[i]);
-      updated++;
-    } else if (eurRates[code] !== undefined) {
-      const normalized = eurRates[code] / mainEurRate;
-      currencies[i].set("rate", normalized);
+    if (normalizedRates[code] !== undefined) {
+      currencies[i].set("rate", normalizedRates[code]);
       $app.save(currencies[i]);
       updated++;
     }

@@ -1,5 +1,7 @@
 /// <reference path="../pb_data/types.d.ts" />
 
+var aiParsers = require(__hooks + "/lib/pure/ai-parsers.js");
+
 // ================================================================
 // ROUTE: AI — Fetch Available Models
 // Accepts url + api_key in the POST body (so user can fetch before saving)
@@ -35,27 +37,6 @@ routerAdd("POST", "/api/ai/models", (e) => {
 
   const models = [];
 
-  function parseModels(json) {
-    const out = [];
-    // Strip "models/" prefix that Gemini prepends to model names
-    function clean(s) { return s.replace(/^models\//, ""); }
-
-    if (json.data && Array.isArray(json.data)) {
-      // OpenAI format: { data: [{ id }] }
-      for (const m of json.data) { if (m.id) out.push(clean(m.id)); }
-    } else if (json.models && Array.isArray(json.models)) {
-      // Ollama / Gemini format: { models: [{ name }] }
-      for (const m of json.models) { if (m.name) out.push(clean(m.name)); }
-    } else if (Array.isArray(json)) {
-      for (const m of json) {
-        if (typeof m === "string") out.push(clean(m));
-        else if (m.id) out.push(clean(m.id));
-        else if (m.name) out.push(clean(m.name));
-      }
-    }
-    return out;
-  }
-
   try {
     const modelsEndpoint = apiUrl + "/models";
 
@@ -76,12 +57,9 @@ routerAdd("POST", "/api/ai/models", (e) => {
     }
 
     if (res.statusCode === 200) {
-      // POCKETBASE FIX: Manual JSON parsing + defensive body access
-      const rawBody = (typeof res.text === "string" && res.text.length > 0) ? res.text
-        : (typeof res.body === "string" && res.body.length > 0) ? res.body
-        : String(res.raw ?? "");
+      const rawBody = aiParsers.getRawResponseText(res);
       const resData = JSON.parse(rawBody);
-      const parsed = parseModels(resData);
+      const parsed = aiParsers.parseModels(resData);
       for (const m of parsed) models.push(m);
     } else {
       return e.json(res.statusCode, { error: "Provider returned status " + res.statusCode, details: res.text });
@@ -174,68 +152,31 @@ routerAdd("POST", "/api/ai/generate", (e) => {
     return e.json(400, { error: "AI provider URL not configured" });
   }
 
-  // Detect Google Gemini by URL (uses ?key= auth and different endpoint/format)
-  const isGemini = rawUrl.indexOf("generativelanguage.googleapis.com") !== -1;
-
-  let aiUrl, aiHeaders, aiBody;
-
-  if (isGemini) {
-    const geminiModel = model || "gemini-1.5-flash";
-    aiUrl = rawUrl + "/models/" + geminiModel + ":generateContent";
-    aiHeaders = {
-      "Content-Type": "application/json",
-      ...(apiKey ? { "x-goog-api-key": apiKey } : {}),
-    };
-    aiBody = {
-      contents: [{ parts: [{ text: systemPrompt + "\n\n" + userPrompt }] }],
-    };
-  } else {
-    aiUrl = rawUrl + "/chat/completions";
-    aiHeaders = {
-      "Content-Type": "application/json",
-      ...(apiKey ? { "Authorization": "Bearer " + apiKey } : {}),
-    };
-    aiBody = {
-      model: model || "",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.7,
-    };
-  }
+  const requestConfig = aiParsers.buildRecommendationRequest(rawUrl, apiKey, model, systemPrompt, userPrompt);
+  const isGemini = requestConfig.isGemini;
 
   try {
     const res = $http.send({
-      url: aiUrl,
+      url: requestConfig.aiUrl,
       method: "POST",
-      headers: aiHeaders,
-      body: JSON.stringify(aiBody),
+      headers: requestConfig.aiHeaders,
+      body: JSON.stringify(requestConfig.aiBody),
     });
 
     if (res.statusCode !== 200) {
       return e.json(500, { error: "AI API error: " + res.statusCode, details: res.text });
     }
 
-    // POCKETBASE FIX: Manual JSON parsing + defensive body access
-    const rawBody = (typeof res.text === "string" && res.text.length > 0) ? res.text
-      : (typeof res.body === "string" && res.body.length > 0) ? res.body
-      : String(res.raw ?? "");
+    const rawBody = aiParsers.getRawResponseText(res);
     const resData = JSON.parse(rawBody);
     let responseText = "";
-    if (isGemini) {
-      // Gemini format
-      responseText = resData.candidates[0].content.parts[0].text;
-    } else if (resData.choices && resData.choices[0]) {
-      responseText = resData.choices[0].message.content;
-    } else if (resData.message && resData.message.content) {
-      // Ollama non-streaming
-      responseText = resData.message.content;
-    } else {
+    try {
+      responseText = aiParsers.extractRecommendationText(resData, isGemini);
+    } catch (_) {
       return e.json(500, { error: "Unexpected AI response format", details: rawBody });
     }
 
-    responseText = responseText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    responseText = aiParsers.stripJsonFence(responseText);
     const recommendations = JSON.parse(responseText);
 
     try {

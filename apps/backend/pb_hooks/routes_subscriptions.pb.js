@@ -1,6 +1,7 @@
 /// <reference path="../pb_data/types.d.ts" />
 
 var dateHelpers = require(__hooks + "/lib/date-helpers.js");
+var importParsers = require(__hooks + "/lib/pure/subscription-import.js");
 
 // ================================================================
 // ROUTE: Subscriptions Import
@@ -18,8 +19,7 @@ routerAdd("POST", "/api/subscriptions/import", (e) => {
   }
 
   // Detect format: Wallos uses PascalCase keys like "Name", "Payment Cycle"
-  const isWallos = Object.prototype.hasOwnProperty.call(data.subscriptions[0], "Name") ||
-    Object.prototype.hasOwnProperty.call(data.subscriptions[0], "Payment Cycle");
+  const isWallos = importParsers.detectWallosFormat(data.subscriptions[0]);
 
   // ---- Lookup caches to avoid repeated DB queries ----
   const categoryCache = {};
@@ -125,24 +125,6 @@ routerAdd("POST", "/api/subscriptions/import", (e) => {
     } catch (_) { return ""; }
   }
 
-  // Parse Wallos "Payment Cycle" string → { cycleName, frequency }
-  // Examples: "Monthly" → {Monthly, 1}, "Every 3 Months" → {Monthly, 3}
-  function parseCycleAndFrequency(paymentCycle) {
-    if (!paymentCycle) return { cycleName: "Monthly", frequency: 1 };
-    const lower = paymentCycle.toLowerCase().trim();
-    const direct = { daily: "Daily", weekly: "Weekly", monthly: "Monthly", yearly: "Yearly" };
-    if (direct[lower]) return { cycleName: direct[lower], frequency: 1 };
-    const m = paymentCycle.match(/every\s+(\d+)\s+(days?|weeks?|months?|years?)/i);
-    if (m) {
-      const unitMap = {
-        day: "Daily", days: "Daily", week: "Weekly", weeks: "Weekly",
-        month: "Monthly", months: "Monthly", year: "Yearly", years: "Yearly",
-      };
-      return { cycleName: unitMap[m[2].toLowerCase()] || "Monthly", frequency: parseInt(m[1], 10) };
-    }
-    return { cycleName: "Monthly", frequency: 1 };
-  }
-
   function getUserMainCurrency() {
     try { return $app.findRecordById("users", userId).get("main_currency"); } catch (_) { return ""; }
   }
@@ -171,18 +153,12 @@ routerAdd("POST", "/api/subscriptions/import", (e) => {
         cancellationDate = sub["Cancellation Date"] || "";
 
         // "€9.99" → symbol="€", price=9.99
-        const priceStr = String(sub["Price"] || "0");
-        const pm = priceStr.match(/^([^\d]*)(\d[\d.,]*)$/);
-        let symbol = "";
-        if (pm) {
-          symbol = pm[1].trim();
-          price = parseFloat(pm[2].replace(",", ".")) || 0;
-        } else {
-          price = parseFloat(priceStr) || 0;
-        }
+        const priceInfo = importParsers.parseWallosPrice(sub["Price"]);
+        let symbol = priceInfo.symbol;
+        price = priceInfo.price;
         currencyId = (symbol ? findCurrencyBySymbol(symbol) : "") || mainCurrencyId;
 
-        const { cycleName, frequency: freq } = parseCycleAndFrequency(sub["Payment Cycle"]);
+        const { cycleName, frequency: freq } = importParsers.parseCycleAndFrequency(sub["Payment Cycle"]);
         cycleId = findCycleByName(cycleName);
         frequency = freq;
 

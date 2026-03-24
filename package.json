@@ -36,9 +36,15 @@
     "dev:pb": "cd apps/backend && ./pocketbase serve --http 127.0.0.1:8080 --hooksWatch=false",
     "build": "cd apps/web && bun run build",
     "lint": "cd apps/web && bun run lint",
-    "test": "cd apps/web && bun run test:run",
-    "test:run": "cd apps/web && bun run test:run",
-    "test:coverage": "cd apps/web && bun run test:coverage"
+    "test": "bun run test:front && bun run test:back",
+    "test:run": "bun run test",
+    "test:coverage": "bun run test:front:coverage && bun run test:back:coverage",
+    "test:front": "cd apps/web && bun run test:run",
+    "test:front:coverage": "cd apps/web && bun run test:coverage",
+    "test:back": "cd apps/backend && ../web/node_modules/.bin/vitest run --config vitest.config.mjs",
+    "test:back:coverage": "cd apps/backend && ../web/node_modules/.bin/vitest run --config vitest.config.mjs --coverage",
+    "test:backend-hooks": "bun run test:back",
+    "test:backend-hooks:coverage": "bun run test:back:coverage"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

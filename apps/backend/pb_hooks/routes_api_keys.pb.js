@@ -1,8 +1,9 @@
 /// <reference path="../pb_data/types.d.ts" />
 
+var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+
 function extractApiKey(e) {
-  var header = e.request.header.get("Authorization") || "";
-  return header.replace(/^Bearer\s+/i, "").trim();
+  return authHeaders.extractBearerToken(e.request.header.get("Authorization"));
 }
 
 // ================================================================
