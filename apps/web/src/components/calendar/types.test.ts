@@ -242,10 +242,20 @@ describe("calendar types helpers", () => {
       is_main: false,
       user: "user-1",
     };
+    const zeroRate: Currency = {
+      id: "zero",
+      name: "Zero Rate",
+      code: "ZZZ",
+      symbol: "Z",
+      rate: 0,
+      is_main: false,
+      user: "user-1",
+    };
     const subscription = getSubscription({ id: "sub-color" });
 
     expect(toMain(25, undefined)).toBe(25);
     expect(toMain(25, main)).toBe(25);
+    expect(toMain(100, zeroRate)).toBe(100);
     expect(toMain(25, brl)).toBe(5);
     expect(getLogoUrl(subscription)).toBe("https://cdn.example.com/logo.png");
 

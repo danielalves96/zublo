@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import { DeleteAccountTab } from "./DeleteAccountTab";
 
@@ -250,6 +250,28 @@ describe("DeleteAccountTab", () => {
     expect(mockDeleteUser).not.toHaveBeenCalled();
     // No dialog shown (the if block was skipped, no success/error set)
     expect(screen.queryByTestId("message-dialog")).not.toBeInTheDocument();
+  });
+
+  // Line 89: isDeleting ? "deleting" : "permanently_delete_account" — true branch
+  it("shows 'deleting' text while account deletion is in progress (line 89 isDeleting true branch)", async () => {
+    let resolveDelete!: (val: unknown) => void;
+    mockDeleteUser.mockImplementation(
+      () => new Promise((res) => { resolveDelete = res; }),
+    );
+
+    render(<DeleteAccountTab />);
+    const input = screen.getByPlaceholderText("confirm_email_placeholder");
+    fireEvent.change(input, { target: { value: "user@test.com" } });
+
+    // Click without awaiting the promise — setIsDeleting(true) fires before the await
+    fireEvent.click(screen.getByText("permanently_delete_account"));
+
+    await waitFor(() =>
+      expect(screen.getByText("deleting")).toBeInTheDocument(),
+    );
+
+    // Resolve the pending promise so the component can clean up
+    await act(async () => { resolveDelete({}); });
   });
 
   // MessageDialog: dialog?.type ?? "success" — covers the ?? "success" fallback

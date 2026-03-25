@@ -122,6 +122,28 @@ describe("ChatMessagesPanel", () => {
     expect(screen.getByLabelText("AI thinking")).toBeInTheDocument();
   });
 
+  it("renders user avatar with empty alt when userName is undefined (line 77 ?? '' branch)", () => {
+    mocks.extractFileChip.mockReturnValue(null);
+
+    const { container } = render(
+      <ChatMessagesPanel
+        avatarUrl="https://cdn.example.com/avatar.png"
+        hasUserSentMessage
+        isLoading={false}
+        messages={[{ role: "user", content: "Hello" }]}
+        onRetry={vi.fn()}
+        onSuggestedPrompt={vi.fn()}
+        scrollRef={{ current: null }}
+        // userName intentionally omitted → undefined → alt={undefined ?? ""} = alt=""
+      />,
+    );
+
+    // Images with alt="" are decorative; query directly via DOM
+    const img = container.querySelector("img");
+    expect(img).toHaveAttribute("alt", "");
+    expect(img).toHaveAttribute("src", "https://cdn.example.com/avatar.png");
+  });
+
   it("renders a user message as plain text without avatar when avatarUrl is null", () => {
     mocks.extractFileChip.mockReturnValue(null);
 

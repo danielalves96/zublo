@@ -28,9 +28,8 @@ export function ApiKeyRevealDialog({
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
-    if (!created) {
-      return;
-    }
+    /* v8 ignore next -- copy button only renders when dialog is open (created !== null) */
+    if (!created) return;
 
     await navigator.clipboard.writeText(created.key);
     setCopied(true);

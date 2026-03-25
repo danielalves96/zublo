@@ -274,6 +274,71 @@ describe("SubscriptionCard", () => {
     expect(badges[0]).not.toHaveClass("bg-orange-500/10");
   });
 
+  it("uses PAYMENT_ICON_MAP src when payment method has no icon but name is in map", () => {
+    render(
+      <SubscriptionCard
+        sub={getSubscription({
+          expand: {
+            currency: getCurrency({ id: "cur-2", symbol: "R$", rate: 5 }),
+            cycle: { id: "monthly", name: "Monthly" },
+            payment_method: getPaymentMethod({ name: "Visa", icon: undefined }),
+          },
+        })}
+        onEdit={vi.fn()}
+        onClone={vi.fn()}
+        onRenew={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+    expect(screen.getByAltText("Visa")).toHaveAttribute("src", "/assets/payments/Visa.png");
+  });
+
+  it("defaults frequency to 1 and symbol to $ when frequency is absent and currency has no symbol", () => {
+    render(
+      <SubscriptionCard
+        sub={getSubscription({ frequency: undefined, expand: {} })}
+        showMonthly
+        convertCurrency={false}
+        onEdit={vi.fn()}
+        onClone={vi.fn()}
+        onRenew={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+    expect(mocks.toMonthly).toHaveBeenCalledWith(20, "Monthly", 1);
+    expect(mocks.formatPrice).toHaveBeenCalledWith(expect.any(Number), "$");
+  });
+
+  it("falls back to $ symbol when mainCurrency has no symbol and shouldConvert is true", () => {
+    render(
+      <SubscriptionCard
+        sub={getSubscription()}
+        mainCurrency={getCurrency({ is_main: true, symbol: undefined as unknown as string })}
+        convertCurrency
+        showMonthly={false}
+        onEdit={vi.fn()}
+        onClone={vi.fn()}
+        onRenew={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+    expect(mocks.formatPrice).toHaveBeenCalledWith(expect.any(Number), "$");
+  });
+
+  it("uses empty string src when logoUrl returns null", () => {
+    mocks.subscriptionLogoUrl.mockReturnValue(null);
+    render(
+      <SubscriptionCard
+        sub={getSubscription()}
+        onEdit={vi.fn()}
+        onClone={vi.fn()}
+        onRenew={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+    expect(screen.getByAltText("Netflix")).toHaveAttribute("src", "");
+  });
+
   it("renders fallback initials and inactive state when data is limited", () => {
     render(
       <SubscriptionCard

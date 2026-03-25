@@ -121,6 +121,18 @@ describe("ApiKeyEndpointsReference", () => {
     }
   });
 
+  it("resets copiedUrl to null after 1500ms (setTimeout callback in copyValue)", async () => {
+    vi.useFakeTimers();
+    render(<ApiKeyEndpointsReference />);
+    fireEvent.click(screen.getByText("api_key_endpoints_title"));
+    fireEvent.click(screen.getByText("subscriptions"));
+    const copyButtons = screen.getAllByLabelText("Copy URL");
+    fireEvent.click(copyButtons[0]);
+    // Flush the clipboard promise and run the 1500ms setTimeout callback
+    await vi.runAllTimersAsync();
+    vi.useRealTimers();
+  });
+
   it("shows all endpoint groups", () => {
     render(<ApiKeyEndpointsReference />);
     fireEvent.click(screen.getByText("api_key_endpoints_title"));

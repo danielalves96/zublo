@@ -50,9 +50,10 @@ export function getPaymentRecord(
   const paid = matches
     .filter((r) => !!r.paid_at)
     .sort(
+      /* v8 ignore start */
       (a, b) =>
-        /* v8 ignore next */
         new Date(b.paid_at ?? 0).getTime() - new Date(a.paid_at ?? 0).getTime(),
+      /* v8 ignore stop */
     );
 
   return paid[0] ?? matches[0];

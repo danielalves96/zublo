@@ -17,6 +17,7 @@ export function DeleteAccountTab() {
   const [dialog, setDialog] = useState<{ type: "success" | "error"; title: string; description: string } | null>(null);
 
   const handleDelete = async () => {
+    /* v8 ignore next -- button is disabled when confirmText !== user?.email; this guard is unreachable via UI */
     if (confirmText !== user?.email) return;
     setIsDeleting(true);
     try {

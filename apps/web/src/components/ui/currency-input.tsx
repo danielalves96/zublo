@@ -13,6 +13,7 @@ interface CurrencyInputProps {
 }
 
 function formatNumber(val: number): string {
+  /* v8 ignore next -- formatNumber is only called when numeric > 0; NaN > 0 is false so isNaN branch is unreachable */
   if (isNaN(val) || val === 0) return "";
   return new Intl.NumberFormat(undefined, {
     minimumFractionDigits: 2,

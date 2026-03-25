@@ -58,6 +58,24 @@ describe("ApiKeyRevealDialog", () => {
     });
   });
 
+  it("resets copied state back to false after 2 seconds (setTimeout callback)", async () => {
+    vi.useFakeTimers();
+    Object.assign(navigator, {
+      clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
+    });
+    render(<ApiKeyRevealDialog created={mockCreated as any} onClose={vi.fn()} />);
+
+    fireEvent.click(screen.getByLabelText("api_key_copy"));
+
+    // Flush clipboard promise + run the 2s setTimeout callback in one pass
+    await vi.runAllTimersAsync();
+
+    // copied went true → false; the setTimeout callback () => setCopied(false) was invoked
+    expect(screen.queryByText("api_key_copied")).not.toBeInTheDocument();
+
+    vi.useRealTimers();
+  });
+
   it("selects input text when input is clicked", () => {
     render(<ApiKeyRevealDialog created={mockCreated as any} onClose={vi.fn()} />);
     const input = screen.getByDisplayValue("wk_secret_key_123") as HTMLInputElement;

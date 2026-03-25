@@ -120,6 +120,27 @@ describe("BudgetOverviewCard", () => {
     expect(screen.getByText("—")).toBeInTheDocument();
   });
 
+  it("uses empty string src when logoUrl returns null (line 118 ?? '' branch)", () => {
+    logoUrl.mockReturnValue(null);
+    render(
+      <BudgetOverviewCard
+        budget={100}
+        budgetUsed={45}
+        isOverBudget={false}
+        totalMonthly={45}
+        subscriptionsCount={4}
+        mostExpensive={{
+          name: "Netflix",
+          monthly: 20,
+          logo: "logo.png",
+          record: getSubscription(),
+        }}
+        formatValue={(value) => `$${value.toFixed(2)}`}
+      />,
+    );
+    expect(screen.getByAltText("Netflix")).toHaveAttribute("src", "");
+  });
+
   it("renders the empty budget state and over-budget indicator", () => {
     const { rerender } = render(
       <BudgetOverviewCard

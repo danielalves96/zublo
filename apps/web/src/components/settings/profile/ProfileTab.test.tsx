@@ -356,6 +356,42 @@ describe("ProfileTab", () => {
     );
   });
 
+  it("shows validation errors for all fields when submitted with invalid data", async () => {
+    const { container } = renderComponent();
+
+    // Clear username → required error (covers errors.username branch)
+    await userEvent.clear(screen.getByPlaceholderText("your_name_placeholder"));
+    // Clear email → required error (covers errors.email branch)
+    await userEvent.clear(screen.getByPlaceholderText("your.email@example.com"));
+    // newPwd too short (7 chars) → validation_min_chars (covers errors.newPwd branch)
+    // mismatched confPwd → passwords_no_match (covers errors.confPwd branch)
+    // missing oldPwd with newPwd set → required (covers errors.oldPwd branch)
+    const newPwdInput = container.querySelector('input[name="newPwd"]') as HTMLInputElement;
+    const confPwdInput = container.querySelector('input[name="confPwd"]') as HTMLInputElement;
+    await userEvent.type(newPwdInput, "short99");
+    await userEvent.type(confPwdInput, "different");
+
+    await userEvent.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("validation_min_chars")).toBeInTheDocument();
+      expect(screen.getByText("passwords_no_match")).toBeInTheDocument();
+      // username + email + oldPwd all show "required"
+      expect(screen.getAllByText("required").length).toBeGreaterThanOrEqual(3);
+    });
+  });
+
+  it("sets budget to 0 in FormData when budget state is zero (budget || 0 branch)", async () => {
+    currentAuthUser = { ...authUser, budget: 0 };
+    renderComponent();
+
+    await userEvent.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => expect(updateUser).toHaveBeenCalledTimes(1));
+    const [, formData] = updateUser.mock.calls[0] as [string, FormData];
+    expect(formData.get("budget")).toBe("0");
+  });
+
   // onSubmit: if (data.oldPwd && data.newPwd) false branch — no password fields appended
   it("does not include password fields in FormData when oldPwd is empty", async () => {
     renderComponent();
