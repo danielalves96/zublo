@@ -81,7 +81,7 @@ vi.mock("@/services/household", () => ({
   },
 }));
 
-vi.mock("@/components/subscriptions/useFilteredSubscriptions", () => ({
+vi.mock("@/hooks/useFilteredSubscriptions", () => ({
   useFilteredSubscriptions: mocks.filteredSubscriptions,
 }));
 

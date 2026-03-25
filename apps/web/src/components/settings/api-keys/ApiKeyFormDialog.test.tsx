@@ -6,6 +6,27 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (k: string) => k }),
 }));
 
+vi.mock("@/components/settings/api-keys/config", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/components/settings/api-keys/config")>();
+
+  return {
+    ...actual,
+    API_KEY_PERMISSIONS: [
+      ...actual.API_KEY_PERMISSIONS,
+      {
+        id: "exports:write",
+        labelKey: "perm_exports_write",
+        descKey: "perm_exports_write_desc",
+      },
+    ],
+    API_KEY_PERMISSION_GROUPS: [
+      ...actual.API_KEY_PERMISSION_GROUPS,
+      { id: "exports", labelKey: "exports" },
+    ],
+  };
+});
+
 describe("ApiKeyFormDialog", () => {
   it("renders dialog title when open", () => {
     render(
@@ -168,6 +189,26 @@ describe("ApiKeyFormDialog", () => {
     expect(onSubmit).toHaveBeenCalled();
   });
 
+  it("does not submit on non-Enter key press in name input", () => {
+    const onSubmit = vi.fn();
+    render(
+      <ApiKeyFormDialog
+        open={true}
+        onClose={vi.fn()}
+        onSubmit={onSubmit}
+        isPending={false}
+        title="Create Key"
+        submitLabel="Create"
+        nameInputId="key-name"
+        initialPermissions={["subscriptions:read"]}
+      />,
+    );
+    const nameInput = screen.getByPlaceholderText("api_key_name_placeholder");
+    fireEvent.change(nameInput, { target: { value: "My Key" } });
+    fireEvent.keyDown(nameInput, { key: "Tab" });
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
   it("calls onClose when Cancel button is clicked", () => {
     const onClose = vi.fn();
     render(
@@ -241,6 +282,30 @@ describe("ApiKeyFormDialog", () => {
     fireEvent.change(nameInput, { target: { value: "My Key" } });
     fireEvent.click(screen.getByRole("button", { name: "Create" }));
     // subscriptions:write selected means subscriptions:read is also added
+  });
+
+  it("submits write-only permission without auto-adding read when group has no read permission", () => {
+    const onSubmit = vi.fn();
+    render(
+      <ApiKeyFormDialog
+        open={true}
+        onClose={vi.fn()}
+        onSubmit={onSubmit}
+        isPending={false}
+        title="Create Key"
+        submitLabel="Create"
+        nameInputId="key-name"
+      />,
+    );
+
+    const nameInput = screen.getByPlaceholderText("api_key_name_placeholder");
+    fireEvent.change(nameInput, { target: { value: "Exports Key" } });
+
+    const writeButtons = screen.getAllByText("Write");
+    fireEvent.click(writeButtons[writeButtons.length - 1]);
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+
+    expect(onSubmit).toHaveBeenCalledWith("Exports Key", ["exports:write"]);
   });
 
   it("deselects write permission when Write button is clicked while already selected", () => {

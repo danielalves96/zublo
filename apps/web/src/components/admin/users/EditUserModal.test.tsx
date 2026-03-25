@@ -1,9 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { EditUserModal } from "./EditUserModal";
+import { EditUserModal, avatarUrl } from "./EditUserModal";
 import { toast } from "@/lib/toast";
 import { adminService } from "@/services/admin";
 import type { AdminUser } from "./types";
@@ -165,6 +165,53 @@ describe("EditUserModal", () => {
     });
   });
 
+  it("shows username required validation error", async () => {
+    renderComponent();
+
+    const usernameInput = document.querySelector(
+      'input[name="username"]',
+    ) as HTMLInputElement | null;
+
+    expect(usernameInput).not.toBeNull();
+    await userEvent.clear(usernameInput!);
+
+    const submitBtn = getSubmitButton();
+    if (submitBtn) await userEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText("required")).toBeInTheDocument();
+    });
+  });
+
+  it("shows email and short password validation errors", async () => {
+    renderComponent();
+
+    const emailInput = document.querySelector(
+      'input[name="email"]',
+    ) as HTMLInputElement | null;
+    const passwordInput = document.querySelector(
+      'input[name="password"]',
+    ) as HTMLInputElement | null;
+
+    expect(emailInput).not.toBeNull();
+    expect(passwordInput).not.toBeNull();
+
+    await userEvent.clear(emailInput!);
+    await userEvent.type(emailInput!, "invalid-email");
+    await userEvent.type(passwordInput!, "short");
+
+    const form = document.querySelector("form");
+    expect(form).not.toBeNull();
+    fireEvent.submit(form!);
+
+    await waitFor(() => {
+      expect(screen.getByText("validation_invalid_email")).toBeInTheDocument();
+      expect(
+        screen.getByText('validation_min_chars{"count":8}'),
+      ).toBeInTheDocument();
+    });
+  });
+
   it("submits with avatar upload", async () => {
     vi.mocked(adminService.updateUser).mockResolvedValue({ success: true } as any);
     vi.mocked(adminService.uploadAvatar).mockResolvedValue({ success: true } as any);
@@ -242,6 +289,18 @@ describe("EditUserModal", () => {
     expect(screen.getByText("A")).toBeInTheDocument();
   });
 
+  it("falls back to 'U' when user has no avatar, name, username, or email", () => {
+    renderComponent({
+      ...mockUser,
+      name: "",
+      username: "",
+      email: "",
+      avatar: "",
+    });
+
+    expect(screen.getByText("U")).toBeInTheDocument();
+  });
+
   it("can click the change avatar button", async () => {
     renderComponent();
 
@@ -254,8 +313,39 @@ describe("EditUserModal", () => {
   it("calls onClose when dialog is closed via onOpenChange (line 113)", () => {
     renderComponent();
     // Pressing Escape triggers onOpenChange(false) => !open && onClose()
-    const { fireEvent } = require("@testing-library/react");
     fireEvent.keyDown(document, { key: "Escape", code: "Escape" });
     expect(onCloseMock).toHaveBeenCalled();
+  });
+
+  it("clicks the avatar buttons and ignores empty file selection", async () => {
+    renderComponent();
+
+    const avatarButtons = Array.from(
+      document.querySelectorAll("button[type=button]"),
+    ) as HTMLButtonElement[];
+    const avatarCircleButton = avatarButtons.find(
+      (btn) => btn.classList.contains("rounded-full") && btn.classList.contains("h-20"),
+    );
+    const cameraButton = document.querySelector("button.scale-0") as HTMLButtonElement | null;
+
+    expect(avatarCircleButton).not.toBeUndefined();
+    expect(cameraButton).not.toBeNull();
+
+    await userEvent.click(avatarCircleButton!);
+    await userEvent.click(cameraButton!);
+
+    const fileInput = getFileInput()!;
+    Object.defineProperty(fileInput, "files", {
+      value: Object.assign([], { item: () => null, length: 0 }),
+      configurable: true,
+    });
+    fireEvent.change(fileInput);
+
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+  });
+
+  it("exports avatarUrl helper behavior", () => {
+    expect(avatarUrl("user-1", "")).toBeNull();
+    expect(avatarUrl("user-1", "avatar.png")).toBe("mocked-url-user-1-avatar.png");
   });
 });

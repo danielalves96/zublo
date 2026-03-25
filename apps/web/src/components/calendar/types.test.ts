@@ -211,6 +211,18 @@ describe("calendar types helpers", () => {
     expect(result[0].getDate()).toBe(15);
   });
 
+  it("uses freq=1 when subscription.frequency is 0 (covers || 1 fallback on line 71)", () => {
+    // frequency: 0 is falsy, so `sub.frequency || 1` evaluates to 1
+    const result = getOccurrencesInMonth(
+      getSubscription({ cycle: "monthly", frequency: 0, next_payment: "2026-03-15" }),
+      2026,
+      3,
+      [{ id: "monthly", name: "Monthly" as const }],
+    );
+    // With freq=1 and monthly cycle, exactly one occurrence in March
+    expect(result).toHaveLength(1);
+  });
+
   it("converts to the main currency, delegates logo urls, and picks deterministic colors", () => {
     const main: Currency = {
       id: "usd",

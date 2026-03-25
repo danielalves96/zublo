@@ -13,7 +13,20 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/components/ui/dialog", () => ({
-  Dialog: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  Dialog: ({
+    children,
+    onOpenChange,
+  }: {
+    children: React.ReactNode;
+    onOpenChange?: () => void;
+  }) => (
+    <div>
+      <button type="button" onClick={onOpenChange}>
+        dialog-close
+      </button>
+      {children}
+    </div>
+  ),
   DialogContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DialogTitle: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
@@ -321,5 +334,134 @@ describe("SubDetailDialog", () => {
       />,
     );
     expect(screen.getByText("pending_payment")).toBeInTheDocument();
+  });
+
+  it("falls back to currencies.find and omits cycle badge when expand data is missing", () => {
+    render(
+      <SubDetailDialog
+        sub={getSubscription({
+          expand: undefined as never,
+          frequency: 1,
+        })}
+        date={new Date("2026-03-10T00:00:00Z")}
+        currencies={[getCurrency()]}
+        mainCurrency={getCurrency()}
+        paymentTracking={false}
+        paymentRecord={undefined}
+        onClose={vi.fn()}
+        onEdit={vi.fn()}
+        onMarkAsPaid={vi.fn()}
+        t={(key) => key}
+      />,
+    );
+
+    expect(screen.getByText("10 $")).toBeInTheDocument();
+    expect(screen.queryByText("Streaming")).not.toBeInTheDocument();
+    expect(screen.queryByText("Visa")).not.toBeInTheDocument();
+    expect(screen.queryByText("Daniel")).not.toBeInTheDocument();
+    expect(screen.queryByText("Monthly")).not.toBeInTheDocument();
+  });
+
+  it("uses default currency symbol when no subscription currency is resolved", () => {
+    render(
+      <SubDetailDialog
+        sub={getSubscription({
+          currency: "missing-cur",
+          expand: { ...getSubscription().expand, currency: undefined },
+        })}
+        date={new Date("2026-03-10T00:00:00Z")}
+        currencies={[getCurrency({ id: "another-cur" })]}
+        mainCurrency={undefined}
+        paymentTracking={false}
+        paymentRecord={undefined}
+        onClose={vi.fn()}
+        onEdit={vi.fn()}
+        onMarkAsPaid={vi.fn()}
+        t={(key) => key}
+      />,
+    );
+
+    expect(screen.getByText("10 $")).toBeInTheDocument();
+  });
+
+  it("renders paid status without amount or proof link when they are absent", () => {
+    mocks.proofUrl.mockReturnValue(null);
+
+    render(
+      <SubDetailDialog
+        sub={getSubscription()}
+        date={new Date("2026-03-10T00:00:00Z")}
+        currencies={[getCurrency()]}
+        mainCurrency={getCurrency()}
+        paymentTracking
+        paymentRecord={{
+          id: "pr-3",
+          subscription_id: "sub-1",
+          user: "user-1",
+          due_date: "2026-03-10",
+          paid_at: "2026-03-10T10:00:00Z",
+          amount: null as never,
+        }}
+        onClose={vi.fn()}
+        onEdit={vi.fn()}
+        onMarkAsPaid={vi.fn()}
+        t={(key) => key}
+      />,
+    );
+
+    expect(screen.getByText("paid")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /proof/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/·/)).not.toBeInTheDocument();
+  });
+
+  it("uses default currency symbol for paid amount when current currency is unresolved", () => {
+    render(
+      <SubDetailDialog
+        sub={getSubscription({
+          currency: "missing-cur",
+          expand: { ...getSubscription().expand, currency: undefined },
+        })}
+        date={new Date("2026-03-10T00:00:00Z")}
+        currencies={[getCurrency({ id: "another-cur" })]}
+        mainCurrency={undefined}
+        paymentTracking
+        paymentRecord={{
+          id: "pr-4",
+          subscription_id: "sub-1",
+          user: "user-1",
+          due_date: "2026-03-10",
+          paid_at: "2026-03-10T10:00:00Z",
+          amount: 15,
+        }}
+        onClose={vi.fn()}
+        onEdit={vi.fn()}
+        onMarkAsPaid={vi.fn()}
+        t={(key) => key}
+      />,
+    );
+
+    expect(screen.getByText(/15 \$/)).toBeInTheDocument();
+  });
+
+  it("forwards dialog onOpenChange to onClose", () => {
+    const onClose = vi.fn();
+
+    render(
+      <SubDetailDialog
+        sub={getSubscription()}
+        date={new Date("2026-03-10T00:00:00Z")}
+        currencies={[getCurrency()]}
+        mainCurrency={getCurrency()}
+        paymentTracking={false}
+        paymentRecord={undefined}
+        onClose={onClose}
+        onEdit={vi.fn()}
+        onMarkAsPaid={vi.fn()}
+        t={(key) => key}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "dialog-close" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

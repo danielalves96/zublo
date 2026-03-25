@@ -1,5 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 
+import { MAX_SPREADSHEET_ROWS } from "@/components/chat/constants";
 import { queryKeys } from "@/lib/queryKeys";
 import { createQueryClientWrapper } from "@/test/query-client";
 import type { ChatConversation, ChatMessage } from "@/types";
@@ -16,6 +17,24 @@ const mocks = vi.hoisted(() => ({
   triggerExportDownload: vi.fn(),
   xlsxRead: vi.fn(),
   xlsxSheetToJson: vi.fn(),
+  authState: {
+    user: {
+      id: "user-1",
+      avatar: "avatar.png",
+      email: "daniel@example.com",
+      username: "daniel",
+      name: "Daniel",
+    } as
+      | {
+          id: string;
+          avatar: string;
+          email: string;
+          username: string;
+          name: string;
+        }
+      | null,
+    isLoading: false,
+  },
 }));
 
 vi.mock("react-i18next", () => ({
@@ -43,16 +62,7 @@ vi.mock("sonner", () => ({
 }));
 
 vi.mock("@/contexts/AuthContext", () => ({
-  useAuth: () => ({
-    user: {
-      id: "user-1",
-      avatar: "avatar.png",
-      email: "daniel@example.com",
-      username: "daniel",
-      name: "Daniel",
-    },
-    isLoading: false,
-  }),
+  useAuth: () => mocks.authState,
 }));
 
 vi.mock("@/services/ai", () => ({
@@ -104,6 +114,14 @@ function getConversation(
 describe("useChatPageController", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.authState.user = {
+      id: "user-1",
+      avatar: "avatar.png",
+      email: "daniel@example.com",
+      username: "daniel",
+      name: "Daniel",
+    };
+    mocks.authState.isLoading = false;
     mocks.avatarUrl.mockReturnValue("https://cdn.example.com/avatar.png");
     mocks.getConversations.mockResolvedValue({ conversations: [] });
     mocks.getConversationMessages.mockResolvedValue({
@@ -150,6 +168,48 @@ describe("useChatPageController", () => {
       expect.objectContaining({ id: "conv-1" }),
     ]);
     expect(mocks.getConversations).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns a null avatar and skips loading conversations when there is no authenticated user", async () => {
+    mocks.authState.user = null;
+
+    const { Wrapper } = createQueryClientWrapper();
+    const { result } = renderHook(() => useChatPageController(), {
+      wrapper: Wrapper,
+    });
+
+    expect(result.current.avatarUrl).toBeNull();
+    expect(mocks.getConversations).not.toHaveBeenCalled();
+  });
+
+  it("auto-scrolls when messages change", async () => {
+    mocks.chat.mockResolvedValue({
+      message: "assistant reply",
+      conversation_id: "conv-scroll",
+      conversation_title: "Scroll test",
+      actions_taken: [],
+    });
+
+    const { Wrapper } = createQueryClientWrapper();
+    const { result } = renderHook(() => useChatPageController(), {
+      wrapper: Wrapper,
+    });
+
+    const scrollNode = {
+      scrollTop: 0,
+      scrollHeight: 480,
+    } as HTMLDivElement;
+
+    act(() => {
+      result.current.scrollRef.current = scrollNode;
+      result.current.setInput("Trigger scroll");
+    });
+
+    await act(async () => {
+      await result.current.handleSend();
+    });
+
+    expect(scrollNode.scrollTop).toBe(480);
   });
 
   it("sends a pending spreadsheet message, syncs the new conversation, exports data, and invalidates related queries", async () => {
@@ -273,6 +333,173 @@ describe("useChatPageController", () => {
     });
   });
 
+  it("uses default export values and only invalidates subscription queries for partial actions", async () => {
+    mocks.chat.mockResolvedValue({
+      message: "assistant reply",
+      conversation_id: "conv-partial-actions",
+      conversation_title: "Partial actions",
+      actions_taken: [
+        {
+          tool: "create_subscription",
+          type: "subscription",
+          result: {},
+        },
+        {
+          tool: "export_subscriptions",
+          type: "export",
+          result: {
+            data: [{ id: "sub-2" }],
+            filename: "subscriptions-export.json",
+          },
+        },
+      ],
+    });
+
+    const { client, Wrapper } = createQueryClientWrapper();
+    const invalidateQueries = vi
+      .spyOn(client, "invalidateQueries")
+      .mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useChatPageController(), {
+      wrapper: Wrapper,
+    });
+
+    await waitFor(() => {
+      expect(mocks.getConversations).toHaveBeenCalledTimes(1);
+    });
+
+    act(() => {
+      result.current.setInput("Run partial actions");
+    });
+
+    await act(async () => {
+      await result.current.handleSend();
+    });
+
+    expect(mocks.toastSuccess).toHaveBeenCalledWith("created:");
+    expect(mocks.triggerExportDownload).toHaveBeenCalledWith(
+      "json",
+      "subscriptions-export.json",
+      [{ id: "sub-2" }],
+    );
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: queryKeys.subscriptions.all("user-1"),
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: queryKeys.dashboard("user-1"),
+    });
+    expect(invalidateQueries).not.toHaveBeenCalledWith({
+      queryKey: queryKeys.categories.all("user-1"),
+    });
+    expect(invalidateQueries).not.toHaveBeenCalledWith({
+      queryKey: queryKeys.paymentMethods.all("user-1"),
+    });
+    expect(invalidateQueries).not.toHaveBeenCalledWith({
+      queryKey: queryKeys.household.all("user-1"),
+    });
+    expect(invalidateQueries).not.toHaveBeenCalledWith({
+      queryKey: queryKeys.currencies.all("user-1"),
+    });
+  });
+
+  it("builds an optimistic title when the chat response omits conversation_title", async () => {
+    mocks.getConversations
+      .mockResolvedValueOnce({ conversations: [] })
+      .mockResolvedValueOnce({
+        conversations: [
+          getConversation({
+            id: "conv-no-title",
+            title: "Generated optimistic title",
+          }),
+        ],
+      });
+    mocks.chat.mockResolvedValue({
+      message: "assistant reply",
+      conversation_id: "conv-no-title",
+      actions_taken: [
+        {
+          tool: "update_subscription",
+          type: "subscription",
+          result: {},
+        },
+      ],
+    });
+
+    const { Wrapper } = createQueryClientWrapper();
+    const { result } = renderHook(() => useChatPageController(), {
+      wrapper: Wrapper,
+    });
+
+    await waitFor(() => {
+      expect(mocks.getConversations).toHaveBeenCalledTimes(1);
+    });
+
+    act(() => {
+      result.current.setInput("Generated optimistic title");
+    });
+
+    await act(async () => {
+      await result.current.handleSend();
+    });
+
+    expect(result.current.currentConvId).toBe("conv-no-title");
+    await waitFor(() => {
+      expect(result.current.conversations[0]).toEqual(
+        expect.objectContaining({
+          id: "conv-no-title",
+          title: "Generated optimistic title",
+        }),
+      );
+    });
+    expect(mocks.toastSuccess).not.toHaveBeenCalled();
+  });
+
+  it("invalidates only category queries when actions do not include subscriptions", async () => {
+    mocks.chat.mockResolvedValue({
+      message: "assistant reply",
+      conversation_id: "conv-category-only",
+      conversation_title: "Category only",
+      actions_taken: [
+        {
+          tool: "update_category",
+          type: "category",
+          result: {},
+        },
+      ],
+    });
+
+    const { client, Wrapper } = createQueryClientWrapper();
+    const invalidateQueries = vi
+      .spyOn(client, "invalidateQueries")
+      .mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useChatPageController(), {
+      wrapper: Wrapper,
+    });
+
+    await waitFor(() => {
+      expect(mocks.getConversations).toHaveBeenCalledTimes(1);
+    });
+
+    act(() => {
+      result.current.setInput("Category only");
+    });
+
+    await act(async () => {
+      await result.current.handleSend();
+    });
+
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: queryKeys.categories.all("user-1"),
+    });
+    expect(invalidateQueries).not.toHaveBeenCalledWith({
+      queryKey: queryKeys.subscriptions.all("user-1"),
+    });
+    expect(invalidateQueries).not.toHaveBeenCalledWith({
+      queryKey: queryKeys.dashboard("user-1"),
+    });
+  });
+
   it("loads an existing conversation and closes the sidebar on mobile", async () => {
     Object.defineProperty(window, "innerWidth", {
       configurable: true,
@@ -368,6 +595,28 @@ describe("useChatPageController", () => {
       await result.current.handleFileSelect({
         target: { files: undefined, value: "none" },
       } as unknown as React.ChangeEvent<HTMLInputElement>);
+    });
+
+    const xlsxFile = new File(["xlsx"], "report.xlsx", {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    Object.defineProperty(xlsxFile, "arrayBuffer", {
+      value: vi.fn().mockResolvedValue(new ArrayBuffer(8)),
+    });
+    mocks.xlsxRead.mockReturnValue({
+      SheetNames: ["Sheet1"],
+      Sheets: { Sheet1: { A1: "value" } },
+    });
+    mocks.xlsxSheetToJson.mockReturnValue([{ service: "Spotify" }]);
+
+    await act(async () => {
+      await result.current.handleFileSelect({
+        target: { files: [xlsxFile], value: "report.xlsx" },
+      } as unknown as React.ChangeEvent<HTMLInputElement>);
+    });
+
+    expect(mocks.xlsxRead).toHaveBeenLastCalledWith(expect.any(Uint8Array), {
+      type: "array",
     });
   });
 
@@ -738,6 +987,11 @@ describe("useChatPageController", () => {
           title: "Old title",
           updated: "2026-03-20T10:00:00Z",
         }),
+        getConversation({
+          id: "conv-3",
+          title: "Keep me",
+          updated: "2026-03-20T11:00:00Z",
+        }),
       ],
     });
 
@@ -760,6 +1014,7 @@ describe("useChatPageController", () => {
 
     expect(mocks.renameConversation).toHaveBeenCalledWith("conv-2", "New title");
     expect(result.current.conversations[0]?.title).toBe("New title");
+    expect(result.current.conversations[1]?.title).toBe("Keep me");
     expect(result.current.editingConvId).toBeNull();
   });
 
@@ -783,6 +1038,29 @@ describe("useChatPageController", () => {
     expect(lastMessage?.role).toBe("assistant");
     expect(lastMessage?.isError).toBe(true);
     expect(lastMessage?.content).toContain("Server 500");
+  });
+
+  it("falls back to the generic translated error when chat rejects with a non-Error value", async () => {
+    mocks.chat.mockRejectedValue("unexpected failure");
+
+    const { Wrapper } = createQueryClientWrapper();
+    const { result } = renderHook(() => useChatPageController(), {
+      wrapper: Wrapper,
+    });
+
+    act(() => {
+      result.current.setInput("Hello");
+    });
+
+    await act(async () => {
+      await result.current.handleSend();
+    });
+
+    expect(result.current.messages.at(-1)).toEqual({
+      role: "assistant",
+      content: "error:chat.error_generic",
+      isError: true,
+    });
   });
 
   it("syncs an existing conversation to the front when syncConversationList finds index > 0 (lines 162-169)", async () => {
@@ -842,6 +1120,61 @@ describe("useChatPageController", () => {
     await waitFor(() => {
       expect(mocks.getConversations).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it("falls back to an empty conversation list when the API payload is malformed", async () => {
+    mocks.getConversations.mockResolvedValue({
+      conversations: { invalid: true },
+    });
+
+    const { Wrapper } = createQueryClientWrapper();
+    const { result } = renderHook(() => useChatPageController(), {
+      wrapper: Wrapper,
+    });
+
+    await waitFor(() => {
+      expect(mocks.getConversations).toHaveBeenCalledTimes(1);
+    });
+
+    expect(result.current.conversations).toEqual([]);
+  });
+
+  it("refreshConversations returns early while auth is loading", async () => {
+    mocks.authState.isLoading = true;
+
+    const { Wrapper } = createQueryClientWrapper();
+    const { result } = renderHook(() => useChatPageController(), {
+      wrapper: Wrapper,
+    });
+
+    await act(async () => {
+      await result.current.refreshConversations();
+    });
+
+    expect(mocks.getConversations).not.toHaveBeenCalled();
+    expect(result.current.convsLoading).toBe(false);
+  });
+
+  it("logs an error when refreshConversations fails", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    mocks.getConversations.mockRejectedValue(new Error("load failed"));
+
+    const { Wrapper } = createQueryClientWrapper();
+    const { result } = renderHook(() => useChatPageController(), {
+      wrapper: Wrapper,
+    });
+
+    await waitFor(() => {
+      expect(consoleError).toHaveBeenCalledWith(
+        "[chat] Failed to load conversations",
+        expect.any(Error),
+      );
+    });
+
+    expect(result.current.conversations).toEqual([]);
+    expect(result.current.convsLoading).toBe(false);
   });
 
   // Lines 339-342: handleLoadConversation early return when same conversation is already loaded
@@ -961,5 +1294,146 @@ describe("useChatPageController", () => {
     expect(result.current.messages).toEqual([
       { role: "assistant", content: "chat.welcome" },
     ]);
+  });
+
+  it("does not create an optimistic conversation when chat returns no conversation id", async () => {
+    mocks.chat.mockResolvedValue({
+      message: "assistant reply",
+      conversation_title: "Untitled",
+      actions_taken: [],
+    });
+
+    const { Wrapper } = createQueryClientWrapper();
+    const { result } = renderHook(() => useChatPageController(), {
+      wrapper: Wrapper,
+    });
+
+    await waitFor(() => {
+      expect(mocks.getConversations).toHaveBeenCalledTimes(1);
+    });
+
+    act(() => {
+      result.current.setInput("No id response");
+    });
+
+    await act(async () => {
+      await result.current.handleSend();
+    });
+
+    expect(result.current.conversations).toEqual([]);
+  });
+
+  it("does not duplicate an optimistic conversation when it already exists", async () => {
+    mocks.getConversations.mockResolvedValue({
+      conversations: [getConversation({ id: "conv-existing", title: "Existing" })],
+    });
+    mocks.chat.mockResolvedValue({
+      message: "assistant reply",
+      conversation_id: "conv-existing",
+      conversation_title: "Existing",
+      actions_taken: [],
+    });
+
+    const { Wrapper } = createQueryClientWrapper();
+    const { result } = renderHook(() => useChatPageController(), {
+      wrapper: Wrapper,
+    });
+
+    await waitFor(() => {
+      expect(result.current.conversations).toHaveLength(1);
+    });
+
+    act(() => {
+      result.current.setInput("Reuse existing conversation");
+    });
+
+    await act(async () => {
+      await result.current.handleSend();
+    });
+
+    expect(result.current.conversations).toHaveLength(1);
+    expect(result.current.conversations[0]).toEqual(
+      expect.objectContaining({ id: "conv-existing" }),
+    );
+  });
+
+  it("adds the truncation note when sending a spreadsheet larger than the max row limit", async () => {
+    mocks.chat.mockResolvedValue({
+      message: "assistant reply",
+      conversation_id: "conv-large-file",
+      conversation_title: "Large file",
+      actions_taken: [],
+    });
+
+    const rows = Array.from({ length: MAX_SPREADSHEET_ROWS + 1 }, (_, index) => ({
+      service: `Service ${index + 1}`,
+    }));
+
+    const { Wrapper } = createQueryClientWrapper();
+    const { result } = renderHook(() => useChatPageController(), {
+      wrapper: Wrapper,
+    });
+
+    act(() => {
+      result.current.setPendingFile({
+        name: "large.csv",
+        rows,
+        headers: ["service"],
+      });
+    });
+
+    await act(async () => {
+      await result.current.handleSend();
+    });
+
+    expect(mocks.chat).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          role: "user",
+          content: expect.stringContaining(
+            `apenas as primeiras ${MAX_SPREADSHEET_ROWS} de ${rows.length} linhas`,
+          ),
+        }),
+      ],
+      null,
+      expect.any(String),
+      expect.any(AbortSignal),
+    );
+  });
+
+  it("retries using the visible user content when aiContent is missing", async () => {
+    mocks.chat.mockResolvedValue({
+      message: "retry success",
+      conversation_id: "conv-retry-fallback",
+      conversation_title: "Retry fallback",
+      actions_taken: [],
+    });
+    mocks.getConversationMessages.mockResolvedValue({
+      conversation: getConversation({ id: "conv-retry-fallback" }),
+      messages: [
+        { role: "user", content: "Visible only" },
+        { role: "assistant", content: "Previous error", isError: true },
+      ],
+    });
+
+    const { Wrapper } = createQueryClientWrapper();
+    const { result } = renderHook(() => useChatPageController(), {
+      wrapper: Wrapper,
+    });
+
+    await act(async () => {
+      await result.current.handleLoadConversation("conv-retry-fallback");
+    });
+
+    await act(async () => {
+      await result.current.handleRetry(1);
+    });
+
+    expect(mocks.chat).toHaveBeenCalledWith(
+      [{ role: "user", content: "Visible only" }],
+      "conv-retry-fallback",
+      "Visible only",
+      expect.any(AbortSignal),
+    );
   });
 });

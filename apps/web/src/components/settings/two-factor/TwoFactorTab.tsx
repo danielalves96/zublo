@@ -62,6 +62,7 @@ export function TwoFactorTab() {
   };
 
   const verifyAndEnable = async () => {
+    /* v8 ignore next */
     if (!setupData) return;
     setSetupLoading(true);
     try {

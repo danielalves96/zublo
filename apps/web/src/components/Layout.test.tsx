@@ -1,5 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 
+import { queryKeys } from "@/lib/queryKeys";
+
 const mocks = vi.hoisted(() => ({
   pathname: "/dashboard",
   aiSettings: { enabled: true },
@@ -15,6 +17,8 @@ const mocks = vi.hoisted(() => ({
   },
   isAdmin: true,
   useQueryEnabled: true as boolean | undefined,
+  capturedQueryKey: undefined as unknown,
+  capturedQueryFn: undefined as (() => unknown) | undefined,
 }));
 
 vi.mock("react-i18next", () => ({
@@ -24,9 +28,15 @@ vi.mock("react-i18next", () => ({
 }));
 
 vi.mock("@tanstack/react-query", () => ({
-  useQuery: (opts: { enabled?: boolean }) => {
+  useQuery: (opts: {
+    enabled?: boolean;
+    queryKey?: unknown;
+    queryFn?: () => unknown;
+  }) => {
     // Track the enabled flag to verify the guard
     mocks.useQueryEnabled = opts.enabled;
+    mocks.capturedQueryKey = opts.queryKey;
+    mocks.capturedQueryFn = opts.queryFn;
     return {
       data: mocks.aiSettings,
     };
@@ -87,6 +97,13 @@ vi.mock("@/services/users", () => ({
   },
 }));
 
+const { mockAiGetSettings } = vi.hoisted(() => ({
+  mockAiGetSettings: vi.fn().mockResolvedValue({}),
+}));
+vi.mock("@/services/ai", () => ({
+  aiService: { getSettings: mockAiGetSettings },
+}));
+
 import { Layout } from "./Layout";
 
 describe("Layout", () => {
@@ -103,6 +120,7 @@ describe("Layout", () => {
       avatar: "avatar.png",
       mobile_navigation: true,
     };
+    mocks.capturedQueryKey = undefined;
     mocks.avatarUrl.mockReturnValue("https://cdn.example.com/avatar.png");
   });
 
@@ -389,5 +407,53 @@ describe("Layout", () => {
     mocks.isAdmin = true;
     render(<Layout />);
     expect(screen.getAllByText("admin").length).toBeGreaterThan(0);
+  });
+
+  it("queryFn calls aiService.getSettings with user id (covers line 48)", async () => {
+    render(<Layout />);
+    await mocks.capturedQueryFn?.();
+    expect(mockAiGetSettings).toHaveBeenCalledWith("user-1");
+  });
+
+  it("uses an empty aiSettings query key and disables the query when user is null", () => {
+    mocks.user = null;
+
+    render(<Layout />);
+
+    expect(mocks.capturedQueryKey).toEqual(queryKeys.aiSettings(""));
+    expect(mocks.useQueryEnabled).toBe(false);
+  });
+
+  it("falls back to email alt text and empty src when avatar url is null", () => {
+    mocks.user = {
+      id: "user-1",
+      name: "",
+      username: "daniel",
+      email: "fallback@example.com",
+      avatar: "avatar.png",
+      mobile_navigation: false,
+    };
+    mocks.avatarUrl.mockReturnValue(null);
+
+    render(<Layout />);
+
+    const img = screen.getByAltText("fallback@example.com");
+    expect(img).toHaveAttribute("src", "");
+  });
+
+  it("clicking admin link calls setSidebarOpen(false) (covers line 161)", () => {
+    render(<Layout />);
+    // Open the sidebar via the mobile header button
+    const header = document.querySelector("header");
+    const menuButton = header?.querySelector("button") as HTMLButtonElement;
+    fireEvent.click(menuButton);
+    // Overlay should be visible
+    expect(document.querySelector(".fixed.inset-0.z-40")).not.toBeNull();
+    // Click the admin Link (data-to="/admin")
+    const adminLink = document.querySelector("button[data-to='/admin']") as HTMLButtonElement;
+    expect(adminLink).not.toBeNull();
+    fireEvent.click(adminLink!);
+    // Sidebar should be closed
+    expect(document.querySelector(".fixed.inset-0.z-40")).toBeNull();
   });
 });

@@ -8,11 +8,8 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (k: string) => k }),
 }));
 
-vi.mock("@/contexts/AuthContext", () => ({
-  useAuth: () => ({ user: { id: "u1" } }),
-}));
-
 const {
+  useAuthMock,
   useAuthQueryMock,
   updateSettings,
   createSettings,
@@ -21,6 +18,7 @@ const {
   toastSuccess,
   toastError,
 } = vi.hoisted(() => ({
+  useAuthMock: vi.fn(),
   useAuthQueryMock: vi.fn(),
   updateSettings: vi.fn(),
   createSettings: vi.fn(),
@@ -28,6 +26,10 @@ const {
   getSettings: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
+}));
+
+vi.mock("@/contexts/AuthContext", () => ({
+  useAuth: useAuthMock,
 }));
 
 // We use real @tanstack/react-query via createQueryClientWrapper
@@ -73,6 +75,7 @@ const defaultSettings = {
 describe("AITab", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    useAuthMock.mockReturnValue({ user: { id: "u1" } });
     useAuthQueryMock.mockReturnValue({
       data: defaultSettings,
       isLoading: false,
@@ -168,6 +171,27 @@ describe("AITab", () => {
     expect(screen.getByText("ai_settings")).toBeInTheDocument();
   });
 
+  it("initializes missing settings fields with fallback defaults", () => {
+    useAuthQueryMock.mockReturnValue({
+      data: {
+        id: "s1",
+        enabled: undefined,
+        name: undefined,
+        url: undefined,
+        model: undefined,
+        api_key_configured: undefined,
+      },
+      isLoading: false,
+    });
+    const { Wrapper } = createQueryClientWrapper();
+    render(<AITab />, { wrapper: Wrapper });
+
+    expect(screen.getByText("ai_disabled_label")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("provider_name_placeholder")).toHaveValue("");
+    expect(screen.getByPlaceholderText("https://api.openai.com/v1")).toHaveValue("");
+    expect(screen.queryByText("remove")).not.toBeInTheDocument();
+  });
+
   it("calls save mutation when switch is toggled", async () => {
     updateSettings.mockResolvedValue({ ...defaultSettings });
     const { Wrapper } = createQueryClientWrapper();
@@ -179,10 +203,16 @@ describe("AITab", () => {
 
   it("calls updateSettings on Save when aiSettings.id exists", async () => {
     updateSettings.mockResolvedValue({ ...defaultSettings });
-    const { Wrapper } = createQueryClientWrapper();
+    const { client, Wrapper } = createQueryClientWrapper();
+    const invalidateQueriesSpy = vi.spyOn(client, "invalidateQueries");
     render(<AITab />, { wrapper: Wrapper });
     fireEvent.click(screen.getByText("save"));
     await waitFor(() => expect(updateSettings).toHaveBeenCalledWith("s1", expect.any(Object)));
+    await waitFor(() =>
+      expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+        queryKey: ["ai_settings", "u1"],
+      }),
+    );
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith("success_save"));
   });
 
@@ -278,6 +308,26 @@ describe("AITab", () => {
     await waitFor(() => expect(toastError).toHaveBeenCalledWith("no_models_found"));
   });
 
+  it("does not fetch models when api url is blank", async () => {
+    const { Wrapper } = createQueryClientWrapper();
+    render(<AITab />, { wrapper: Wrapper });
+
+    fireEvent.change(screen.getByDisplayValue("https://api.openai.com/v1"), {
+      target: { value: "   " },
+    });
+    fireEvent.click(screen.getByText("fetch_models"));
+
+    await waitFor(() => expect(getModels).not.toHaveBeenCalled());
+  });
+
+  it("handles missing models field from fetch response", async () => {
+    getModels.mockResolvedValue({});
+    const { Wrapper } = createQueryClientWrapper();
+    render(<AITab />, { wrapper: Wrapper });
+    fireEvent.click(screen.getByText("fetch_models"));
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith("no_models_found"));
+  });
+
   it("resets model when fetched models don't include current model", async () => {
     getModels.mockResolvedValue({ models: ["claude-3"] });
     const { Wrapper } = createQueryClientWrapper();
@@ -295,18 +345,25 @@ describe("AITab", () => {
     await waitFor(() => expect(toastSuccess).toHaveBeenCalled());
   });
 
-  it("disables the query when user is null (enabled: !!user?.id false branch)", () => {
-    vi.doMock("@/contexts/AuthContext", () => ({
-      useAuth: () => ({ user: null }),
-    }));
-    // When user is null, user?.id is undefined, so !!user?.id is false
-    // and queryKey uses user?.id ?? "" → ""
-    // The query is disabled — useQuery mock still called but enabled would be false
-    // Since we mock useQuery entirely, just verify the component renders without crashing
+  it("uses empty query key and disables query when user is null", () => {
+    let capturedOptions:
+      | {
+          queryKey?: unknown;
+          enabled?: boolean;
+        }
+      | undefined;
+
+    useAuthMock.mockReturnValue({ user: null });
+    useAuthQueryMock.mockImplementation((opts: { queryKey?: unknown; enabled?: boolean }) => {
+      capturedOptions = opts;
+      return { data: null, isLoading: false };
+    });
+
     const { Wrapper } = createQueryClientWrapper();
     render(<AITab />, { wrapper: Wrapper });
     expect(screen.getByText("ai_settings")).toBeInTheDocument();
-    vi.doUnmock("@/contexts/AuthContext");
+    expect(capturedOptions?.queryKey).toEqual(["ai_settings", ""]);
+    expect(capturedOptions?.enabled).toBe(false);
   });
 
   it("handles non-Error exception in fetch models", async () => {
@@ -315,5 +372,128 @@ describe("AITab", () => {
     render(<AITab />, { wrapper: Wrapper });
     fireEvent.click(screen.getByText("fetch_models"));
     await waitFor(() => expect(toastError).toHaveBeenCalled());
+  });
+
+  it("queryFn calls aiService.getSettings with user id (covers line 36)", async () => {
+    let capturedQueryFn: (() => unknown) | undefined;
+    useAuthQueryMock.mockImplementation((opts: { queryFn?: () => unknown }) => {
+      capturedQueryFn = opts.queryFn;
+      return { data: defaultSettings, isLoading: false };
+    });
+    const { Wrapper } = createQueryClientWrapper();
+    render(<AITab />, { wrapper: Wrapper });
+    await capturedQueryFn?.();
+    expect(getSettings).toHaveBeenCalledWith("u1");
+  });
+
+  it("returns early from fetchModels when selector triggers fetch without a URL", async () => {
+    vi.resetModules();
+    useAuthMock.mockReturnValue({ user: { id: "u1" } });
+    useAuthQueryMock.mockReturnValue({
+      data: { ...defaultSettings, url: "   " },
+      isLoading: false,
+    });
+
+    vi.doMock("@/components/settings/ai/AIModelSelector", () => ({
+      AIModelSelector: ({ onFetchModels }: { onFetchModels: () => void }) => (
+        <button type="button" onClick={onFetchModels}>
+          force-fetch
+        </button>
+      ),
+    }));
+
+    const { AITab: IsolatedAITab } = await import("./AITab");
+    const { Wrapper } = createQueryClientWrapper();
+    render(<IsolatedAITab />, { wrapper: Wrapper });
+
+    fireEvent.click(screen.getByText("force-fetch"));
+
+    await waitFor(() => expect(getModels).not.toHaveBeenCalled());
+
+    vi.doUnmock("@/components/settings/ai/AIModelSelector");
+    vi.resetModules();
+  });
+
+  it("invalidates ai settings query when save succeeds", async () => {
+    vi.resetModules();
+    const invalidateQueries = vi.fn();
+
+    vi.doMock("@tanstack/react-query", async () => {
+      const actual = await vi.importActual<typeof import("@tanstack/react-query")>("@tanstack/react-query");
+
+      return {
+        ...actual,
+        useQuery: () => ({ data: defaultSettings, isLoading: false }),
+        useQueryClient: () => ({ invalidateQueries }),
+        useMutation: ({ mutationFn, onSuccess, onError }: {
+          mutationFn: (arg?: unknown) => Promise<unknown>;
+          onSuccess?: () => void;
+          onError?: () => void;
+        }) => ({
+          isPending: false,
+          mutate: (arg?: unknown) => {
+            Promise.resolve(mutationFn(arg)).then(() => onSuccess?.()).catch(() => onError?.());
+          },
+        }),
+      };
+    });
+
+    updateSettings.mockResolvedValue({ ...defaultSettings });
+
+    const { AITab: IsolatedAITab } = await import("./AITab");
+    render(<IsolatedAITab />);
+
+    fireEvent.click(screen.getByText("save"));
+
+    await waitFor(() =>
+      expect(invalidateQueries).toHaveBeenCalledWith({
+        queryKey: ["ai_settings", "u1"],
+      }),
+    );
+
+    vi.doUnmock("@tanstack/react-query");
+    vi.resetModules();
+  });
+
+  it("invalidates ai settings query with empty user key when save succeeds without user", async () => {
+    vi.resetModules();
+    const invalidateQueries = vi.fn();
+    useAuthMock.mockReturnValue({ user: null });
+
+    vi.doMock("@tanstack/react-query", async () => {
+      const actual = await vi.importActual<typeof import("@tanstack/react-query")>("@tanstack/react-query");
+
+      return {
+        ...actual,
+        useQuery: () => ({ data: defaultSettings, isLoading: false }),
+        useQueryClient: () => ({ invalidateQueries }),
+        useMutation: ({ mutationFn, onSuccess, onError }: {
+          mutationFn: (arg?: unknown) => Promise<unknown>;
+          onSuccess?: () => void;
+          onError?: () => void;
+        }) => ({
+          isPending: false,
+          mutate: (arg?: unknown) => {
+            Promise.resolve(mutationFn(arg)).then(() => onSuccess?.()).catch(() => onError?.());
+          },
+        }),
+      };
+    });
+
+    updateSettings.mockResolvedValue({ ...defaultSettings });
+
+    const { AITab: IsolatedAITab } = await import("./AITab");
+    render(<IsolatedAITab />);
+
+    fireEvent.click(screen.getByText("save"));
+
+    await waitFor(() =>
+      expect(invalidateQueries).toHaveBeenCalledWith({
+        queryKey: ["ai_settings", ""],
+      }),
+    );
+
+    vi.doUnmock("@tanstack/react-query");
+    vi.resetModules();
   });
 });

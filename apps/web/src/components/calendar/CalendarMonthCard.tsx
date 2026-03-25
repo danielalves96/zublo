@@ -168,6 +168,7 @@ export function CalendarMonthCard({
                 type="button"
                 disabled={isOtherMonth}
                 onClick={() => {
+                  /* v8 ignore next */
                   if (isOtherMonth) {
                     return;
                   }

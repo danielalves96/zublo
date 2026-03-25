@@ -7,11 +7,13 @@ vi.mock("react-i18next", () => ({
 }));
 
 let mockAuthUser: { id?: string } | null = { id: "u1" };
+let forceEditForMain = false;
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({ user: mockAuthUser }),
 }));
 
 const mockMutate = vi.fn();
+const mockInvalidateQueries = vi.fn();
 const capturedMutOpts: Array<{
   mutationFn?: (...args: unknown[]) => unknown;
   onSuccess?: () => void;
@@ -37,7 +39,7 @@ vi.mock("@tanstack/react-query", () => ({
     capturedMutOpts.push(opts);
     return { mutate: mockMutate, isPending: false };
   },
-  useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+  useQueryClient: () => ({ invalidateQueries: mockInvalidateQueries }),
 }));
 
 const mockCurrenciesUpdate = vi.fn().mockResolvedValue({});
@@ -87,15 +89,48 @@ vi.mock("@/components/ui/confirm-dialog", () => ({
   },
 }));
 
+vi.mock("@/components/settings/currencies/CurrencyListItem", () => ({
+  CurrencyListItem: ({
+    currency,
+    onSetMain,
+    onEdit,
+    onDelete,
+  }: {
+    currency: { id: string; code: string; is_main: boolean };
+    onSetMain?: () => void;
+    onEdit?: () => void;
+    onDelete?: () => void;
+  }) => (
+    <div data-testid={`currency-${currency.id}`}>
+      <span>{currency.code}</span>
+      <button type="button" onClick={onSetMain}>
+        set-main-{currency.id}
+      </button>
+      {(!currency.is_main || forceEditForMain) && (
+        <>
+          <button type="button" onClick={onEdit}>
+            edit-{currency.id}
+          </button>
+          <button type="button" onClick={onDelete}>
+            delete-{currency.id}
+          </button>
+        </>
+      )}
+    </div>
+  ),
+}));
+
 describe("CurrenciesTab", () => {
   beforeEach(() => {
     mockAuthUser = { id: "u1" };
+    forceEditForMain = false;
     currenciesQueryData = {
       data: [{ id: "cu1", name: "Dollar", symbol: "$", code: "USD", user: "u1", is_main: false }],
       isLoading: false,
     };
     fixerQueryData = { data: undefined };
     mockMutate.mockClear();
+    mockInvalidateQueries.mockClear();
     mockCurrenciesCreate.mockClear().mockResolvedValue({});
     mockCurrenciesUpdate.mockClear().mockResolvedValue({});
     mockUsersUpdate.mockClear().mockResolvedValue({});
@@ -389,6 +424,41 @@ describe("CurrenciesTab", () => {
     expect(mockFixerUpdateRates).not.toHaveBeenCalled();
   });
 
+  it("setMainCurrency works with user.id undefined and still runs both invalidate paths", async () => {
+    mockAuthUser = { id: undefined };
+    fixerQueryData = { data: { api_key: "key123" } };
+
+    render(<CurrenciesTab />);
+    const buttons = screen.getAllByRole("button");
+
+    await act(async () => {
+      fireEvent.click(buttons[1]);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mockUsersUpdate).toHaveBeenCalledWith(undefined, { main_currency: "cu1" });
+    expect(mockFixerUpdateRates).toHaveBeenCalled();
+    expect(mockInvalidateQueries).toHaveBeenCalledTimes(2);
+  });
+
+  it("swallows fixer updateRates rejection after main currency update", async () => {
+    fixerQueryData = { data: { api_key: "key123" } };
+    mockFixerUpdateRates.mockRejectedValueOnce(new Error("fixer fail"));
+
+    render(<CurrenciesTab />);
+    const buttons = screen.getAllByRole("button");
+
+    await act(async () => {
+      fireEvent.click(buttons[1]);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mockFixerUpdateRates).toHaveBeenCalled();
+    expect(mockUsersUpdate).toHaveBeenCalledWith("u1", { main_currency: "cu1" });
+  });
+
   // --- mutationFn tests ---
 
   it("createMut mutationFn calls currenciesService.create with user id and currency data", async () => {
@@ -573,6 +643,21 @@ describe("CurrenciesTab", () => {
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
     // The add button is still present
     expect(screen.getByText("add")).toBeInTheDocument();
+  });
+
+  it("edit form wrapper uses main-currency styles when editing a main currency", () => {
+    forceEditForMain = true;
+    currenciesQueryData = {
+      data: [{ id: "cu1", name: "Dollar", symbol: "$", code: "USD", user: "u1", is_main: true }],
+      isLoading: false,
+    };
+
+    render(<CurrenciesTab />);
+    const buttons = screen.getAllByRole("button");
+    fireEvent.click(buttons[2]); // add, set-main, edit
+
+    const wrapperDiv = document.querySelector("[class*='bg-primary/5']");
+    expect(wrapperDiv).toBeInTheDocument();
   });
 
   it("edit form wrapper uses non-main styles when editing a non-main currency", () => {

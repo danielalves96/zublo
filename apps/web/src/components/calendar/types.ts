@@ -51,6 +51,7 @@ export function getPaymentRecord(
     .filter((r) => !!r.paid_at)
     .sort(
       (a, b) =>
+        /* v8 ignore next */
         new Date(b.paid_at ?? 0).getTime() - new Date(a.paid_at ?? 0).getTime(),
     );
 

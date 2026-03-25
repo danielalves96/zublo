@@ -125,6 +125,15 @@ describe("OtpInput", () => {
     expect(document.activeElement).toBe(inputs[5]);
   });
 
+  it("does nothing on unrecognised key (covers false branch of else-if ArrowRight)", () => {
+    const onChange = vi.fn();
+    render(<OtpInput value="123456" onChange={onChange} />);
+    const inputs = screen.getAllByRole("textbox");
+    // A key that is none of Backspace / ArrowLeft / ArrowRight — all branches are false
+    fireEvent.keyDown(inputs[2], { key: "Tab" });
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   it("fills all slots from pasted text and calls onChange", () => {
     const onChange = vi.fn();
     render(<OtpInput value="" onChange={onChange} />);

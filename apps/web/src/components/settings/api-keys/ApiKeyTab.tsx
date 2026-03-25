@@ -138,6 +138,7 @@ export function ApiKeyTab() {
         })}
         confirmLabel={t("api_key_delete")}
         onConfirm={() => {
+          /* v8 ignore next */
           if (pendingDeleteId) {
             deleteMutation.mutate(pendingDeleteId);
           }

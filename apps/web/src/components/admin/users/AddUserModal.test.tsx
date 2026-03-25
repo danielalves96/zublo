@@ -56,6 +56,28 @@ describe("AddUserModal", () => {
     expect(screen.getByRole("heading", { name: /add_user/i })).toBeInTheDocument();
   });
 
+  it("falls back to '?' initials when name, username, and email are all empty", () => {
+    renderComponent();
+
+    expect(screen.getByText("?")).toBeInTheDocument();
+  });
+
+  it("uses username initial when name is empty", async () => {
+    renderComponent();
+
+    await userEvent.type(getInput("input[name=username]")!, "johndoe");
+
+    expect(screen.getByText("J")).toBeInTheDocument();
+  });
+
+  it("uses email initial when name and username are empty", async () => {
+    renderComponent();
+
+    await userEvent.type(getInput("input[name=email]")!, "mail@example.com");
+
+    expect(screen.getByText("M")).toBeInTheDocument();
+  });
+
   it("shows validation errors on empty submission", async () => {
     renderComponent();
 
@@ -227,6 +249,55 @@ describe("AddUserModal", () => {
     // No avatar preview should appear (handleAvatarChange was not called)
     expect(URL.createObjectURL).not.toHaveBeenCalled();
     expect(document.querySelector("img")).toBeNull();
+  });
+
+  it("camera icon button click triggers file input (covers line 109)", async () => {
+    renderComponent();
+    // The camera overlay button has the "scale-0" class (hidden, shows on group hover)
+    const cameraButton = document.querySelector("button.scale-0") as HTMLButtonElement | null;
+    expect(cameraButton).not.toBeNull();
+    // Clicking it calls avatarInputRef.current?.click() — should not throw
+    await userEvent.click(cameraButton!);
+  });
+
+  it("falls back to '?' when watched values make initials nullish", async () => {
+    vi.resetModules();
+    vi.doMock("react-hook-form", async () => {
+      const actual = await vi.importActual<typeof import("react-hook-form")>("react-hook-form");
+
+      return {
+        ...actual,
+        useForm: () => ({
+          register: (name: string) => ({
+            name,
+            onChange: vi.fn(),
+            onBlur: vi.fn(),
+            ref: vi.fn(),
+          }),
+          handleSubmit: () => (event?: Event) => event?.preventDefault(),
+          watch: () => [[] as unknown as string, "", ""],
+          formState: { errors: {}, isSubmitting: false },
+        }),
+      };
+    });
+
+    const [{ AddUserModal: MockedAddUserModal }, reactQuery] = await Promise.all([
+      import("./AddUserModal"),
+      import("@tanstack/react-query"),
+    ]);
+
+    const isolatedQueryClient = new reactQuery.QueryClient();
+
+    render(
+      <reactQuery.QueryClientProvider client={isolatedQueryClient}>
+        <MockedAddUserModal onClose={onCloseMock} />
+      </reactQuery.QueryClientProvider>,
+    );
+
+    expect(screen.getByText("?")).toBeInTheDocument();
+
+    vi.doUnmock("react-hook-form");
+    vi.resetModules();
   });
 
   it("handles string API error fallback", async () => {

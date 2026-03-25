@@ -355,6 +355,34 @@ describe("DayPanel", () => {
     expect(screen.getByText(/3×/)).toBeInTheDocument();
   });
 
+  it("falls back to cycle.name when t returns empty string (covers || cycle.name on line 193)", () => {
+    const entry = {
+      sub: getSubscription({ id: "sub-1", frequency: 1 }),
+      date: new Date(2026, 2, 10),
+    };
+
+    render(
+      <DayPanel
+        day={10}
+        month={3}
+        year={2026}
+        entries={[entry]}
+        total={10}
+        mainCurrency={getCurrency()}
+        currencies={[getCurrency()]}
+        now={new Date(2026, 2, 8)}
+        t={(_key) => ""}
+        paymentTracking={false}
+        paymentRecords={[]}
+        onSelectEntry={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    // t returns "" so the || cycle.name fallback renders "Monthly"
+    expect(screen.getByText("Monthly")).toBeInTheDocument();
+  });
+
   it("shows overdue CircleDot in logo-image div when isOverdue is true and logo exists", () => {
     // getLogoUrl returns a URL (set in beforeEach to "https://cdn.example.com/netflix.png")
     const entry = {

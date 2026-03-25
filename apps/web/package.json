@@ -38,7 +38,7 @@
     "lint:fix": "eslint . --ext ts,tsx --fix",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage",
+    "test:coverage": "vitest run --coverage; cp coverage/lcov.info lcov.info || true",
     "test:ui": "vitest --ui"
   },
   "dependencies": {

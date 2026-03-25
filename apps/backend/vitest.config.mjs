@@ -18,7 +18,7 @@ export default {
       provider: "custom",
       customProviderModule: coverageProviderPath,
       reporter: ["text", "lcov", "html"],
-      reportsDirectory: "/tmp/wallos-backend-hooks-coverage",
+      reportsDirectory: "coverage",
       all: true,
       include: [
         "pb_hooks/lib/totp.js",

@@ -1422,6 +1422,204 @@ describe("SubscriptionFormModal", () => {
     expect(cycleCall).toBeDefined();
   });
 
+  it("resets form with fallback defaults when sub has falsy optional fields (branches 167-175)", () => {
+    const sub = getSubscription({
+      start_date: "",
+      payment_method: "",
+      payer: "",
+      category: "",
+      notes: "",
+      url: "",
+      notify_days_before: 0,
+      cancellation_date: "",
+    });
+
+    render(
+      <SubscriptionFormModal
+        sub={sub}
+        userId="user-1"
+        currencies={[getCurrency()]}
+        categories={[getCategory()]}
+        paymentMethods={[getPaymentMethod()]}
+        household={[getHousehold()]}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    // Form renders with the sub's name; fallback defaults kick in for empty fields
+    expect(screen.getByDisplayValue("Netflix")).toBeInTheDocument();
+  });
+
+  it("defaults currency to first non-main currency when no currency is marked main (branch 192)", () => {
+    // Pass two currencies, neither marked main — currencies[0]?.id should be used as fallback
+    const currencies = [
+      getCurrency({ id: "cur-1", is_main: false }),
+      getCurrency({ id: "cur-2", is_main: false }),
+    ];
+
+    render(
+      <SubscriptionFormModal
+        sub={null}
+        userId="user-1"
+        currencies={currencies}
+        categories={[getCategory()]}
+        paymentMethods={[getPaymentMethod()]}
+        household={[getHousehold()]}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "save" })).toBeInTheDocument();
+  });
+
+  it("sends null payer and payment_method when household and payment method are empty (branch 524)", async () => {
+    // household=[] → payer defaults to "" → body.payer = null
+    render(
+      <SubscriptionFormModal
+        sub={null}
+        userId="user-1"
+        currencies={[getCurrency()]}
+        categories={[]}
+        paymentMethods={[]}
+        household={[]}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(
+      document.querySelector('input[name="name"]') as HTMLInputElement,
+      { target: { value: "Spotify" } },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => {
+      expect(mocks.createSubscription).toHaveBeenCalledWith(
+        expect.objectContaining({ payer: null }),
+      );
+    });
+  });
+
+  it("shows unknown_error toast when thrown value is not an Error instance (branch 579)", async () => {
+    mocks.createSubscription.mockRejectedValue("just a string, not an Error");
+
+    render(
+      <SubscriptionFormModal
+        sub={null}
+        userId="user-1"
+        currencies={[getCurrency()]}
+        categories={[getCategory()]}
+        paymentMethods={[getPaymentMethod()]}
+        household={[getHousehold()]}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(
+      document.querySelector('input[name="name"]') as HTMLInputElement,
+      { target: { value: "Spotify" } },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => {
+      expect(mocks.toastError).toHaveBeenCalledWith("unknown_error");
+    });
+  });
+
+  it("shows price validation error when price is negative (branch 724)", async () => {
+    render(
+      <SubscriptionFormModal
+        sub={null}
+        userId="user-1"
+        currencies={[getCurrency()]}
+        categories={[getCategory()]}
+        paymentMethods={[getPaymentMethod()]}
+        household={[getHousehold()]}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(
+      document.querySelector('input[name="name"]') as HTMLInputElement,
+      { target: { value: "Test" } },
+    );
+    fireEvent.change(screen.getByLabelText("currency-input"), {
+      target: { value: "-5" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => {
+      // errors.price is truthy → error paragraph renders
+      const errParagraph = document.querySelector("p.text-destructive");
+      expect(errParagraph).toBeInTheDocument();
+    });
+  });
+
+  it("shows frequency validation error when frequency is cleared (branch 759)", async () => {
+    render(
+      <SubscriptionFormModal
+        sub={null}
+        userId="user-1"
+        currencies={[getCurrency()]}
+        categories={[getCategory()]}
+        paymentMethods={[getPaymentMethod()]}
+        household={[getHousehold()]}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(
+      document.querySelector('input[name="name"]') as HTMLInputElement,
+      { target: { value: "Test" } },
+    );
+    // Clear frequency to trigger min(1) validation failure
+    fireEvent.change(
+      document.querySelector('input[name="frequency"]') as HTMLInputElement,
+      { target: { value: "" } },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => {
+      const errors = screen.getAllByText("required");
+      expect(errors.length).toBeGreaterThan(0);
+    });
+  });
+
+  it("shows next_payment validation error when next_payment is cleared (branch 794)", async () => {
+    render(
+      <SubscriptionFormModal
+        sub={null}
+        userId="user-1"
+        currencies={[getCurrency()]}
+        categories={[getCategory()]}
+        paymentMethods={[getPaymentMethod()]}
+        household={[getHousehold()]}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(
+      document.querySelector('input[name="name"]') as HTMLInputElement,
+      { target: { value: "Test" } },
+    );
+    fireEvent.change(
+      document.querySelector('input[name="next_payment"]') as HTMLInputElement,
+      { target: { value: "" } },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => {
+      const errors = screen.getAllByText("required");
+      expect(errors.length).toBeGreaterThan(0);
+    });
+  });
+
   // Line 694 right-hand branch: logoUrl-only (logoPreview null) via direct state manipulation test
   // Since the normal UI always sets both logoPreview and logoUrl together, we verify that when
   // only logoUrl would be set, the preview container still renders.

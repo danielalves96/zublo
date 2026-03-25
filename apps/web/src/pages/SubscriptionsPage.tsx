@@ -12,7 +12,7 @@ import {
 } from "@/components/subscriptions/subscriptionsPage.types";
 import { SubscriptionsPageHeader } from "@/components/subscriptions/SubscriptionsPageHeader";
 import { SubscriptionsToolbar } from "@/components/subscriptions/SubscriptionsToolbar";
-import { useFilteredSubscriptions } from "@/components/subscriptions/useFilteredSubscriptions";
+import { useFilteredSubscriptions } from "@/hooks/useFilteredSubscriptions";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { queryKeys } from "@/lib/queryKeys";

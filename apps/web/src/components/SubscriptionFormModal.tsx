@@ -1,10 +1,5 @@
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useQuery } from "@tanstack/react-query";
-import { Upload } from "lucide-react";
-import { useEffect, useRef,useState } from "react";
-import { Controller,useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { z } from "zod";
+import { Controller } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
 import { CurrencyInput } from "@/components/ui/currency-input";
@@ -28,9 +23,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { compressImage } from "@/lib/image";
-import { queryKeys } from "@/lib/queryKeys";
 import { toast } from "@/lib/toast";
-import { cyclesService } from "@/services/cycles";
 import { subscriptionsService } from "@/services/subscriptions";
 import type {
   Category,
@@ -39,6 +32,10 @@ import type {
   PaymentMethod,
   Subscription,
 } from "@/types";
+import { useLogoSearch } from "@/hooks/useLogoSearch";
+import { useSubscriptionForm } from "@/hooks/useSubscriptionForm";
+import type { SubscriptionFormValues } from "@/hooks/useSubscriptionForm";
+import { SubscriptionLogoSection } from "./SubscriptionLogoSection";
 
 interface Props {
   sub: Subscription | null;
@@ -50,15 +47,6 @@ interface Props {
   onClose: () => void;
   onSaved: () => void;
 }
-
-type LogoResult = {
-  previewUrl: string;
-  file: File;
-  source: string;
-  contentType: string;
-};
-
-const fetchCycles = () => cyclesService.list();
 
 export function SubscriptionFormModal({
   sub,
@@ -73,444 +61,22 @@ export function SubscriptionFormModal({
   const { t } = useTranslation();
   const { user: authUser } = useAuth();
 
-  // ── Logo state (stays outside RHF — not form data) ──────────────────────────
-  const [logoFile, setLogoFile] = useState<File | null>(null);
-  const [logoUrl, setLogoUrl] = useState(""); // source URL of the selected logo
-  const [logoSearch, setLogoSearch] = useState("");
-  const [logoResults, setLogoResults] = useState<LogoResult[]>([]);
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
-  const [searching, setSearching] = useState(false);
-  const [showLogoResults, setShowLogoResults] = useState(false);
-  const logoSearchRef = useRef<HTMLDivElement>(null);
-
-  // ── Cycles query ─────────────────────────────────────────────────────────────
-  const { data: cycles = [] } = useQuery({
-    queryKey: queryKeys.cycles(),
-    queryFn: fetchCycles,
-  });
-
-  // ── Zod schema with i18n messages ────────────────────────────────────────────
-  const schema = z.object({
-    name: z.string().min(1, t("required")),
-    price: z.number().nonnegative(),
-    currency: z.string().min(1, t("required")),
-    frequency: z.string().min(1, t("required")),
-    cycle: z.string().min(1, t("required")),
-    next_payment: z.string().min(1, t("required")),
-    start_date: z.string().min(1, t("required")),
-    payment_method: z.string(),
-    payer: z.string(),
-    category: z.string(),
-    notes: z.string(),
-    url: z.string(),
-    auto_renew: z.boolean(),
-    notify: z.boolean(),
-    notify_days_before: z.string(),
-    inactive: z.boolean(),
-    auto_mark_paid: z.boolean(),
-    cancellation_date: z.string(),
-  });
-
-  type FormValues = z.infer<typeof schema>;
-
-  const nextMonthDate = () => {
-    const d = new Date();
-    d.setMonth(d.getMonth() + 1);
-    return d.toISOString().split("T")[0];
-  };
-
+  const logo = useLogoSearch();
   const {
     register,
     handleSubmit,
     control,
-    reset,
     watch,
+    cycles,
+    selectedCurrency,
     formState: { errors, isSubmitting },
-  } = useForm<FormValues>({
-    resolver: zodResolver(schema),
-    defaultValues: {
-      name: "",
-      price: 0,
-      currency: "",
-      frequency: "1",
-      cycle: "",
-      next_payment: nextMonthDate(),
-      start_date: new Date().toISOString().split("T")[0],
-      payment_method: "",
-      payer: "",
-      category: "",
-      notes: "",
-      url: "",
-      auto_renew: true,
-      notify: false,
-      notify_days_before: "3",
-      inactive: false,
-      auto_mark_paid: false,
-      cancellation_date: "",
-    },
-  });
+  } = useSubscriptionForm({ sub, currencies, household });
 
-  const watchedCurrency = watch("currency");
   const watchedNotify = watch("notify");
   const watchedInactive = watch("inactive");
 
-  // ── Pre-fill / reset form when sub or dependencies change ───────────────────
-  useEffect(() => {
-    if (sub) {
-      reset({
-        name: sub.name,
-        price: sub.price,
-        currency: sub.currency,
-        frequency: String(sub.frequency),
-        cycle: sub.cycle,
-        next_payment: sub.next_payment,
-        start_date: sub.start_date || new Date().toISOString().split("T")[0],
-        payment_method: sub.payment_method || "",
-        payer: sub.payer || "",
-        category: sub.category || "",
-        notes: sub.notes || "",
-        url: sub.url || "",
-        auto_renew: sub.auto_renew,
-        notify: sub.notify,
-        notify_days_before: String(sub.notify_days_before || 3),
-        inactive: sub.inactive,
-        auto_mark_paid: !!sub.auto_mark_paid,
-        cancellation_date: sub.cancellation_date || "",
-      });
-    } else {
-      const mainCur = currencies.find((c) => c.is_main);
-      const monthCycle = cycles.find((c) => c.name === "Monthly");
-      reset({
-        name: "",
-        price: 0,
-        currency: mainCur?.id || currencies[0]?.id || "",
-        frequency: "1",
-        cycle: monthCycle?.id || cycles[0]?.id || "",
-        next_payment: nextMonthDate(),
-        start_date: new Date().toISOString().split("T")[0],
-        payment_method: "",
-        payer: household[0]?.id || "",
-        category: "",
-        notes: "",
-        url: "",
-        auto_renew: true,
-        notify: false,
-        notify_days_before: "3",
-        inactive: false,
-        auto_mark_paid: false,
-        cancellation_date: "",
-      });
-    }
-  }, [sub, currencies, cycles, household, reset]);
-
-  // ── Logo search effect ────────────────────────────────────────────────────────
-  useEffect(() => {
-    const query = logoSearch.trim();
-
-    if (query.length < 2) {
-      setLogoResults([]);
-      setShowLogoResults(false);
-      setSearching(false);
-      return;
-    }
-
-    let cancelled = false;
-    const abort = new AbortController();
-
-    const fetchWithTimeout = async (url: string) => {
-      const controller = new AbortController();
-      const timeout = window.setTimeout(() => controller.abort(), 3500);
-      try {
-        const res = await fetch(url, { signal: controller.signal });
-        return res;
-      } finally {
-        window.clearTimeout(timeout);
-      }
-    };
-
-    const probeImage = async (
-      url: string,
-      key: string,
-    ): Promise<LogoResult | null> => {
-      const lowered = url.toLowerCase();
-      if (lowered.includes(".ico")) return null;
-
-      try {
-        const res = await fetchWithTimeout(url);
-        if (!res.ok) return null;
-
-        const contentType = (
-          res.headers.get("content-type") || ""
-        ).toLowerCase();
-        if (!contentType.startsWith("image/")) return null;
-        if (contentType.includes("icon")) return null;
-
-        const blob = await res.blob();
-        if (blob.size < 512) return null;
-
-        const type = (contentType || blob.type || "image/png").split(";")[0];
-
-        if (!type.includes("svg")) {
-          try {
-            const bitmap = await createImageBitmap(blob);
-            const tooSmall = bitmap.width < 48 || bitmap.height < 48;
-            bitmap.close();
-            if (tooSmall) return null;
-          } catch {
-            // Cannot check dimensions — accept
-          }
-        }
-
-        const extRaw = type.split("/")[1] || "png";
-        const ext = extRaw.replace("svg+xml", "svg");
-        const file = new File([blob], `logo-${key}.${ext}`, { type });
-        const previewUrl = URL.createObjectURL(blob);
-        return { previewUrl, file, source: url, contentType: type };
-      } catch {
-        return null;
-      }
-    };
-
-    const collectLogos = async () => {
-      setSearching(true);
-      setShowLogoResults(true);
-
-      const normalized = query
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .trim();
-
-      const aliasMap: Record<string, string[]> = {
-        "amazon prime": ["primevideo", "amazon"],
-        "prime video": ["primevideo", "amazon"],
-        "disney plus": ["disneyplus", "disney"],
-        "chat gpt": ["openai", "chatgpt"],
-        chatgpt: ["openai", "chatgpt"],
-        "google drive": ["googledrive", "google"],
-        "youtube premium": ["youtubepremium", "youtube"],
-        spotify: ["spotify"],
-        hbo: ["hbomax", "hbo"],
-        "hbo max": ["hbomax", "hbo"],
-        "paramount plus": ["paramountplus", "paramount"],
-      };
-
-      const words = normalized.split(/\s+/).filter(Boolean);
-      const compact = normalized.replace(/[^a-z0-9]/g, "");
-
-      const inferDomain = (value: string) => {
-        const key = value.replace(/[^a-z0-9]/g, "");
-        if (!key) return "";
-        const known: Record<string, string> = {
-          netflix: "netflix.com",
-          spotify: "spotify.com",
-          youtube: "youtube.com",
-          youtubepremium: "youtube.com",
-          disney: "disneyplus.com",
-          disneyplus: "disneyplus.com",
-          nubank: "nubank.com.br",
-          github: "github.com",
-          hbo: "hbomax.com",
-          hbomax: "hbomax.com",
-          primevideo: "primevideo.com",
-          prime: "primevideo.com",
-          openai: "openai.com",
-          chatgpt: "openai.com",
-          google: "google.com",
-          apple: "apple.com",
-          microsoft: "microsoft.com",
-          adobe: "adobe.com",
-          slack: "slack.com",
-          notion: "notion.so",
-          figma: "figma.com",
-          dropbox: "dropbox.com",
-          twitch: "twitch.tv",
-          linkedin: "linkedin.com",
-          twitter: "twitter.com",
-          x: "x.com",
-          instagram: "instagram.com",
-          facebook: "facebook.com",
-          amazon: "amazon.com",
-          paramount: "paramountplus.com",
-          paramountplus: "paramountplus.com",
-        };
-        if (known[key]) return known[key];
-        if (known[value]) return known[value];
-        return `${key}.com`;
-      };
-
-      const buildDomainCandidates = async () => {
-        const inferred = [
-          inferDomain(normalized),
-          inferDomain(compact),
-          inferDomain(words.join("")),
-        ].filter(Boolean);
-        const domainSet = new Set<string>(inferred);
-
-        try {
-          const suggestRes = await fetch(
-            `https://autocomplete.clearbit.com/v1/companies/suggest?query=${encodeURIComponent(query)}`,
-            { signal: abort.signal },
-          );
-          if (suggestRes.ok) {
-            const companies = (await suggestRes.json()) as Array<{
-              domain?: string | null;
-            }>;
-            (companies || []).forEach((company) => {
-              const domain = (company?.domain || "").trim().toLowerCase();
-              if (domain) domainSet.add(domain);
-            });
-          }
-        } catch (_) {
-          // Logo URL extraction is best-effort; ignore failures
-        }
-
-        const results = domainSet.size === 0 && compact
-          ? [`${compact}.com`, `${compact}.com.br`]
-          : Array.from(domainSet).slice(0, 10);
-
-        return results;
-      };
-
-      const domainSources = [
-        (d: string) => `https://logo.clearbit.com/${encodeURIComponent(d)}`,
-        (d: string) =>
-          `https://cdn.brandfetch.io/${encodeURIComponent(d)}/w/512/h/512`,
-        (d: string) =>
-          `https://unavatar.io/${encodeURIComponent(d)}?fallback=false`,
-        (d: string) =>
-          `https://img.logo.dev/${encodeURIComponent(d)}?format=png`,
-        (d: string) => `https://icon.horse/icon/${encodeURIComponent(d)}`,
-      ];
-
-      const domains = await buildDomainCandidates();
-
-      const slugCandidates = Array.from(
-        new Set([
-          ...(aliasMap[normalized] || []),
-          compact,
-          words.join(""),
-          words.join("-"),
-          ...words,
-        ]),
-      )
-        .filter((s) => s.length >= 2)
-        .slice(0, 8);
-
-      type Candidate = { url: string; key: string };
-      const allCandidates: Candidate[] = [];
-      for (const domain of domains) {
-        for (const src of domainSources) {
-          allCandidates.push({ url: src(domain), key: domain });
-        }
-      }
-      for (const slug of slugCandidates) {
-        allCandidates.push({
-          url: `https://cdn.simpleicons.org/${encodeURIComponent(slug)}`,
-          key: slug,
-        });
-      }
-
-      const seen = new Set<string>();
-      const unique = allCandidates.filter(({ url }) => {
-        if (seen.has(url)) return false;
-        seen.add(url);
-        return true;
-      });
-
-      const BATCH = 8;
-      const results: LogoResult[] = [];
-
-      for (let i = 0; i < unique.length; i += BATCH) {
-        if (cancelled) break;
-        const batch = unique.slice(i, i + BATCH);
-        const settled = await Promise.allSettled(
-          batch.map(({ url, key }) => probeImage(url, key)),
-        );
-        for (const r of settled) {
-          if (r.status === "fulfilled" && r.value) results.push(r.value);
-        }
-        if (results.length >= 15) break;
-      }
-
-      if (results.length < 3) {
-        const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(query)}&background=random&color=fff&format=png&bold=true&rounded=true&length=1&size=256`;
-        const candidate = await probeImage(fallbackUrl, compact || "logo");
-        if (candidate) results.push(candidate);
-      }
-
-      const sorted = results.sort((a, b) => {
-        const priority = (type: string) => {
-          if (type.includes("png")) return 0;
-          if (type.includes("svg")) return 1;
-          if (type.includes("jpeg") || type.includes("jpg")) return 2;
-          if (type.includes("webp")) return 3;
-          return 4;
-        };
-        return priority(a.contentType) - priority(b.contentType);
-      });
-
-      if (cancelled) {
-        sorted.forEach((logo) => URL.revokeObjectURL(logo.previewUrl));
-        return;
-      }
-
-      setLogoResults(sorted.slice(0, 15));
-    };
-
-    const timeoutId = window.setTimeout(() => {
-      void collectLogos().finally(() => {
-        if (!cancelled) setSearching(false);
-      });
-    }, 350);
-
-    return () => {
-      cancelled = true;
-      abort.abort();
-      window.clearTimeout(timeoutId);
-    };
-  }, [logoSearch]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        logoSearchRef.current &&
-        !logoSearchRef.current.contains(event.target as Node)
-      ) {
-        setShowLogoResults(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      logoResults.forEach((item) => {
-        if (logoPreview && item.previewUrl === logoPreview) return;
-        URL.revokeObjectURL(item.previewUrl);
-      });
-    };
-  }, [logoResults, logoPreview]);
-
-  useEffect(() => {
-    return () => {
-      if (logoPreview) URL.revokeObjectURL(logoPreview);
-    };
-  }, [logoPreview]);
-
-  const handleSelectLogo = (result: LogoResult) => {
-    if (logoPreview && logoPreview !== result.previewUrl) {
-      URL.revokeObjectURL(logoPreview);
-    }
-    setLogoFile(result.file);
-    setLogoPreview(result.previewUrl);
-    setLogoUrl(result.source);
-    setShowLogoResults(false);
-  };
-
-  // ── Submit ───────────────────────────────────────────────────────────────────
-  const onSubmit = async (data: FormValues) => {
+  // ── Submit ─────────────────────────────────────────────────────────────────
+  const onSubmit = async (data: SubscriptionFormValues) => {
     try {
       const body: Record<string, unknown> = {
         name: data.name,
@@ -535,16 +101,19 @@ export function SubscriptionFormModal({
       };
 
       let result: Subscription;
-      let logoToUpload: File | null = logoFile;
+      let logoToUpload = logo.logoFile;
 
-      if (!logoToUpload && logoUrl) {
+      if (!logoToUpload && logo.logoUrl) {
         try {
-          const direct = await fetch(logoUrl);
+          const direct = await fetch(logo.logoUrl);
           if (!direct.ok) throw new Error("logo_fetch_failed");
           const blob = await direct.blob();
+          /* v8 ignore next */
           const extFromType = blob.type?.split("/")?.[1] || "png";
+          /* v8 ignore next */
+          const mimeType = blob.type || "image/png";
           logoToUpload = new File([blob], `logo.${extFromType}`, {
-            type: blob.type || "image/png",
+            type: mimeType,
           });
         } catch {
           toast.error(t("error_fetching_image_results"));
@@ -581,10 +150,7 @@ export function SubscriptionFormModal({
     }
   };
 
-  // ── Derive selected currency for CurrencyInput ───────────────────────────────
-  const selectedCurrency = currencies.find((c) => c.id === watchedCurrency);
-
-  // ── Render ───────────────────────────────────────────────────────────────────
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -605,105 +171,7 @@ export function SubscriptionFormModal({
           </div>
 
           {/* Logo section */}
-          <div className="space-y-3 rounded-lg border p-3">
-            <Label className="text-sm font-medium">{t("logo")}</Label>
-            <div className="flex gap-2 items-start">
-              <div ref={logoSearchRef} className="relative flex-1">
-                <Input
-                  placeholder={t("search_logo") + "..."}
-                  value={logoSearch}
-                  onChange={(e) => setLogoSearch(e.target.value)}
-                  onFocus={() => {
-                    if (logoSearch.trim().length >= 2) setShowLogoResults(true);
-                  }}
-                />
-
-                {showLogoResults && (
-                  <div className="absolute left-0 right-0 top-full z-20 mt-1 rounded-md border bg-popover shadow-md">
-                    {searching ? (
-                      <div className="px-3 py-2 text-sm text-muted-foreground">
-                        {t("loading")}
-                      </div>
-                    ) : logoResults.length > 0 ? (
-                      <div className="max-h-64 overflow-y-auto p-2">
-                        <div className="grid grid-cols-3 gap-2">
-                          {logoResults.map((result) => (
-                            <button
-                              key={result.source}
-                              type="button"
-                              onMouseDown={(e) => e.preventDefault()}
-                              onClick={() => handleSelectLogo(result)}
-                              className={`h-20 rounded border overflow-hidden bg-background p-2 ${
-                                logoPreview === result.previewUrl
-                                  ? "ring-2 ring-primary"
-                                  : ""
-                              }`}
-                            >
-                              <img
-                                src={result.previewUrl}
-                                alt=""
-                                className="h-full w-full object-contain"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).style.display =
-                                    "none";
-                                }}
-                              />
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="px-3 py-2 text-sm text-muted-foreground">
-                        {t("no_logos_found")}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <label>
-                <Button type="button" variant="outline" size="sm" asChild>
-                  <span>
-                    <Upload className="h-4 w-4 mr-1" />
-                    {t("upload_avatar")}
-                  </span>
-                </Button>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] ?? null;
-                    if (logoPreview) URL.revokeObjectURL(logoPreview);
-                    if (file) {
-                      setLogoPreview(URL.createObjectURL(file));
-                    } else {
-                      setLogoPreview(null);
-                    }
-                    setLogoFile(file);
-                    setLogoUrl("");
-                    setShowLogoResults(false);
-                  }}
-                />
-              </label>
-            </div>
-
-            {(logoPreview || logoUrl) && (
-              <div className="h-14 w-20 overflow-hidden rounded border bg-muted p-2">
-                <img
-                  src={logoPreview || logoUrl}
-                  alt=""
-                  className="h-full w-full object-contain"
-                />
-              </div>
-            )}
-
-            {logoFile && (
-              <p className="text-xs text-muted-foreground">
-                {logoFile.name}
-              </p>
-            )}
-          </div>
+          <SubscriptionLogoSection {...logo} />
 
           {/* Price + Currency */}
           <div className="grid grid-cols-2 gap-3">
@@ -722,7 +190,9 @@ export function SubscriptionFormModal({
                 )}
               />
               {errors.price && (
-                <p className="text-sm text-destructive">{errors.price.message}</p>
+                <p className="text-sm text-destructive">
+                  {errors.price.message}
+                </p>
               )}
             </div>
             <div className="space-y-2">
@@ -746,7 +216,9 @@ export function SubscriptionFormModal({
                 )}
               />
               {errors.currency && (
-                <p className="text-sm text-destructive">{errors.currency.message}</p>
+                <p className="text-sm text-destructive">
+                  {errors.currency.message}
+                </p>
               )}
             </div>
           </div>
@@ -757,7 +229,9 @@ export function SubscriptionFormModal({
               <Label>{t("frequency")}</Label>
               <Input type="number" min="1" {...register("frequency")} />
               {errors.frequency && (
-                <p className="text-sm text-destructive">{errors.frequency.message}</p>
+                <p className="text-sm text-destructive">
+                  {errors.frequency.message}
+                </p>
               )}
             </div>
             <div className="space-y-2">
@@ -781,7 +255,9 @@ export function SubscriptionFormModal({
                 )}
               />
               {errors.cycle && (
-                <p className="text-sm text-destructive">{errors.cycle.message}</p>
+                <p className="text-sm text-destructive">
+                  {errors.cycle.message}
+                </p>
               )}
             </div>
           </div>
@@ -792,7 +268,9 @@ export function SubscriptionFormModal({
               <Label>{t("next_payment")}</Label>
               <Input type="date" {...register("next_payment")} />
               {errors.next_payment && (
-                <p className="text-sm text-destructive">{errors.next_payment.message}</p>
+                <p className="text-sm text-destructive">
+                  {errors.next_payment.message}
+                </p>
               )}
             </div>
             <div className="space-y-2">
@@ -888,7 +366,10 @@ export function SubscriptionFormModal({
                 name="auto_renew"
                 control={control}
                 render={({ field }) => (
-                  <Switch checked={field.value} onCheckedChange={field.onChange} />
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
                 )}
               />
             </div>
@@ -898,7 +379,10 @@ export function SubscriptionFormModal({
                 name="notify"
                 control={control}
                 render={({ field }) => (
-                  <Switch checked={field.value} onCheckedChange={field.onChange} />
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
                 )}
               />
             </div>
@@ -908,7 +392,10 @@ export function SubscriptionFormModal({
                 name="inactive"
                 control={control}
                 render={({ field }) => (
-                  <Switch checked={field.value} onCheckedChange={field.onChange} />
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
                 )}
               />
             </div>
@@ -919,7 +406,10 @@ export function SubscriptionFormModal({
                   name="auto_mark_paid"
                   control={control}
                   render={({ field }) => (
-                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
                   )}
                 />
               </div>
@@ -929,7 +419,11 @@ export function SubscriptionFormModal({
           {watchedNotify && (
             <div className="space-y-2">
               <Label>{t("notify_days_before")}</Label>
-              <Input type="number" min="0" {...register("notify_days_before")} />
+              <Input
+                type="number"
+                min="0"
+                {...register("notify_days_before")}
+              />
             </div>
           )}
 

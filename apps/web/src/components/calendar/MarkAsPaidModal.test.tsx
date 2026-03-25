@@ -11,6 +11,10 @@ const { create, update, listForSubscription, proofUrl } = vi.hoisted(() => ({
   proofUrl: vi.fn(),
 }));
 
+const { subscriptionsLogoUrl } = vi.hoisted(() => ({
+  subscriptionsLogoUrl: vi.fn(),
+}));
+
 const { toastSuccess, toastError } = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
@@ -29,6 +33,12 @@ vi.mock("@/lib/toast", () => ({
   toast: {
     success: toastSuccess,
     error: toastError,
+  },
+}));
+
+vi.mock("@/services/subscriptions", () => ({
+  subscriptionsService: {
+    logoUrl: subscriptionsLogoUrl,
   },
 }));
 
@@ -89,6 +99,7 @@ describe("MarkAsPaidModal", () => {
     update.mockResolvedValue({ id: "updated-1" });
     listForSubscription.mockResolvedValue([]);
     proofUrl.mockReturnValue("https://example.com/proof.pdf");
+    subscriptionsLogoUrl.mockReturnValue(null);
   });
 
   it("renders a read-only payment when the record is already paid", () => {
@@ -194,6 +205,15 @@ describe("MarkAsPaidModal", () => {
     await waitFor(() => expect(toastError).toHaveBeenCalledWith("save failed"));
   });
 
+  it("falls back to the generic translated error when the mutation rejects with a non-Error value", async () => {
+    create.mockRejectedValue("unexpected");
+    renderComponent();
+
+    await userEvent.click(screen.getByRole("button", { name: "confirm_payment" }));
+
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith("error"));
+  });
+
   it("shows error when update returns no id", async () => {
     update.mockResolvedValue({});
     renderComponent({
@@ -208,6 +228,41 @@ describe("MarkAsPaidModal", () => {
     await userEvent.click(screen.getByRole("button", { name: "confirm_payment" }));
 
     await waitFor(() => expect(toastError).toHaveBeenCalledWith("Falha ao atualizar registro de pagamento"));
+  });
+
+  it("falls back to sub.price when the entered amount is invalid or zero", async () => {
+    renderComponent({
+      id: "rec-1",
+      subscription_id: "sub-1",
+      user: "user-1",
+      due_date: "2026-03-20",
+      amount: 45,
+      notes: "",
+    });
+
+    await userEvent.clear(screen.getByLabelText("amount"));
+    await userEvent.type(screen.getByLabelText("amount"), "0");
+    await userEvent.click(screen.getByRole("button", { name: "confirm_payment" }));
+
+    await waitFor(() =>
+      expect(update).toHaveBeenCalledWith(
+        "rec-1",
+        expect.objectContaining({
+          amount: sub.price,
+        }),
+      ),
+    );
+  });
+
+  it("shows translated create failure when create returns no id", async () => {
+    create.mockResolvedValue({});
+    renderComponent();
+
+    await userEvent.click(screen.getByRole("button", { name: "confirm_payment" }));
+
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith("failed_create_payment_record"),
+    );
   });
 
   it("uses sub.price as initial amount when existingRecord has no amount (line 54 false branch)", () => {
@@ -282,6 +337,47 @@ describe("MarkAsPaidModal", () => {
     await fireEvent.click(allButtons.find(b => b.textContent === "") || allButtons[1]);
     
     // upload_proof button should return
+    expect(screen.getByRole("button", { name: "upload_proof" })).toBeInTheDocument();
+  });
+
+  it("renders the service logo and falls back to the default currency symbol when expand.currency is missing", () => {
+    subscriptionsLogoUrl.mockReturnValue("https://cdn.example.com/netflix.png");
+    const subWithoutExpandedCurrency: Subscription = {
+      ...sub,
+      expand: undefined,
+    };
+
+    const onClose = vi.fn();
+    const onSaved = vi.fn();
+    const { Wrapper } = createQueryClientWrapper();
+
+    render(
+      <MarkAsPaidModal
+        sub={subWithoutExpandedCurrency}
+        date={new Date("2026-03-20T12:00:00.000Z")}
+        userId="user-1"
+        existingRecord={undefined}
+        onClose={onClose}
+        onSaved={onSaved}
+        t={(key: string) => key}
+      />,
+      { wrapper: Wrapper },
+    );
+
+    expect(document.querySelector("img")).toHaveAttribute(
+      "src",
+      "https://cdn.example.com/netflix.png",
+    );
+    expect(screen.getAllByText("$").length).toBeGreaterThan(0);
+    expect(screen.queryByText("BRL")).not.toBeInTheDocument();
+  });
+
+  it("keeps the upload state empty when the file input change event has no files", () => {
+    renderComponent();
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(fileInput, { target: { files: [] } });
+
     expect(screen.getByRole("button", { name: "upload_proof" })).toBeInTheDocument();
   });
 });

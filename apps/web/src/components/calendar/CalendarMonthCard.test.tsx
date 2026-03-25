@@ -235,6 +235,65 @@ describe("CalendarMonthCard", () => {
     expect(screen.getByText("1 event")).toBeInTheDocument();
   });
 
+  it("hides the stats badge and today button when already on the current month with zero stats", () => {
+    render(
+      <CalendarMonthCard
+        month={4}
+        year={2026}
+        now={new Date(2026, 3, 20)}
+        daysInMonth={30}
+        isCurrentMonth={true}
+        loading={false}
+        statsCount={0}
+        selectedDay={null}
+        allCells={[{ day: 20, type: "current" }]}
+        entriesByDay={{}}
+        mainCurrency={getCurrency()}
+        currencyById={new Map([["cur-1", getCurrency()]])}
+        paymentTracking={false}
+        paymentRecords={[]}
+        onPrev={vi.fn()}
+        onNext={vi.fn()}
+        onGoToday={vi.fn()}
+        onSelectDay={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText(/events?/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "today" })).not.toBeInTheDocument();
+  });
+
+  it("highlights today and hides entries while loading", () => {
+    render(
+      <CalendarMonthCard
+        month={4}
+        year={2026}
+        now={new Date(2026, 3, 10)}
+        daysInMonth={30}
+        isCurrentMonth={true}
+        loading={true}
+        statsCount={0}
+        selectedDay={null}
+        allCells={[{ day: 10, type: "current" }]}
+        entriesByDay={{
+          10: [{ sub: getSubscription(), date: new Date(2026, 3, 10) }],
+        }}
+        mainCurrency={getCurrency()}
+        currencyById={new Map([["cur-1", getCurrency()]])}
+        paymentTracking={false}
+        paymentRecords={[]}
+        onPrev={vi.fn()}
+        onNext={vi.fn()}
+        onGoToday={vi.fn()}
+        onSelectDay={vi.fn()}
+      />,
+    );
+
+    const dayBadge = screen.getByText("10");
+    expect(dayBadge.className).toContain("bg-primary");
+    expect(screen.queryByText("Netflix")).not.toBeInTheDocument();
+  });
+
   it("renders image logo directly without paymentTracking and handles onError", () => {
     const subscriptionA = getSubscription({ id: "sub-1", name: "Netflix", price: 10 });
     mocks.getLogoUrl.mockReturnValue("https://cdn.example.com/netflix.png");
@@ -271,5 +330,112 @@ describe("CalendarMonthCard", () => {
     const img = document.querySelector("img") as HTMLImageElement;
     fireEvent.error(img);
     expect(img.style.display).toBe("none");
+  });
+
+  it("shows overdue payment indicator when payment tracking is enabled and the entry is unpaid", () => {
+    const subscription = getSubscription({ id: "sub-overdue", name: "Overdue" });
+    mocks.getLogoUrl.mockReturnValue("https://cdn.example.com/overdue.png");
+    mocks.getPaymentRecord.mockReturnValue(undefined);
+
+    const { container } = render(
+      <CalendarMonthCard
+        month={4}
+        year={2026}
+        now={new Date(2026, 3, 15)}
+        daysInMonth={30}
+        isCurrentMonth={true}
+        loading={false}
+        statsCount={1}
+        selectedDay={null}
+        allCells={[{ day: 10, type: "current" }]}
+        entriesByDay={{
+          10: [{ sub: subscription, date: new Date(2026, 3, 10) }],
+        }}
+        mainCurrency={getCurrency()}
+        currencyById={new Map([["cur-1", getCurrency()]])}
+        paymentTracking
+        paymentRecords={[]}
+        onPrev={vi.fn()}
+        onNext={vi.fn()}
+        onGoToday={vi.fn()}
+        onSelectDay={vi.fn()}
+      />,
+    );
+
+    expect(container.querySelector(".text-red-500")).not.toBeNull();
+    expect(container.querySelector("img")).toBeNull();
+  });
+
+  it("renders the logo with no payment status icon when tracking is enabled for a future unpaid entry", () => {
+    const subscription = getSubscription({ id: "sub-future", name: "Future" });
+    mocks.getLogoUrl.mockReturnValue("https://cdn.example.com/future.png");
+    mocks.getPaymentRecord.mockReturnValue(undefined);
+
+    const { container } = render(
+      <CalendarMonthCard
+        month={4}
+        year={2026}
+        now={new Date(2026, 3, 10)}
+        daysInMonth={30}
+        isCurrentMonth={true}
+        loading={false}
+        statsCount={1}
+        selectedDay={null}
+        allCells={[{ day: 20, type: "current" }]}
+        entriesByDay={{
+          20: [{ sub: subscription, date: new Date(2026, 3, 20) }],
+        }}
+        mainCurrency={getCurrency()}
+        currencyById={new Map([["cur-1", getCurrency()]])}
+        paymentTracking
+        paymentRecords={[]}
+        onPrev={vi.fn()}
+        onNext={vi.fn()}
+        onGoToday={vi.fn()}
+        onSelectDay={vi.fn()}
+      />,
+    );
+
+    expect(container.querySelector(".text-red-500")).toBeNull();
+    expect(container.querySelector(".text-green-500")).toBeNull();
+    expect(container.querySelector("img")).not.toBeNull();
+  });
+
+  it("renders the fallback initial and hides the entry price when there is no logo or main currency", () => {
+    const subscription = getSubscription({
+      id: "sub-no-logo",
+      name: "Archive",
+      price: 15,
+    });
+    mocks.getLogoUrl.mockReturnValue(null);
+
+    render(
+      <CalendarMonthCard
+        month={4}
+        year={2026}
+        now={new Date(2026, 3, 15)}
+        daysInMonth={30}
+        isCurrentMonth={true}
+        loading={false}
+        statsCount={1}
+        selectedDay={null}
+        allCells={[{ day: 10, type: "current" }]}
+        entriesByDay={{
+          10: [{ sub: subscription, date: new Date(2026, 3, 10) }],
+        }}
+        mainCurrency={undefined}
+        currencyById={new Map([["cur-1", getCurrency()]])}
+        paymentTracking={false}
+        paymentRecords={[]}
+        onPrev={vi.fn()}
+        onNext={vi.fn()}
+        onGoToday={vi.fn()}
+        onSelectDay={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("A")).toBeInTheDocument();
+    expect(screen.getByText("Archive")).toBeInTheDocument();
+    expect(screen.queryByText("15.00 $")).not.toBeInTheDocument();
   });
 });

@@ -258,6 +258,82 @@ describe("useFilteredSubscriptions", () => {
     expect(result.current).toHaveLength(0);
   });
 
+  it("excludes subscription when member filter is set and payer is undefined", () => {
+    const subscriptions = [
+      getSubscription({
+        id: "sub-1",
+        name: "Netflix",
+        payer: undefined,
+      }),
+    ];
+
+    const { result } = renderHook(() =>
+      useFilteredSubscriptions({
+        subscriptions,
+        searchTerm: "",
+        filters: {
+          state: "active",
+          categories: [],
+          members: ["daniel"],
+          payments: [],
+        },
+        sort: "name",
+        sortDir: "asc",
+      }),
+    );
+
+    expect(result.current).toHaveLength(0);
+  });
+
+  it("excludes subscription when payment filter is set and payment method is undefined", () => {
+    const subscriptions = [
+      getSubscription({
+        id: "sub-1",
+        name: "Netflix",
+        payment_method: undefined,
+      }),
+    ];
+
+    const { result } = renderHook(() =>
+      useFilteredSubscriptions({
+        subscriptions,
+        searchTerm: "",
+        filters: {
+          state: "active",
+          categories: [],
+          members: [],
+          payments: ["visa"],
+        },
+        sort: "name",
+        sortDir: "asc",
+      }),
+    );
+
+    expect(result.current).toHaveLength(0);
+  });
+
+  it("leaves comparison at zero when sort key is unsupported at runtime", () => {
+    const subscriptions = [
+      getSubscription({ id: "sub-1", name: "Netflix" }),
+      getSubscription({ id: "sub-2", name: "Spotify" }),
+    ];
+
+    const { result } = renderHook(() =>
+      useFilteredSubscriptions({
+        subscriptions,
+        searchTerm: "",
+        filters: INITIAL_SUBSCRIPTION_FILTERS,
+        sort: "unsupported" as SubscriptionSortKey,
+        sortDir: "asc",
+      }),
+    );
+
+    expect(result.current.map((subscription) => subscription.id)).toEqual([
+      "sub-1",
+      "sub-2",
+    ]);
+  });
+
   it("moves inactive subscriptions to the bottom after sorting", () => {
     const subscriptions = [
       getSubscription({ id: "sub-1", name: "Zulu", inactive: false }),

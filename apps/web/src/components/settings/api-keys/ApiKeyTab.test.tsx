@@ -28,8 +28,9 @@ vi.mock("@/services/apiKeys", () => ({
   },
 }));
 
+let mockAuthUser: { id?: string } | null = { id: "user-1" };
 vi.mock("@/contexts/AuthContext", () => ({
-  useAuth: () => ({ user: { id: "user-1" } }),
+  useAuth: () => ({ user: mockAuthUser }),
 }));
 
 vi.mock("@/lib/toast", () => ({
@@ -163,6 +164,7 @@ function makeKey(id: string, name = `Key ${id}`) {
 describe("ApiKeyTab", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockAuthUser = { id: "user-1" };
     apiKeysList.mockResolvedValue([]);
     apiKeysCreate.mockResolvedValue({ id: "new-id", key: "secret", name: "new-key" });
     apiKeysUpdate.mockResolvedValue(makeKey("key-1", "updated-name"));
@@ -402,18 +404,11 @@ describe("ApiKeyTab", () => {
     await waitFor(() => expect(toastError).toHaveBeenCalled());
   });
 
-  it("renders with empty userId when user is null", async () => {
-    // Override useAuth to return null user — userId falls back to ""
-    vi.doMock("@/contexts/AuthContext", () => ({
-      useAuth: () => ({ user: null }),
-    }));
-    // The query will not be enabled (!!userId is false) so apiKeysList is not called
+  it("renders with empty userId when user is null (covers ?? '' branch on line 26)", async () => {
+    mockAuthUser = null;
     const { Wrapper } = createQueryClientWrapper();
-    // Re-import after mock override — but since vi.mock hoisting makes this tricky,
-    // just verify the component renders without crashing when userId is ""
     render(<ApiKeyTab />, { wrapper: Wrapper });
     await waitFor(() => expect(screen.getByTestId("endpoints-ref")).toBeInTheDocument());
-    vi.doUnmock("@/contexts/AuthContext");
   });
 
   it("does not call update mutation when onSubmit is called with no pendingEditKey", async () => {

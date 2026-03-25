@@ -6,12 +6,17 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (k: string) => k }),
 }));
 
+const { useAuthMock } = vi.hoisted(() => ({
+  useAuthMock: vi.fn(),
+}));
+
 vi.mock("@/contexts/AuthContext", () => ({
-  useAuth: () => ({ user: { id: "u1" } }),
+  useAuth: useAuthMock,
 }));
 
 // Capture the onDragEnd handler so tests can invoke it directly
 let capturedOnDragEnd: ((result: unknown) => void) | null = null;
+let mockDraggableIsDragging = false;
 
 vi.mock("@hello-pangea/dnd", () => ({
   DragDropContext: ({ children, onDragEnd }: { children: React.ReactNode; onDragEnd: (result: unknown) => void }) => {
@@ -23,7 +28,7 @@ vi.mock("@hello-pangea/dnd", () => ({
   Draggable: ({ children }: { children: (provided: object, snapshot: object) => React.ReactNode }) =>
     children(
       { innerRef: vi.fn(), draggableProps: {}, dragHandleProps: {} },
-      { isDragging: false },
+      { isDragging: mockDraggableIsDragging },
     ),
 }));
 
@@ -74,12 +79,24 @@ let mockUseQueryData: { data: unknown[]; isLoading: boolean } = {
   data: [{ id: "pm1", name: "Visa", icon: "", user: "u1", order: 0 }],
   isLoading: false,
 };
+let capturedUseQueryOptions:
+  | {
+      queryKey?: unknown;
+      queryFn?: () => unknown;
+      enabled?: boolean;
+    }
+  | undefined;
 
 const mockSetQueryData = vi.fn();
 const mockInvalidateQueries = vi.fn();
+const mockPaymentMethodsList = vi.fn();
+const mockPaymentMethodsDelete = vi.fn().mockResolvedValue({});
 
 vi.mock("@tanstack/react-query", () => ({
-  useQuery: () => mockUseQueryData,
+  useQuery: (opts: { queryKey?: unknown; queryFn?: () => unknown; enabled?: boolean }) => {
+    capturedUseQueryOptions = opts;
+    return mockUseQueryData;
+  },
   useMutation: (opts: { mutationFn?: (...args: unknown[]) => unknown; onSuccess?: () => void; onError?: () => void }) => {
     capturedMutOpts.push(opts);
     return { mutate: mockMutate, isPending: false };
@@ -92,10 +109,10 @@ const mockPaymentMethodsCreate = vi.fn().mockResolvedValue({});
 const mockIconUrl = vi.fn((_method?: unknown) => null as string | null);
 vi.mock("@/services/paymentMethods", () => ({
   paymentMethodsService: {
-    list: vi.fn(),
+    list: (...args: unknown[]) => mockPaymentMethodsList(...args),
     create: (...args: unknown[]) => mockPaymentMethodsCreate(...args),
     update: (...args: unknown[]) => mockPaymentMethodsUpdate(...args),
-    delete: vi.fn(),
+    delete: (...args: unknown[]) => mockPaymentMethodsDelete(...args),
     iconUrl: (method: unknown) => mockIconUrl(method),
     getIconUrl: vi.fn(() => null),
   },
@@ -133,13 +150,17 @@ Object.defineProperty(globalThis.URL, "revokeObjectURL", {
 
 describe("PaymentMethodsTab", () => {
   beforeEach(() => {
+    useAuthMock.mockReturnValue({ user: { id: "u1" } });
     mockUseQueryData = {
       data: [{ id: "pm1", name: "Visa", icon: "", user: "u1", order: 0 }],
       isLoading: false,
     };
+    capturedUseQueryOptions = undefined;
     mockMutate.mockClear();
     mockPaymentMethodsUpdate.mockClear().mockResolvedValue({});
     mockPaymentMethodsCreate.mockClear().mockResolvedValue({});
+    mockPaymentMethodsList.mockClear();
+    mockPaymentMethodsDelete.mockClear().mockResolvedValue({});
     mockSetQueryData.mockClear();
     mockInvalidateQueries.mockClear();
     mockRevokeObjectURL.mockClear();
@@ -147,11 +168,20 @@ describe("PaymentMethodsTab", () => {
     capturedMutOpts.length = 0;
     capturedIconPickerProps.length = 0;
     capturedOnDragEnd = null;
+    mockDraggableIsDragging = false;
   });
 
   it("renders heading", () => {
     render(<PaymentMethodsTab />);
     expect(screen.getByText("payment_methods")).toBeInTheDocument();
+  });
+
+  it("uses user id in queryFn and disables query when user is null", async () => {
+    render(<PaymentMethodsTab />);
+    await capturedUseQueryOptions?.queryFn?.();
+    expect(capturedUseQueryOptions?.queryKey).toEqual(["paymentMethods"]);
+    expect(capturedUseQueryOptions?.enabled).toBe(true);
+    expect(mockPaymentMethodsList).toHaveBeenCalledWith("u1");
   });
 
   it("renders existing payment method names", () => {
@@ -386,6 +416,25 @@ describe("PaymentMethodsTab", () => {
       deleteOpts.onError?.();
     });
     expect(toast.error).toHaveBeenCalledWith("error");
+  });
+
+  it("deleteMut mutationFn calls paymentMethodsService.delete", async () => {
+    render(<PaymentMethodsTab />);
+    await capturedMutOpts[2].mutationFn?.("pm1");
+    expect(mockPaymentMethodsDelete).toHaveBeenCalledWith("pm1");
+  });
+
+  it("mutation success callbacks still invalidate queries when user is null", () => {
+    useAuthMock.mockReturnValue({ user: null });
+    render(<PaymentMethodsTab />);
+
+    act(() => {
+      capturedMutOpts[0].onSuccess?.();
+      capturedMutOpts[1].onSuccess?.();
+      capturedMutOpts[2].onSuccess?.();
+    });
+
+    expect(mockInvalidateQueries).toHaveBeenCalledTimes(3);
   });
 
   // --- Icon upload / clear in add form ---
@@ -764,6 +813,18 @@ describe("PaymentMethodsTab", () => {
     expect(mockRevokeObjectURL).toHaveBeenCalledWith("blob:fake-url");
   });
 
+  it("add form onClear: does not revoke when preview is null", () => {
+    render(<PaymentMethodsTab />);
+    fireEvent.click(screen.getByText("add"));
+
+    const addPickerProps = capturedIconPickerProps[capturedIconPickerProps.length - 1];
+    act(() => {
+      addPickerProps.onClear();
+    });
+
+    expect(mockRevokeObjectURL).not.toHaveBeenCalled();
+  });
+
   // --- Drag-and-drop: handleDragEnd ---
 
   it("handleDragEnd: no-ops when destination is null", () => {
@@ -821,6 +882,27 @@ describe("PaymentMethodsTab", () => {
     expect(mockPaymentMethodsUpdate).toHaveBeenCalledWith("pm1", { order: 1 });
   });
 
+  it("handleDragEnd: skips unchanged items and still uses fallback user key when user is null", async () => {
+    mockUseQueryData = {
+      data: [
+        { id: "pm1", name: "Visa", icon: "", user: "u1", order: 0 },
+        { id: "pm2", name: "Mastercard", icon: "", user: "u1", order: 1 },
+        { id: "pm3", name: "Cash", icon: "", user: "u1", order: 2 },
+      ],
+      isLoading: false,
+    };
+    useAuthMock.mockReturnValue({ user: null });
+    render(<PaymentMethodsTab />);
+    await act(async () => {
+      capturedOnDragEnd!({ source: { index: 0 }, destination: { index: 1 } });
+    });
+
+    expect(mockSetQueryData).toHaveBeenCalled();
+    expect(mockPaymentMethodsUpdate).toHaveBeenCalledWith("pm2", { order: 0 });
+    expect(mockPaymentMethodsUpdate).toHaveBeenCalledWith("pm1", { order: 1 });
+    expect(mockPaymentMethodsUpdate).not.toHaveBeenCalledWith("pm3", { order: 2 });
+  });
+
   it("handleDragEnd: calls invalidateQueries when update fails", async () => {
     mockUseQueryData = {
       data: [
@@ -834,6 +916,24 @@ describe("PaymentMethodsTab", () => {
     await act(async () => {
       capturedOnDragEnd!({ source: { index: 0 }, destination: { index: 1 } });
     });
+    expect(mockInvalidateQueries).toHaveBeenCalled();
+  });
+
+  it("handleDragEnd: invalidates queries on failed reorder update when user is null", async () => {
+    mockUseQueryData = {
+      data: [
+        { id: "pm1", name: "Visa", icon: "", user: "u1", order: 0 },
+        { id: "pm2", name: "Mastercard", icon: "", user: "u1", order: 1 },
+      ],
+      isLoading: false,
+    };
+    useAuthMock.mockReturnValue({ user: null });
+    mockPaymentMethodsUpdate.mockRejectedValue(new Error("network fail"));
+    render(<PaymentMethodsTab />);
+    await act(async () => {
+      capturedOnDragEnd!({ source: { index: 0 }, destination: { index: 1 } });
+    });
+
     expect(mockInvalidateQueries).toHaveBeenCalled();
   });
 
@@ -854,5 +954,18 @@ describe("PaymentMethodsTab", () => {
     const props = capturedConfirmProps[capturedConfirmProps.length - 1];
     act(() => { props.onOpenChange?.(true); });
     expect(screen.getByTestId("confirm-dialog")).toBeInTheDocument();
+  });
+
+  it("captures empty query key and disabled query when user is null", () => {
+    useAuthMock.mockReturnValue({ user: null });
+    render(<PaymentMethodsTab />);
+    expect(capturedUseQueryOptions?.queryKey).toEqual(["paymentMethods"]);
+    expect(capturedUseQueryOptions?.enabled).toBe(false);
+  });
+
+  it("renders dragging styles when draggable snapshot is active", () => {
+    mockDraggableIsDragging = true;
+    render(<PaymentMethodsTab />);
+    expect(screen.getByText("Visa").closest("div.rounded-2xl")).toHaveClass("shadow-lg");
   });
 });

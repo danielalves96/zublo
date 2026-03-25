@@ -17,6 +17,8 @@ const { toastSuccess, toastError } = vi.hoisted(() => ({
   toastError: vi.fn(),
 }));
 
+let mockAuthUser: { id?: string } | null = { id: "user-1" };
+
 vi.mock("@/services/notifications", () => ({
   notificationsService: {
     getConfig,
@@ -27,7 +29,7 @@ vi.mock("@/services/notifications", () => ({
 }));
 
 vi.mock("@/contexts/AuthContext", () => ({
-  useAuth: () => ({ user: { id: "user-1" } }),
+  useAuth: () => ({ user: mockAuthUser }),
 }));
 
 vi.mock("@/lib/toast", () => ({
@@ -76,6 +78,7 @@ import { NotificationsTab } from "./NotificationsTab";
 describe("NotificationsTab", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockAuthUser = { id: "user-1" };
     getConfig.mockResolvedValue(null);
     createConfig.mockResolvedValue({ id: "new-id" });
     updateConfig.mockResolvedValue({ id: "cfg-1" });
@@ -96,6 +99,17 @@ describe("NotificationsTab", () => {
       expect(screen.getByText("notifications")).toBeInTheDocument(),
     );
     expect(screen.getByTestId("provider-email")).toBeInTheDocument();
+  });
+
+  it("uses the empty-string query key fallback and skips loading config when user is missing", async () => {
+    mockAuthUser = null;
+    const { Wrapper } = createQueryClientWrapper();
+    render(<NotificationsTab />, { wrapper: Wrapper });
+
+    await waitFor(() =>
+      expect(screen.getByText("notifications")).toBeInTheDocument(),
+    );
+    expect(getConfig).not.toHaveBeenCalled();
   });
 
   it("initialises reminders from DEFAULT_REMINDERS when config has an empty array", async () => {
@@ -147,6 +161,24 @@ describe("NotificationsTab", () => {
     );
     await userEvent.click(screen.getByRole("button", { name: "save" }));
     await waitFor(() => expect(createConfig).toHaveBeenCalled());
+    expect(toastSuccess).toHaveBeenCalled();
+  });
+
+  it("saves successfully with a missing user id and still runs the success path", async () => {
+    mockAuthUser = null;
+    const { Wrapper } = createQueryClientWrapper();
+    render(<NotificationsTab />, { wrapper: Wrapper });
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "save" })).toBeInTheDocument(),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() =>
+      expect(createConfig).toHaveBeenCalledWith(
+        expect.objectContaining({ user: undefined }),
+      ),
+    );
     expect(toastSuccess).toHaveBeenCalled();
   });
 
@@ -244,6 +276,30 @@ describe("NotificationsTab", () => {
     );
     // All providers appear — sort didn't throw and returned 0 for each pair
     expect(screen.getByTestId("provider-discord")).toBeInTheDocument();
+  });
+
+  it("moves an enabled later provider ahead of disabled earlier providers", async () => {
+    getConfig.mockResolvedValue({
+      id: "cfg-1",
+      user: "user-1",
+      discord_enabled: true,
+      email_enabled: false,
+    });
+    const { Wrapper } = createQueryClientWrapper();
+    render(<NotificationsTab />, { wrapper: Wrapper });
+
+    await waitFor(() =>
+      expect(screen.getByTestId("provider-discord")).toBeInTheDocument(),
+    );
+
+    const providerIds = screen
+      .getAllByTestId(/provider-/)
+      .map((node) => node.getAttribute("data-testid"));
+
+    expect(providerIds[0]).toBe("provider-discord");
+    expect(providerIds.indexOf("provider-discord")).toBeLessThan(
+      providerIds.indexOf("provider-email"),
+    );
   });
 
   it("includes updated reminders from RemindersEditor in the save payload", async () => {
