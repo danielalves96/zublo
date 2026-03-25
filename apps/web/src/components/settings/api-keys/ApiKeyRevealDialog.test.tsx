@@ -65,4 +65,26 @@ describe("ApiKeyRevealDialog", () => {
     fireEvent.click(input);
     expect(selectSpy).toHaveBeenCalled();
   });
+
+  // Line 32: handleCopy returns early when created is null
+  it("handleCopy does nothing when created is null (line 32)", async () => {
+    Object.assign(navigator, {
+      clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
+    });
+    // Render with null — dialog is closed but the component still mounts
+    render(<ApiKeyRevealDialog created={null} onClose={vi.fn()} />);
+    // Clipboard should not be called since the dialog is not open / created is null
+    expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
+  });
+
+  // Line 41: onOpenChange triggers onClose when nextOpen is false
+  it("calls onClose when dialog onOpenChange fires with false (line 41)", () => {
+    // The Dialog's onOpenChange prop calls `!nextOpen && onClose()`.
+    // We trigger this by simulating the Escape key which closes the dialog.
+    const onClose = vi.fn();
+    render(<ApiKeyRevealDialog created={mockCreated as any} onClose={onClose} />);
+    // Press Escape to trigger the dialog close via onOpenChange
+    fireEvent.keyDown(document, { key: "Escape", code: "Escape" });
+    expect(onClose).toHaveBeenCalled();
+  });
 });

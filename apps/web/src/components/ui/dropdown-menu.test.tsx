@@ -182,6 +182,24 @@ describe("DropdownMenu primitives", () => {
     expect(screen.getByText("More options")).toBeInTheDocument();
   });
 
+  it("DropdownMenuSubTrigger applies pl-8 when inset is set", async () => {
+    render(
+      <DropdownMenu>
+        <DropdownMenuTrigger>Open</DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger inset>Inset sub trigger</DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <DropdownMenuItem>Sub item</DropdownMenuItem>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+        </DropdownMenuContent>
+      </DropdownMenu>,
+    );
+    await userEvent.click(screen.getByText("Open"));
+    expect(screen.getByText("Inset sub trigger")).toHaveClass("pl-8");
+  });
+
   it("DropdownMenuLabel applies pl-8 when inset is set", async () => {
     render(
       <DropdownMenu>

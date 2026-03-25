@@ -44,11 +44,13 @@ describe("CalendarOverview", () => {
         total={200}
         overBudget={true}
         mainCurrency={{
-          id: 1,
+          id: "eur",
           name: "Euro",
           symbol: "€",
           code: "EUR",
           rate: 1,
+          is_main: true,
+          user: "user-1",
         }}
       />,
     );

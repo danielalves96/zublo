@@ -1,13 +1,15 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-var aiParsers = require(__hooks + "/lib/pure/ai-parsers.js");
-
 // ================================================================
 // ROUTE: AI — Fetch Available Models
 // Accepts url + api_key in the POST body (so user can fetch before saving)
 // Falls back to saved settings if no params provided
+// NOTE: In PocketBase JSVM (Goja), file-scope helper bindings are not
+// reliably available inside router callbacks. Require the helper inside
+// each callback so the runtime can always resolve it at request time.
 // ================================================================
 routerAdd("POST", "/api/ai/models", (e) => {
+  const aiParsers = require(__hooks + "/lib/pure/ai-parsers.js");
   if (!e.auth) throw new ForbiddenError("Authentication required");
 
   const body = e.requestInfo().body || {};
@@ -75,6 +77,7 @@ routerAdd("POST", "/api/ai/models", (e) => {
 // ROUTE: AI — Generate Recommendations
 // ================================================================
 routerAdd("POST", "/api/ai/generate", (e) => {
+  const aiParsers = require(__hooks + "/lib/pure/ai-parsers.js");
   if (!e.auth) throw new ForbiddenError("Authentication required");
   const userId = e.auth.id;
 

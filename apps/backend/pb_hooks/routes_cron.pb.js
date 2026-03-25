@@ -1,9 +1,49 @@
 /// <reference path="../pb_data/types.d.ts" />
 
+function normalizeReminderSlots(raw) {
+  var fallback = [{ days: 3, hour: 8 }];
+  var parsed = raw;
+
+  if (typeof parsed === "string" && parsed) {
+    try {
+      parsed = JSON.parse(parsed);
+    } catch (_) {
+      parsed = raw;
+    }
+  }
+
+  var source = [];
+  if (Array.isArray(parsed)) {
+    source = parsed;
+  } else if (parsed && typeof parsed === "object" && typeof parsed.length === "number") {
+    for (var i = 0; i < parsed.length; i++) {
+      source.push(parsed[i]);
+    }
+  }
+
+  var normalized = [];
+  for (var si = 0; si < source.length; si++) {
+    var slot = source[si] || {};
+    var days = Number(slot.days);
+    var hour = Number(slot.hour);
+
+    if (!isFinite(days) || !isFinite(hour)) {
+      continue;
+    }
+
+    normalized.push({
+      days: Math.trunc(days),
+      hour: Math.trunc(hour),
+    });
+  }
+
+  return normalized.length > 0 ? normalized : fallback;
+}
+
 routerAdd("POST", "/api/cron/{job}", function(e) {
   if (!e.auth) throw new ForbiddenError("Authentication required");
 
-  var allUsers = $app.findRecordsByFilter("users", "", "+created", 1, 0);
+  var allUsers = $app.findRecordsByFilter("users", "1=1", "+created", 1, 0);
   if (allUsers.length === 0 || allUsers[0].id !== e.auth.id) {
     throw new ForbiddenError("Admin access required");
   }
@@ -43,7 +83,7 @@ routerAdd("POST", "/api/cron/{job}", function(e) {
     var now = new Date();
     var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     var todayStr = today.toISOString().split("T")[0];
-    var users = $app.findRecordsByFilter("users", "", "", 0, 0);
+    var users = $app.findRecordsByFilter("users", "1=1", "", 0, 0);
     var sent = 0;
 
     for (var ui = 0; ui < users.length; ui++) {
@@ -53,7 +93,9 @@ routerAdd("POST", "/api/cron/{job}", function(e) {
       var notifConfig = configs[0];
 
       var reminders = [{ days: 3, hour: 8 }];
-      try { var raw = notifConfig.get("reminders"); if (Array.isArray(raw) && raw.length > 0) reminders = raw; } catch(_) {}
+      try {
+        reminders = normalizeReminderSlots(notifConfig.get("reminders"));
+      } catch (_) {}
 
       var subs = $app.findRecordsByFilter("subscriptions", "user = {:u} && notify = true && inactive = false", "", 0, 0, { u: userId });
       if (subs.length === 0) continue;
@@ -61,7 +103,8 @@ routerAdd("POST", "/api/cron/{job}", function(e) {
       for (var ri = 0; ri < reminders.length; ri++) {
         var days = Number(reminders[ri].days);
         var hour = Number(reminders[ri].hour);
-        var targetDate = new Date(today);
+        if (!isFinite(days) || !isFinite(hour)) continue;
+        var targetDate = new Date(today.getTime());
         targetDate.setDate(targetDate.getDate() + days);
         var targetStr = targetDate.toISOString().split("T")[0];
         var rKey = days + "d_" + hour + "h";
@@ -72,7 +115,7 @@ routerAdd("POST", "/api/cron/{job}", function(e) {
           if (sub.getString("next_payment").slice(0, 10) !== targetStr) continue;
           try {
             var dup = $app.findRecordsByFilter("notification_log",
-              "subscription_id={:sid}&&user_id={:uid}&&reminder_key={:k}&&sent_date={:d}",
+              "subscription_id = {:sid} && user_id = {:uid} && reminder_key = {:k} && sent_date = {:d}",
               "", 1, 0, { sid: sub.id, uid: userId, k: rKey, d: todayStr });
             if (dup.length > 0) continue;
           } catch(_) {}
@@ -149,7 +192,7 @@ routerAdd("POST", "/api/cron/{job}", function(e) {
             }
           }
           try {
-            var logs = $app.findRecordsByFilter("exchange_log", "", "", 1, 0);
+            var logs = $app.findRecordsByFilter("exchange_log", "1=1", "", 1, 0);
             if (logs.length > 0) { logs[0].set("last_update", new Date().toISOString()); $app.save(logs[0]); }
             else { var lc = $app.findCollectionByNameOrId("exchange_log"); var lr = new Record(lc); lr.set("last_update", new Date().toISOString()); $app.save(lr); }
           } catch(_) {}
@@ -166,7 +209,7 @@ routerAdd("POST", "/api/cron/{job}", function(e) {
     var now = new Date();
     var year = now.getFullYear();
     var month = now.getMonth() + 1;
-    var users = $app.findRecordsByFilter("users", "", "", 0, 0);
+    var users = $app.findRecordsByFilter("users", "1=1", "", 0, 0);
     var saved = 0;
 
     for (var ui = 0; ui < users.length; ui++) {

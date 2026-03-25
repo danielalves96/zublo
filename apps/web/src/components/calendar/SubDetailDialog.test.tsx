@@ -208,4 +208,118 @@ describe("SubDetailDialog", () => {
     expect(screen.getByRole("button", { name: "mark_as_paid" })).toBeInTheDocument();
     expect(screen.getByText("N")).toBeInTheDocument();
   });
+
+  // Line 143: frequency > 1 produces "Every N" cycle label
+  it("renders cycle label with Every N when frequency > 1 (line 143)", () => {
+    mocks.daysUntil.mockReturnValue(5);
+    render(
+      <SubDetailDialog
+        sub={getSubscription({ frequency: 3 })}
+        date={new Date("2026-03-10T00:00:00Z")}
+        currencies={[getCurrency()]}
+        mainCurrency={getCurrency()}
+        paymentTracking={false}
+        paymentRecord={undefined}
+        onClose={vi.fn()}
+        onEdit={vi.fn()}
+        onMarkAsPaid={vi.fn()}
+        t={(key) => key}
+      />,
+    );
+    // cycleLabel = "Every 3 months" (Monthly -> month + s)
+    expect(screen.getByText(/Every 3/)).toBeInTheDocument();
+  });
+
+  // Line 159: payment record with amount shown in paid status
+  it("shows paid_at date and amount in paid status (line 159)", () => {
+    const paymentRecord: PaymentRecord = {
+      id: "pr-2",
+      subscription_id: "sub-1",
+      user: "user-1",
+      due_date: "2026-03-10",
+      paid_at: "2026-03-10T10:00:00Z",
+      amount: 15,
+    };
+    render(
+      <SubDetailDialog
+        sub={getSubscription()}
+        date={new Date("2026-03-10T00:00:00Z")}
+        currencies={[getCurrency()]}
+        mainCurrency={getCurrency()}
+        paymentTracking
+        paymentRecord={paymentRecord}
+        onClose={vi.fn()}
+        onEdit={vi.fn()}
+        onMarkAsPaid={vi.fn()}
+        t={(key) => key}
+      />,
+    );
+    expect(screen.getByText("paid")).toBeInTheDocument();
+    // mocked formatPrice returns "15 $"
+    expect(screen.getByText(/15 \$/)).toBeInTheDocument();
+  });
+
+  // Lines 176-206: currency conversion row when cur !== mainCurrency
+  it("renders currency conversion when cur differs from mainCurrency (lines 127-131)", () => {
+    const mainCur = getCurrency({ id: "cur-main", symbol: "€", code: "EUR" });
+    const subCur = getCurrency({ id: "cur-1", symbol: "$", code: "USD" });
+    render(
+      <SubDetailDialog
+        sub={getSubscription({ expand: { ...getSubscription().expand, currency: subCur } })}
+        date={new Date("2026-03-10T00:00:00Z")}
+        currencies={[subCur, mainCur]}
+        mainCurrency={mainCur}
+        paymentTracking={false}
+        paymentRecord={undefined}
+        onClose={vi.fn()}
+        onEdit={vi.fn()}
+        onMarkAsPaid={vi.fn()}
+        t={(key) => key}
+      />,
+    );
+    // "≈" conversion line should be present
+    expect(screen.getByText(/≈/)).toBeInTheDocument();
+  });
+
+  // Lines 176-206: daysUntil === 0 shows "today" badge
+  it("shows today badge when daysUntil is 0 (line 206)", () => {
+    mocks.daysUntil.mockReturnValue(0);
+    render(
+      <SubDetailDialog
+        sub={getSubscription()}
+        date={new Date("2026-03-10T00:00:00Z")}
+        currencies={[getCurrency()]}
+        mainCurrency={getCurrency()}
+        paymentTracking={false}
+        paymentRecord={undefined}
+        onClose={vi.fn()}
+        onEdit={vi.fn()}
+        onMarkAsPaid={vi.fn()}
+        t={(key) => key}
+      />,
+    );
+    expect(screen.getByText("today")).toBeInTheDocument();
+  });
+
+  // Lines 176-206: pending_payment status when not paid and not overdue
+  it("shows pending_payment when paymentTracking=true, not paid, not overdue (line 176+)", () => {
+    mocks.daysUntil.mockReturnValue(3);
+    // Use a date in the future (after today 2026-03-24) so isOverdue is false
+    const futureDate = new Date("2026-04-01T00:00:00Z");
+    render(
+      <SubDetailDialog
+        sub={getSubscription()}
+        date={futureDate}
+        currencies={[getCurrency()]}
+        mainCurrency={getCurrency()}
+        paymentTracking
+        paymentRecord={undefined}
+        onClose={vi.fn()}
+        onEdit={vi.fn()}
+        onMarkAsPaid={vi.fn()}
+        t={(key) => key}
+      />,
+    );
+    expect(screen.getByText("pending_payment")).toBeInTheDocument();
+  });
 });

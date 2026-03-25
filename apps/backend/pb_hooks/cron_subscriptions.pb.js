@@ -1,12 +1,52 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-var dateHelpers = require(__hooks + "/lib/date-helpers.js");
-var notifHelpers = require(__hooks + "/lib/notifications.js");
+function normalizeReminderSlots(raw) {
+  const fallback = [{ days: 3, hour: 8 }];
+  let parsed = raw;
+
+  if (typeof parsed === "string" && parsed) {
+    try {
+      parsed = JSON.parse(parsed);
+    } catch (_) {
+      parsed = raw;
+    }
+  }
+
+  let source = [];
+  if (Array.isArray(parsed)) {
+    source = parsed;
+  } else if (parsed && typeof parsed === "object" && typeof parsed.length === "number") {
+    for (let i = 0; i < parsed.length; i++) {
+      source.push(parsed[i]);
+    }
+  }
+
+  const normalized = [];
+  for (const slot of source) {
+    const days = Number(slot && slot.days);
+    const hour = Number(slot && slot.hour);
+
+    if (!isFinite(days) || !isFinite(hour)) {
+      continue;
+    }
+
+    normalized.push({
+      days: Math.trunc(days),
+      hour: Math.trunc(hour),
+    });
+  }
+
+  return normalized.length > 0 ? normalized : fallback;
+}
 
 // ================================================================
 // CRON 1: Update Next Payment Dates
+// NOTE: In PocketBase JSVM (Goja), file-scope helper bindings are not
+// guaranteed to stay available inside cron callbacks. Require helpers
+// inside each cron callback to avoid runtime ReferenceError failures.
 // ================================================================
 cronAdd("updateNextPayment", "0 0 * * *", () => {
+  const dateHelpers = require(__hooks + "/lib/date-helpers.js");
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -42,6 +82,7 @@ cronAdd("updateNextPayment", "0 0 * * *", () => {
 // CRON 4: Send Payment Notifications (hourly, granular reminders)
 // ================================================================
 cronAdd("sendNotifications", "0 * * * *", () => {
+  const notifHelpers = require(__hooks + "/lib/notifications.js");
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const currentHour = now.getHours();
@@ -50,7 +91,7 @@ cronAdd("sendNotifications", "0 * * * *", () => {
   // Cleanup old notification_log entries once a day at midnight
   if (currentHour === 0) {
     try {
-      const cutoff = new Date(today);
+      const cutoff = new Date(today.getTime());
       cutoff.setDate(cutoff.getDate() - 31);
       const cutoffStr = cutoff.toISOString().split("T")[0];
       const oldLogs = $app.findRecordsByFilter(
@@ -62,7 +103,7 @@ cronAdd("sendNotifications", "0 * * * *", () => {
     }
   }
 
-  const users = $app.findRecordsByFilter("users", "", "", 0, 0);
+  const users = $app.findRecordsByFilter("users", "1=1", "", 0, 0);
 
   for (const user of users) {
     const userId = user.id;
@@ -76,8 +117,7 @@ cronAdd("sendNotifications", "0 * * * *", () => {
     // Parse reminders array — default to [{days:3, hour:8}] if absent
     let reminders = [{ days: 3, hour: 8 }];
     try {
-      const raw = notifConfig.get("reminders");
-      if (Array.isArray(raw) && raw.length > 0) reminders = raw;
+      reminders = normalizeReminderSlots(notifConfig.get("reminders"));
     } catch (_) {}
 
     // Only process slots that fire at the current hour
@@ -93,8 +133,9 @@ cronAdd("sendNotifications", "0 * * * *", () => {
 
     for (const reminder of dueReminders) {
       const days = Number(reminder.days);
+      if (!isFinite(days)) continue;
       // target: subscriptions whose next_payment is exactly `days` days from now
-      const targetDate = new Date(today);
+      const targetDate = new Date(today.getTime());
       targetDate.setDate(targetDate.getDate() + days);
       const targetDateStr = targetDate.toISOString().split("T")[0];
       const reminderKey = days + "d_" + currentHour + "h";
@@ -182,6 +223,7 @@ cronAdd("sendNotifications", "0 * * * *", () => {
 // CRON 5: Send Cancellation Notifications (hourly, granular reminders)
 // ================================================================
 cronAdd("sendCancellationNotifications", "0 * * * *", () => {
+  const notifHelpers = require(__hooks + "/lib/notifications.js");
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const currentHour = now.getHours();
@@ -210,8 +252,7 @@ cronAdd("sendCancellationNotifications", "0 * * * *", () => {
 
     let reminders = [{ days: 3, hour: 8 }];
     try {
-      const raw = notifConfig.get("reminders");
-      if (Array.isArray(raw) && raw.length > 0) reminders = raw;
+      reminders = normalizeReminderSlots(notifConfig.get("reminders"));
     } catch (_) {}
 
     const dueReminders = reminders.filter((r) => Number(r.hour) === currentHour);
@@ -219,7 +260,8 @@ cronAdd("sendCancellationNotifications", "0 * * * *", () => {
 
     for (const reminder of dueReminders) {
       const days = Number(reminder.days);
-      const targetDate = new Date(today);
+      if (!isFinite(days)) continue;
+      const targetDate = new Date(today.getTime());
       targetDate.setDate(targetDate.getDate() + days);
       const targetDateStr = targetDate.toISOString().split("T")[0];
       const reminderKey = "cancel_" + days + "d_" + currentHour + "h";
@@ -331,6 +373,7 @@ cronAdd("autoMarkPaid", "0 0 * * *", () => {
 // CRON 8: Overdue Payment Reminders
 // ================================================================
 cronAdd("overduePaymentReminders", "0 9 * * *", () => {
+  const notifHelpers = require(__hooks + "/lib/notifications.js");
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const todayStr = today.toISOString().split("T")[0];
@@ -420,4 +463,3 @@ cronAdd("overduePaymentReminders", "0 9 * * *", () => {
 
   console.log("[Zublo] overduePaymentReminders: notified " + notified + " overdue payments");
 });
-

@@ -186,6 +186,31 @@ describe("calendar types helpers", () => {
     ).toHaveLength(1);
   });
 
+  it("hits the infinite-loop guards (lines 111 and 120) for an unknown cycle name", () => {
+    // When cycleName does not match Daily/Weekly/Monthly/Yearly, both add() and sub1()
+    // return a new Date equal to the input date (no fields are mutated).
+    // This means prev.getTime() >= cursor.getTime() (line 111) immediately fires in
+    // the backward-scan loop, and next.getTime() <= cursor.getTime() (line 120) fires
+    // in the forward-scan loop — covering both break branches.
+    const unknownCycles = [{ id: "biweekly", name: "Biweekly" as any }];
+
+    // next_payment lands inside the target month so the forward loop's result is non-empty
+    const result = getOccurrencesInMonth(
+      getSubscription({
+        cycle: "biweekly",
+        next_payment: "2026-03-15",
+      }),
+      2026,
+      3,
+      unknownCycles,
+    );
+
+    // Because add() returns the same date, the forward loop pushes exactly one occurrence
+    // and then breaks on next.getTime() <= cursor.getTime()
+    expect(result).toHaveLength(1);
+    expect(result[0].getDate()).toBe(15);
+  });
+
   it("converts to the main currency, delegates logo urls, and picks deterministic colors", () => {
     const main: Currency = {
       id: "usd",

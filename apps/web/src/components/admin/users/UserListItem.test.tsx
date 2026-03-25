@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import { UserListItem } from "./UserListItem";
+import type { AdminUser } from "./types";
 import { adminService } from "@/services/admin";
 
 vi.mock("react-i18next", () => ({
@@ -22,14 +23,14 @@ describe("UserListItem", () => {
     vi.clearAllMocks();
   });
 
-  const defaultUser = {
+  const defaultUser: AdminUser = {
     id: "1",
     email: "test@example.com",
     name: "Test User",
     username: "testuser",
     avatar: "avatar.png",
-    is_admin: 0,
-    totp_enabled: 0,
+    is_admin: false,
+    totp_enabled: false,
     created: "2023-01-01",
   };
 
@@ -50,14 +51,14 @@ describe("UserListItem", () => {
   });
 
   it("renders correctly with only email", () => {
-    vi.mocked(adminService.avatarUrl).mockReturnValue(null);
+    vi.mocked(adminService.avatarUrl).mockReturnValue("");
     
     render(
       <UserListItem 
         user={{
           ...defaultUser,
-          name: undefined as any,
-          username: undefined as any,
+          name: "",
+          username: "",
         }} 
         onDelete={vi.fn()} 
         onEdit={vi.fn()} 
@@ -71,7 +72,7 @@ describe("UserListItem", () => {
   });
 
   it("renders correctly with fallback to 'U' when no display info available", () => {
-    vi.mocked(adminService.avatarUrl).mockReturnValue(null);
+    vi.mocked(adminService.avatarUrl).mockReturnValue("");
     
     render(
       <UserListItem 
@@ -91,13 +92,13 @@ describe("UserListItem", () => {
   });
 
   it("shows admin badge", () => {
-    vi.mocked(adminService.avatarUrl).mockReturnValue(null);
+    vi.mocked(adminService.avatarUrl).mockReturnValue("");
     
     render(
       <UserListItem 
         user={{
           ...defaultUser,
-          is_admin: 1,
+          is_admin: true,
         }} 
         onDelete={vi.fn()} 
         onEdit={vi.fn()} 
@@ -108,7 +109,7 @@ describe("UserListItem", () => {
   });
 
   it("shows self badge", () => {
-    vi.mocked(adminService.avatarUrl).mockReturnValue(null);
+    vi.mocked(adminService.avatarUrl).mockReturnValue("");
     
     render(
       <UserListItem 
@@ -123,13 +124,13 @@ describe("UserListItem", () => {
   });
 
   it("shows 2FA badge", () => {
-    vi.mocked(adminService.avatarUrl).mockReturnValue(null);
+    vi.mocked(adminService.avatarUrl).mockReturnValue("");
     
     render(
       <UserListItem 
         user={{
           ...defaultUser,
-          totp_enabled: 1,
+          totp_enabled: true,
         }} 
         onDelete={vi.fn()} 
         onEdit={vi.fn()} 
@@ -140,7 +141,7 @@ describe("UserListItem", () => {
   });
 
   it("calls onDelete when delete button is clicked", async () => {
-    vi.mocked(adminService.avatarUrl).mockReturnValue(null);
+    vi.mocked(adminService.avatarUrl).mockReturnValue("");
     const onDelete = vi.fn();
     
     render(
@@ -160,7 +161,7 @@ describe("UserListItem", () => {
   });
 
   it("calls onEdit when edit button is clicked", async () => {
-    vi.mocked(adminService.avatarUrl).mockReturnValue(null);
+    vi.mocked(adminService.avatarUrl).mockReturnValue("");
     const onEdit = vi.fn();
     
     render(
@@ -179,7 +180,7 @@ describe("UserListItem", () => {
   });
 
   it("disables delete button for self", () => {
-    vi.mocked(adminService.avatarUrl).mockReturnValue(null);
+    vi.mocked(adminService.avatarUrl).mockReturnValue("");
     
     render(
       <UserListItem 

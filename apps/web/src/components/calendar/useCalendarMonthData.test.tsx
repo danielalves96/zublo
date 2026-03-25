@@ -121,6 +121,23 @@ describe("useCalendarMonthData", () => {
     expect(result.current.selectedDayTotal).toBe(0);
   });
 
+  it("produces no trailing next-month cells when totalCells is already divisible by 7", () => {
+    // February 2015 starts on Sunday (firstDayOfWeek=0), has 28 days → 0+28=28 cells, 28%7=0 → remainingCells=0
+    const { result } = renderHook(() =>
+      useCalendarMonthData({
+        subscriptions: [],
+        cycles: [],
+        currencies: [getCurrency({ is_main: true })],
+        year: 2015,
+        month: 2,
+        selectedDay: null,
+      }),
+    );
+
+    expect(result.current.allCells.every((cell) => cell.type !== "next")).toBe(true);
+    expect(result.current.allCells).toHaveLength(28);
+  });
+
   it("returns empty selectedEntries when selectedDay has no entries and uses currencyById for total", () => {
     const mainCur = getCurrency({ id: "cur-main", is_main: true, rate: 1 });
     const otherCur = getCurrency({ id: "cur-other", is_main: false, rate: 2 });

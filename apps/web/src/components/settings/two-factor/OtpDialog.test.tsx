@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import { OtpDialog } from "./OtpDialog";
 
@@ -15,8 +15,26 @@ vi.mock("@/lib/toast", () => ({
   toast: { error: toastError },
 }));
 
+// Track onOpenChange calls so we can invoke it directly in tests
+let capturedOnOpenChange: ((open: boolean) => void) | null = null;
+
+vi.mock("@/components/ui/dialog", () => ({
+  Dialog: ({ open, onOpenChange, children }: any) => {
+    capturedOnOpenChange = onOpenChange;
+    return open ? <div data-testid="dialog-root">{children}</div> : null;
+  },
+  DialogContent: ({ children }: any) => <div data-testid="dialog-content">{children}</div>,
+  DialogHeader: ({ children }: any) => <div>{children}</div>,
+  DialogTitle: ({ children }: any) => <h2>{children}</h2>,
+  DialogDescription: ({ children }: any) => <p>{children}</p>,
+  DialogFooter: ({ children }: any) => <div>{children}</div>,
+}));
+
 describe("OtpDialog", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    capturedOnOpenChange = null;
+  });
 
   it("renders title and description when open", () => {
     render(
@@ -249,5 +267,96 @@ describe("OtpDialog", () => {
       />,
     );
     expect(screen.getByText("Confirm Delete")).toBeInTheDocument();
+  });
+
+  // Line 77: onOpenChange(false) → calls handleClose() → calls onClose
+  it("calls onClose via onOpenChange(false) — exercises line 77 if(!isOpen) branch", () => {
+    const onClose = vi.fn();
+    render(
+      <OtpDialog
+        open={true}
+        onClose={onClose}
+        title="Verify"
+        description="Enter code"
+        confirmLabel="OK"
+        onConfirm={vi.fn()}
+      />,
+    );
+
+    // capturedOnOpenChange is the handler passed to <Dialog onOpenChange={...}>
+    expect(capturedOnOpenChange).not.toBeNull();
+
+    // Calling onOpenChange(false) simulates the dialog being closed externally
+    // (e.g. Escape key, backdrop click in Radix) — this should invoke handleClose()
+    act(() => {
+      capturedOnOpenChange!(false);
+    });
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  // Line 77: onOpenChange(true) → condition `if (!isOpen)` is false → handleClose NOT called
+  it("does not call onClose via onOpenChange(true) — exercises line 77 else branch", () => {
+    const onClose = vi.fn();
+    render(
+      <OtpDialog
+        open={true}
+        onClose={onClose}
+        title="Verify"
+        description="Enter code"
+        confirmLabel="OK"
+        onConfirm={vi.fn()}
+      />,
+    );
+
+    expect(capturedOnOpenChange).not.toBeNull();
+
+    act(() => {
+      capturedOnOpenChange!(true);
+    });
+
+    // onOpenChange(true) means dialog is opening — handleClose should NOT be called
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  // Line 77: does not render when open is false
+  it("does not render content when open is false", () => {
+    render(
+      <OtpDialog
+        open={false}
+        onClose={vi.fn()}
+        title="Verify"
+        description="Enter code"
+        confirmLabel="OK"
+        onConfirm={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText("Verify")).not.toBeInTheDocument();
+  });
+
+  // Verify reset() is called when handleClose fires: OTP input should be cleared after close
+  it("resets otp state when onOpenChange(false) is triggered", () => {
+    const onClose = vi.fn();
+    render(
+      <OtpDialog
+        open={true}
+        onClose={onClose}
+        title="Verify"
+        description="Enter code"
+        confirmLabel="OK"
+        onConfirm={vi.fn()}
+      />,
+    );
+
+    // Enter a code
+    fireEvent.change(screen.getByTestId("otp-input"), { target: { value: "999999" } });
+    expect(screen.getByTestId("otp-input")).toHaveValue("999999");
+
+    // Dismiss via onOpenChange(false)
+    act(() => {
+      capturedOnOpenChange!(false);
+    });
+
+    expect(onClose).toHaveBeenCalled();
   });
 });

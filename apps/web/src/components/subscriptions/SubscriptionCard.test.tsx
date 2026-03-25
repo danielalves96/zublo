@@ -193,6 +193,87 @@ describe("SubscriptionCard", () => {
     expect(screen.getByText("MC")).toBeInTheDocument();
   });
 
+  it("hides the days badge when daysUntil returns a negative value", () => {
+    mocks.daysUntil.mockReturnValue(-5);
+
+    render(
+      <SubscriptionCard
+        sub={getSubscription()}
+        onEdit={vi.fn()}
+        onClone={vi.fn()}
+        onRenew={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+
+    // Negative days means days >= 0 is false — no badge rendered
+    expect(screen.queryByText(/-5d/)).not.toBeInTheDocument();
+  });
+
+  it("uses sub.price directly when showMonthly is false (line 100 false branch)", () => {
+    // showMonthly=false → rawPrice = sub.price (not toMonthly)
+    render(
+      <SubscriptionCard
+        sub={getSubscription({ price: 99 })}
+        mainCurrency={getCurrency({ is_main: true, symbol: "$" })}
+        convertCurrency={false}
+        showMonthly={false}
+        showProgress={false}
+        onEdit={vi.fn()}
+        onClone={vi.fn()}
+        onRenew={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+    // toMonthly should NOT have been called
+    expect(mocks.toMonthly).not.toHaveBeenCalled();
+    // formatPrice called with raw price 99
+    expect(mocks.formatPrice).toHaveBeenCalledWith(99, expect.any(String));
+  });
+
+  it("uses rawPrice directly when shouldConvert is false (line 102 false branch)", () => {
+    // convertCurrency=false → shouldConvert=false → price = rawPrice
+    render(
+      <SubscriptionCard
+        sub={getSubscription({ price: 50 })}
+        mainCurrency={getCurrency({ is_main: true, symbol: "$" })}
+        convertCurrency={false}
+        showMonthly={false}
+        showProgress={false}
+        onEdit={vi.fn()}
+        onClone={vi.fn()}
+        onRenew={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+    // toMainCurrency should NOT have been called
+    expect(mocks.toMainCurrency).not.toHaveBeenCalled();
+  });
+
+  it("renders primary-colored days badge when days > 3 (line 166 false branch)", () => {
+    mocks.daysUntil.mockReturnValue(10);
+    mocks.subscriptionProgress.mockReturnValue(50);
+
+    render(
+      <SubscriptionCard
+        sub={getSubscription()}
+        mainCurrency={getCurrency({ is_main: true, symbol: "$" })}
+        convertCurrency={false}
+        showMonthly={false}
+        showProgress
+        onEdit={vi.fn()}
+        onClone={vi.fn()}
+        onRenew={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+
+    // days > 3 → badge uses "bg-primary/10" class (not orange)
+    const badges = screen.getAllByText("10d");
+    // The first occurrence is the badge span in the next-payment row
+    expect(badges[0]).not.toHaveClass("bg-orange-500/10");
+  });
+
   it("renders fallback initials and inactive state when data is limited", () => {
     render(
       <SubscriptionCard

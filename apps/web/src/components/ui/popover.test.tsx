@@ -77,7 +77,7 @@ describe("Popover primitives", () => {
   });
 
   it("PopoverAnchor renders without breaking layout", () => {
-    const { container } = render(
+    render(
       <Popover>
         <PopoverAnchor>
           <div data-testid="anchor-child">anchor</div>

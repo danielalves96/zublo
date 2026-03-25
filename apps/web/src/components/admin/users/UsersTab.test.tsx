@@ -37,8 +37,8 @@ const mockUsers: AdminUser[] = [
     username: "admin",
     avatar: "",
     created: "2024-01-01",
-    totp_enabled: 0 as any,
-    is_admin: 1 as any,
+    totp_enabled: false,
+    is_admin: true,
   },
   {
     id: "u2",
@@ -47,8 +47,8 @@ const mockUsers: AdminUser[] = [
     username: "user",
     avatar: "",
     created: "2024-01-01",
-    totp_enabled: 0 as any,
-    is_admin: 0 as any,
+    totp_enabled: false,
+    is_admin: false,
   },
 ];
 
@@ -56,7 +56,19 @@ describe("UsersTab", () => {
   beforeEach(() => {
     document.body.style.pointerEvents = "";
     vi.clearAllMocks();
-    vi.mocked(useAuth).mockReturnValue({ user: { id: "u1" }, login: vi.fn(), logout: vi.fn(), isLoading: false, isSubscribed: true, isSubscriptionLoading: false });
+    vi.mocked(useAuth).mockReturnValue({
+      user: {
+        id: "u1",
+        email: "admin@example.com",
+        username: "admin",
+        name: "Admin User",
+      },
+      login: vi.fn(),
+      logout: vi.fn(),
+      isLoading: false,
+      isAdmin: true,
+      refreshUser: vi.fn(),
+    });
     vi.mocked(adminService.getUsers).mockResolvedValue(mockUsers);
     vi.mocked(adminService.deleteUser).mockResolvedValue({ success: true } as any);
   });

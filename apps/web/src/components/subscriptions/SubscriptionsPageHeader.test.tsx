@@ -43,7 +43,7 @@ describe("SubscriptionsPageHeader", () => {
         onCreate={onCreate}
       />,
     );
-    const input = container.querySelector('input[type="file"]')!;
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     const click = vi.spyOn(input, "click");
 
     fireEvent.click(screen.getByRole("button", { name: "import" }));

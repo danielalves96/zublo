@@ -70,6 +70,42 @@ describe("ProviderCard", () => {
     expect(onTest).toHaveBeenCalledTimes(1);
   });
 
+  it("applies sm:grid-cols-2 when provider has more than one field", () => {
+    const multiFieldProvider: ProviderConfig = {
+      ...provider,
+      id: "smtp",
+      label: "SMTP",
+      enabledKey: "smtp_enabled",
+      fields: [
+        {
+          key: "smtp_host",
+          labelKey: "smtp_host",
+          type: "text",
+          placeholder: "smtp.example.com",
+        },
+        {
+          key: "smtp_port",
+          labelKey: "smtp_port",
+          type: "number",
+          placeholder: "587",
+        },
+      ],
+    };
+
+    const { container } = render(
+      <ProviderCard
+        provider={multiFieldProvider}
+        formData={{ smtp_enabled: true } as Partial<NotificationsConfig>}
+        onChange={vi.fn()}
+        onTest={vi.fn()}
+        isTesting={false}
+      />,
+    );
+
+    const grid = container.querySelector(".grid");
+    expect(grid?.className).toContain("sm:grid-cols-2");
+  });
+
   it("disables the test button while a test is in progress", () => {
     render(
       <ProviderCard

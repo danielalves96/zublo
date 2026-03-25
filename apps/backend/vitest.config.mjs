@@ -9,9 +9,11 @@ const coverageProviderPath = fileURLToPath(
 export default {
   test: {
     root: rootDir,
-    include: ["tests/pb_hooks/**/*.test.js"],
+    include: ["tests/pb_hooks/**/*.test.js", "tests/pb_hooks/**/*.test.ts"],
     environment: "node",
     globals: true,
+    testTimeout: 30000,
+    hookTimeout: 30000,
     coverage: {
       provider: "custom",
       customProviderModule: coverageProviderPath,

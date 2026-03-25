@@ -58,6 +58,8 @@ type LogoResult = {
   contentType: string;
 };
 
+const fetchCycles = () => cyclesService.list();
+
 export function SubscriptionFormModal({
   sub,
   userId,
@@ -84,7 +86,7 @@ export function SubscriptionFormModal({
   // ── Cycles query ─────────────────────────────────────────────────────────────
   const { data: cycles = [] } = useQuery({
     queryKey: queryKeys.cycles(),
-    queryFn: () => cyclesService.list(),
+    queryFn: fetchCycles,
   });
 
   // ── Zod schema with i18n messages ────────────────────────────────────────────
@@ -363,12 +365,11 @@ export function SubscriptionFormModal({
           // Logo URL extraction is best-effort; ignore failures
         }
 
-        if (domainSet.size === 0 && compact) {
-          domainSet.add(`${compact}.com`);
-          domainSet.add(`${compact}.com.br`);
-        }
+        const results = domainSet.size === 0 && compact
+          ? [`${compact}.com`, `${compact}.com.br`]
+          : Array.from(domainSet).slice(0, 10);
 
-        return Array.from(domainSet).slice(0, 10);
+        return results;
       };
 
       const domainSources = [

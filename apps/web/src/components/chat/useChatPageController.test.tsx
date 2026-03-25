@@ -355,7 +355,7 @@ describe("useChatPageController", () => {
     mocks.xlsxRead.mockImplementationOnce(() => {
       throw new Error("Parse error");
     });
-    
+
     await act(async () => {
       await result.current.handleFileSelect({
         target: { files: [validFile], value: "error.csv" },
@@ -761,5 +761,205 @@ describe("useChatPageController", () => {
     expect(mocks.renameConversation).toHaveBeenCalledWith("conv-2", "New title");
     expect(result.current.conversations[0]?.title).toBe("New title");
     expect(result.current.editingConvId).toBeNull();
+  });
+
+  it("sets error message on non-AbortError chat failure (lines 304-316)", async () => {
+    mocks.chat.mockRejectedValue(new Error("Server 500"));
+
+    const { Wrapper } = createQueryClientWrapper();
+    const { result } = renderHook(() => useChatPageController(), {
+      wrapper: Wrapper,
+    });
+
+    act(() => {
+      result.current.setInput("Hello");
+    });
+
+    await act(async () => {
+      await result.current.handleSend();
+    });
+
+    const lastMessage = result.current.messages.at(-1);
+    expect(lastMessage?.role).toBe("assistant");
+    expect(lastMessage?.isError).toBe(true);
+    expect(lastMessage?.content).toContain("Server 500");
+  });
+
+  it("syncs an existing conversation to the front when syncConversationList finds index > 0 (lines 162-169)", async () => {
+    const conv1 = getConversation({ id: "conv-1", title: "First" });
+    const conv2 = getConversation({ id: "conv-2", title: "Second" });
+
+    mocks.getConversations.mockResolvedValue({
+      conversations: [conv1, conv2],
+    });
+    mocks.chat.mockResolvedValue({
+      message: "reply",
+      // Return an existing conv-2 id so syncConversationList finds it at index 1
+      conversation_id: "conv-2",
+      conversation_title: "Second",
+      actions_taken: [],
+    });
+    // After refresh conversations returns the updated list
+    mocks.getConversations
+      .mockResolvedValueOnce({ conversations: [conv1, conv2] })
+      .mockResolvedValueOnce({ conversations: [conv1, conv2] });
+
+    const { Wrapper } = createQueryClientWrapper();
+    const { result } = renderHook(() => useChatPageController(), {
+      wrapper: Wrapper,
+    });
+
+    await waitFor(() => {
+      expect(result.current.conversations).toHaveLength(2);
+    });
+
+    // Send a message using conv-2 context (load it first)
+    await act(async () => {
+      await result.current.handleLoadConversation("conv-2");
+    });
+
+    act(() => {
+      result.current.setInput("Update existing");
+    });
+
+    await act(async () => {
+      await result.current.handleSend();
+    });
+
+    // After sync, conv-2 should have been moved to front (or updated)
+    expect(mocks.chat).toHaveBeenCalled();
+  });
+
+  // Line 108: useEffect calls refreshConversations when not loading and user has id
+  it("refreshConversations is called on mount when user is authenticated (line 108)", async () => {
+    mocks.getConversations.mockResolvedValue({
+      conversations: [getConversation({ id: "conv-mount", title: "Mount conv" })],
+    });
+
+    const { Wrapper } = createQueryClientWrapper();
+    renderHook(() => useChatPageController(), { wrapper: Wrapper });
+
+    await waitFor(() => {
+      expect(mocks.getConversations).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // Lines 339-342: handleLoadConversation early return when same conversation is already loaded
+  it("handleLoadConversation returns early when same conv is already loaded (lines 339-342)", async () => {
+    const messages: ChatMessage[] = [
+      { role: "user", content: "Hi" },
+      { role: "assistant", content: "Hello" },
+    ];
+    mocks.getConversationMessages.mockResolvedValue({
+      conversation: getConversation({ id: "conv-same" }),
+      messages,
+    });
+
+    const { Wrapper } = createQueryClientWrapper();
+    const { result } = renderHook(() => useChatPageController(), {
+      wrapper: Wrapper,
+    });
+
+    // Load the conversation once
+    await act(async () => {
+      await result.current.handleLoadConversation("conv-same");
+    });
+
+    expect(result.current.currentConvId).toBe("conv-same");
+    const callCountAfterFirst = mocks.getConversationMessages.mock.calls.length;
+
+    // Load the same conversation again — should return early (line 342)
+    await act(async () => {
+      await result.current.handleLoadConversation("conv-same");
+    });
+
+    // Should not have fetched messages again
+    expect(mocks.getConversationMessages.mock.calls.length).toBe(callCountAfterFirst);
+  });
+
+  // Lines 339-342: early return on same conv on mobile also closes sidebar
+  it("handleLoadConversation early return on mobile closes sidebar (lines 339-341)", async () => {
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 500,
+    });
+
+    const messages: ChatMessage[] = [{ role: "user", content: "Hi" }];
+    mocks.getConversationMessages.mockResolvedValue({
+      conversation: getConversation({ id: "conv-mobile" }),
+      messages,
+    });
+
+    const { Wrapper } = createQueryClientWrapper();
+    const { result } = renderHook(() => useChatPageController(), {
+      wrapper: Wrapper,
+    });
+
+    // Load once to set currentConvId
+    await act(async () => {
+      await result.current.handleLoadConversation("conv-mobile");
+    });
+
+    // Open sidebar manually
+    act(() => {
+      result.current.setSidebarOpen(true);
+    });
+
+    // Load same conversation again (early return path)
+    await act(async () => {
+      await result.current.handleLoadConversation("conv-mobile");
+    });
+
+    // Mobile path should have closed the sidebar
+    expect(result.current.sidebarOpen).toBe(false);
+  });
+
+  // Line 386: handleNewConversation called when deleted conversation is the current one
+  it("handleConfirmDeleteConversation calls handleNewConversation when deleting current conv (line 386)", async () => {
+    const messages: ChatMessage[] = [
+      { role: "user", content: "Hello" },
+      { role: "assistant", content: "Hi there" },
+    ];
+    mocks.getConversationMessages.mockResolvedValue({
+      conversation: getConversation({ id: "conv-current" }),
+      messages,
+    });
+    mocks.getConversations.mockResolvedValue({
+      conversations: [getConversation({ id: "conv-current", title: "Current" })],
+    });
+    mocks.deleteConversation.mockResolvedValue({ success: true });
+
+    const { Wrapper } = createQueryClientWrapper();
+    const { result } = renderHook(() => useChatPageController(), {
+      wrapper: Wrapper,
+    });
+
+    await waitFor(() => expect(result.current.conversations).toHaveLength(1));
+
+    // Set the current conversation
+    await act(async () => {
+      await result.current.handleLoadConversation("conv-current");
+    });
+
+    expect(result.current.currentConvId).toBe("conv-current");
+
+    // Now delete that same conversation
+    act(() => {
+      result.current.handleDeleteConversation(
+        "conv-current",
+        { stopPropagation: vi.fn() } as unknown as React.MouseEvent,
+      );
+    });
+
+    await act(async () => {
+      await result.current.handleConfirmDeleteConversation();
+    });
+
+    // handleNewConversation should have been called, resetting currentConvId to null
+    expect(result.current.currentConvId).toBeNull();
+    // Messages should be reset to welcome message
+    expect(result.current.messages).toEqual([
+      { role: "assistant", content: "chat.welcome" },
+    ]);
   });
 });

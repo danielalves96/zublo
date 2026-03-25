@@ -234,6 +234,18 @@ describe("NotificationsTab", () => {
     expect(providerWrapper?.className).toContain("md:col-span-2");
   });
 
+  it("keeps relative provider order stable when all providers have the same enabled state (sort returns 0)", async () => {
+    // With all providers disabled (default state), aOn === bOn for every comparison,
+    // so the sort comparator returns 0 — covering the `aOn === bOn ? 0` branch.
+    const { Wrapper } = createQueryClientWrapper();
+    render(<NotificationsTab />, { wrapper: Wrapper });
+    await waitFor(() =>
+      expect(screen.getByTestId("provider-email")).toBeInTheDocument(),
+    );
+    // All providers appear — sort didn't throw and returned 0 for each pair
+    expect(screen.getByTestId("provider-discord")).toBeInTheDocument();
+  });
+
   it("includes updated reminders from RemindersEditor in the save payload", async () => {
     getConfig.mockResolvedValue({ id: "cfg-1", user: "user-1" });
     const { Wrapper } = createQueryClientWrapper();

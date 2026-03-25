@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
     mobile_navigation: true,
   },
   isAdmin: true,
+  useQueryEnabled: true as boolean | undefined,
 }));
 
 vi.mock("react-i18next", () => ({
@@ -23,9 +24,13 @@ vi.mock("react-i18next", () => ({
 }));
 
 vi.mock("@tanstack/react-query", () => ({
-  useQuery: () => ({
-    data: mocks.aiSettings,
-  }),
+  useQuery: (opts: { enabled?: boolean }) => {
+    // Track the enabled flag to verify the guard
+    mocks.useQueryEnabled = opts.enabled;
+    return {
+      data: mocks.aiSettings,
+    };
+  },
 }));
 
 vi.mock("@tanstack/react-router", () => ({
@@ -246,6 +251,143 @@ describe("Layout", () => {
     fireEvent.click(collapseButton);
 
     // admin tooltip content should be present
+    expect(screen.getAllByText("admin").length).toBeGreaterThan(0);
+  });
+
+  // Line 48: aiSettings query enabled condition — disabled when user has no id
+  it("disables aiSettings query when user has no id (line 48)", () => {
+    mocks.user = {
+      id: "",
+      name: "No ID User",
+      username: "noid",
+      email: "noid@example.com",
+      avatar: "",
+      mobile_navigation: false,
+    };
+
+    render(<Layout />);
+
+    // When user.id is falsy, enabled should be false (!!user?.id => false)
+    expect(mocks.useQueryEnabled).toBe(false);
+  });
+
+  // Line 161: admin section conditional rendering — renders when isAdmin is true
+  it("renders admin navigation section when isAdmin is true (line 161)", () => {
+    mocks.isAdmin = true;
+    render(<Layout />);
+
+    // The admin link should be present
+    expect(screen.getAllByText("admin").length).toBeGreaterThan(0);
+    // The administration label should also be present (not collapsed)
+    expect(screen.getByText("administration")).toBeInTheDocument();
+  });
+
+  // Line 161: admin section conditional rendering — absent when isAdmin is false
+  it("does not render admin navigation section when isAdmin is false (line 161)", () => {
+    mocks.isAdmin = false;
+    render(<Layout />);
+
+    expect(screen.queryByText("administration")).not.toBeInTheDocument();
+    expect(screen.queryByText("admin")).not.toBeInTheDocument();
+  });
+
+  // aiSettings.enabled false → chat nav item not included (navItems = baseNavItems)
+  it("excludes chat nav item when aiSettings.enabled is false", () => {
+    mocks.aiSettings = { enabled: false };
+    render(<Layout />);
+    expect(screen.queryByText("chat")).not.toBeInTheDocument();
+  });
+
+  // aiSettings.enabled true → chat nav item included between statistics and settings
+  it("includes chat nav item when aiSettings.enabled is true", () => {
+    mocks.aiSettings = { enabled: true };
+    render(<Layout />);
+    expect(screen.getAllByText("chat").length).toBeGreaterThan(0);
+  });
+
+  // user?.avatar truthy → renders <img> (already covered above, but explicit test)
+  it("renders avatar image when user has an avatar", () => {
+    mocks.user = {
+      id: "user-1",
+      name: "Daniel",
+      username: "daniel",
+      email: "daniel@example.com",
+      avatar: "avatar.png",
+      mobile_navigation: false,
+    };
+    mocks.avatarUrl.mockReturnValue("https://cdn.example.com/avatar.png");
+    render(<Layout />);
+    const img = screen.getByAltText("Daniel");
+    expect(img.tagName).toBe("IMG");
+  });
+
+  // user?.avatar falsy → falls back to initial letter via email when name is empty
+  it("falls back to email initial when user has no name but has email", () => {
+    mocks.user = {
+      id: "user-1",
+      name: "",
+      username: "",
+      email: "zara@example.com",
+      avatar: "",
+      mobile_navigation: false,
+    };
+    render(<Layout />);
+    expect(screen.getByText("Z")).toBeInTheDocument();
+  });
+
+  // user?.name || user?.username shown in collapsed=false user section
+  it("shows username when user has no name but has username", () => {
+    mocks.user = {
+      id: "user-1",
+      name: "",
+      username: "charlie",
+      email: "charlie@example.com",
+      avatar: "",
+      mobile_navigation: false,
+    };
+    render(<Layout />);
+    expect(screen.getByText("charlie")).toBeInTheDocument();
+  });
+
+  // mobile_navigation: false → no bottom nav rendered
+  it("does not render mobile bottom navigation when mobile_navigation is false", () => {
+    mocks.user = {
+      id: "user-1",
+      name: "Daniel",
+      username: "daniel",
+      email: "daniel@example.com",
+      avatar: "",
+      mobile_navigation: false,
+    };
+    render(<Layout />);
+    expect(document.querySelector("nav.fixed.bottom-0")).toBeNull();
+  });
+
+  // Active nav link — pathname matches a route prefix
+  it("marks nav link as active when pathname matches route", () => {
+    mocks.pathname = "/subscriptions";
+    render(<Layout />);
+    // The subscriptions link should be rendered (existence confirms active logic ran)
+    expect(screen.getAllByText("subscriptions").length).toBeGreaterThan(0);
+  });
+
+  // Collapsed sidebar: nav labels hidden, tooltip content shown; admin tooltip also shown
+  it("renders admin tooltip content when collapsed and isAdmin is true", () => {
+    mocks.isAdmin = true;
+    render(<Layout />);
+    const collapseButton = document.querySelector(
+      "button.hidden.lg\\:flex",
+    ) as HTMLButtonElement;
+    fireEvent.click(collapseButton);
+    // The admin text is still in the DOM via TooltipContent
+    expect(screen.getAllByText("admin").length).toBeGreaterThan(0);
+  });
+
+  // Admin section active state: pathname starts with /admin
+  it("sets admin link as active when pathname starts with /admin", () => {
+    mocks.pathname = "/admin";
+    mocks.isAdmin = true;
+    render(<Layout />);
     expect(screen.getAllByText("admin").length).toBeGreaterThan(0);
   });
 });

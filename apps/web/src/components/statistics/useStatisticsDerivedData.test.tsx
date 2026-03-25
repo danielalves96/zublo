@@ -1,5 +1,6 @@
 import { renderHook } from "@testing-library/react";
 
+import type { StatisticsGroupBy } from "@/components/statistics/statistics.types";
 import type { Currency, Subscription, YearlyCost } from "@/types";
 
 import { useStatisticsDerivedData } from "./useStatisticsDerivedData";
@@ -88,8 +89,11 @@ describe("useStatisticsDerivedData", () => {
       total: index + 0.245,
     }));
 
-    const { result, rerender } = renderHook(
-      ({ groupBy }: { groupBy: "category" | "payment" | "member" }) =>
+    const { result, rerender } = renderHook<
+      ReturnType<typeof useStatisticsDerivedData>,
+      { groupBy: StatisticsGroupBy }
+    >(
+      ({ groupBy }: { groupBy: StatisticsGroupBy }) =>
         useStatisticsDerivedData({
           subscriptions,
           currencies,
@@ -139,5 +143,57 @@ describe("useStatisticsDerivedData", () => {
       { name: "Alice", value: 10 },
       { name: "Bob", value: 10 },
     ]);
+  });
+
+  it("treats frequency of 0 as 1 when computing monthly cost (frequency || 1 branch)", () => {
+    // A subscription with frequency=0 should behave like frequency=1 (monthly)
+    const sub = getSubscription({
+      price: 12,
+      frequency: 0,
+      expand: {
+        currency: currencies[0], // USD, rate=1, is_main=true
+        cycle: { id: "cycle-1", name: "Monthly" },
+      },
+    });
+
+    const { result } = renderHook(() =>
+      useStatisticsDerivedData({
+        subscriptions: [sub],
+        currencies,
+        yearlyCosts: [],
+        groupBy: "category",
+      }),
+    );
+
+    // frequency=0 → || 1 → monthly cost = price/1 = 12/1 = 12
+    expect(result.current.totalMonthly).toBeCloseTo(12, 5);
+  });
+
+  it("falls back to rate=1 and symbol='$' when no currency has is_main=true", () => {
+    const noCurrencies: Currency[] = [
+      {
+        id: "eur",
+        code: "EUR",
+        name: "Euro",
+        symbol: "€",
+        rate: 0.9,
+        is_main: false,
+        user: "user-1",
+      },
+    ];
+
+    const { result } = renderHook(() =>
+      useStatisticsDerivedData({
+        subscriptions: [getSubscription({ price: 10 })],
+        currencies: noCurrencies,
+        yearlyCosts: [],
+        groupBy: "category",
+      }),
+    );
+
+    // No main currency → mainSymbol defaults to "$"
+    expect(result.current.mainSymbol).toBe("$");
+    // mainRate defaults to 1 — price is unchanged
+    expect(result.current.totalMonthly).toBeCloseTo(10, 5);
   });
 });

@@ -210,6 +210,47 @@ describe("MarkAsPaidModal", () => {
     await waitFor(() => expect(toastError).toHaveBeenCalledWith("Falha ao atualizar registro de pagamento"));
   });
 
+  it("uses sub.price as initial amount when existingRecord has no amount (line 54 false branch)", () => {
+    renderComponent({
+      id: "rec-1",
+      subscription_id: "sub-1",
+      user: "user-1",
+      due_date: "2026-03-20",
+      // no amount field — existingRecord.amount is undefined (nullish)
+    });
+
+    // The amount input should be pre-filled with sub.price (49.9)
+    expect(screen.getByLabelText("amount")).toHaveValue(49.9);
+  });
+
+  it("shows no_proof paragraph when isViewOnly is true and proofUrl is null (line 207-214 !isViewOnly false branch)", () => {
+    proofUrl.mockReturnValue(null);
+
+    renderComponent({
+      id: "rec-1",
+      subscription_id: "sub-1",
+      user: "user-1",
+      due_date: "2026-03-20",
+      paid_at: "2026-03-20T10:00:00.000Z",
+      // no proof field → proofUrl returns null, isViewOnly is true
+    });
+
+    expect(screen.getByText("no_proof")).toBeInTheDocument();
+    // Should not show the upload section or the proof link
+    expect(screen.queryByRole("button", { name: "upload_proof" })).not.toBeInTheDocument();
+  });
+
+  it("shows saving label while mutation is pending (line 268 isPending branch)", async () => {
+    // Make save never resolve so isPending stays true
+    create.mockImplementation(() => new Promise(() => {}));
+    renderComponent();
+
+    await userEvent.click(screen.getByRole("button", { name: "confirm_payment" }));
+
+    // While pending, the button label changes to t("saving")
+    expect(screen.getByRole("button", { name: "saving" })).toBeInTheDocument();
+  });
+
   it("allows clearing selected proof file and triggering file input click", async () => {
     renderComponent();
     const file = new File(["dummy"], "dummy.png", { type: "image/png" });

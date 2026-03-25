@@ -17,13 +17,13 @@ const mocks = vi.hoisted(() => ({
   filteredSubscriptions: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
-  toastError: vi.fn(),
   jsonUrl: vi.fn(),
   revokeUrl: vi.fn(),
   xlsxJsonToSheet: vi.fn(),
   xlsxBookNew: vi.fn(),
   xlsxBookAppendSheet: vi.fn(),
   xlsxWriteFile: vi.fn(),
+  useAuth: vi.fn(),
 }));
 
 vi.mock("xlsx", () => ({
@@ -42,17 +42,8 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
-const mockUseAuth = vi.fn(() => ({
-  user: {
-    id: "user-1",
-    convert_currency: true,
-    monthly_price: true,
-    subscription_progress: true,
-  },
-}));
-
 vi.mock("@/contexts/AuthContext", () => ({
-  useAuth: () => mockUseAuth(),
+  useAuth: mocks.useAuth,
 }));
 
 vi.mock("@/services/subscriptions", () => ({
@@ -297,7 +288,7 @@ import { SubscriptionsPage } from "./SubscriptionsPage";
 describe("SubscriptionsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseAuth.mockReturnValue({
+    mocks.useAuth.mockReturnValue({
       user: {
         id: "user-1",
         convert_currency: true,
@@ -538,7 +529,7 @@ describe("SubscriptionsPage", () => {
   });
 
   it("renders with empty userId when user is null (covers user?.id ?? '' fallback)", () => {
-    mockUseAuth.mockReturnValue({ user: null });
+    mocks.useAuth.mockReturnValue({ user: null });
 
     const { Wrapper } = createQueryClientWrapper();
     render(<SubscriptionsPage />, { wrapper: Wrapper });

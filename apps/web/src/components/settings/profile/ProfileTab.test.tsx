@@ -41,9 +41,12 @@ const { changeLanguage } = vi.hoisted(() => ({
   changeLanguage: vi.fn(),
 }));
 
+// Mutable auth user reference so individual tests can override it
+let currentAuthUser: typeof authUser | null = { ...authUser };
+
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({
-    user: authUser,
+    user: currentAuthUser,
     refreshUser,
   }),
 }));
@@ -145,6 +148,7 @@ import { ProfileTab } from "./ProfileTab";
 describe("ProfileTab", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    currentAuthUser = { ...authUser };
     avatarUrl.mockReturnValue("https://example.com/avatar.png");
     listMain.mockResolvedValue([
       {
@@ -184,6 +188,96 @@ describe("ProfileTab", () => {
       expect(screen.getByTestId("budget-code")).toHaveTextContent("BRL");
     });
     expect(listMain).toHaveBeenCalledWith("user-1");
+  });
+
+  // Lines 49-53: useEffect with all branches
+  // Branch 1: if (user) → true, if (url) → true (url is truthy)
+  it("sets preview from avatarUrl when user exists and avatarUrl returns a URL (lines 49-51 true branches)", async () => {
+    avatarUrl.mockReturnValue("https://example.com/avatar.png");
+    renderComponent();
+
+    await waitFor(() =>
+      expect(screen.getByTestId("avatar-preview")).toHaveTextContent(
+        "https://example.com/avatar.png",
+      ),
+    );
+    // avatarUrl was called with the user
+    expect(avatarUrl).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "user-1", avatar: "avatar.png" }),
+    );
+  });
+
+  // Branch 2: if (user) → true, if (url) → false (avatarUrl returns null)
+  it("does not set preview when avatarUrl returns null (line 51 falsy url branch)", async () => {
+    avatarUrl.mockReturnValue(null);
+    renderComponent();
+
+    await waitFor(() =>
+      expect(screen.getByTestId("avatar-preview")).toHaveTextContent("none"),
+    );
+    // avatarUrl was called (user is truthy) but url was null so setPreview was not called
+    expect(avatarUrl).toHaveBeenCalled();
+  });
+
+  // Branch 3: if (user) → true, if (url) → false (avatarUrl returns empty string)
+  it("does not set preview when avatarUrl returns empty string (line 51 falsy url branch)", async () => {
+    avatarUrl.mockReturnValue("");
+    renderComponent();
+
+    await waitFor(() =>
+      expect(screen.getByTestId("avatar-preview")).toHaveTextContent("none"),
+    );
+  });
+
+  // Branch 4: if (user) → false (user is null) — the entire useEffect body is skipped
+  it("does not call avatarUrl when user is null (line 49 if(user) false branch)", async () => {
+    currentAuthUser = null;
+    avatarUrl.mockReturnValue(null);
+
+    renderComponent();
+
+    // Wait a tick for any effects to settle
+    await waitFor(() => {
+      expect(avatarUrl).not.toHaveBeenCalled();
+    });
+    // preview remains "none" (never set)
+    expect(screen.getByTestId("avatar-preview")).toHaveTextContent("none");
+  });
+
+  // Branch 5: if (user) → true, user.budget defined (non-null) → setBudget(budget)
+  it("sets budget from user.budget when it is defined (line 52 defined budget branch)", async () => {
+    currentAuthUser = { ...authUser, budget: 500 };
+    renderComponent();
+
+    await waitFor(() =>
+      expect(screen.getByTestId("budget-value")).toHaveTextContent("500"),
+    );
+  });
+
+  // Branch 6: if (user) → true, user.budget is null → setBudget(0) via ?? 0
+  it("defaults budget to 0 when user.budget is null (line 52 nullish coalescing branch)", async () => {
+    currentAuthUser = {
+      ...authUser,
+      budget: null as unknown as number,
+    };
+    renderComponent();
+
+    await waitFor(() =>
+      expect(screen.getByTestId("budget-value")).toHaveTextContent("0"),
+    );
+  });
+
+  // Branch 7: if (user) → true, user.budget is undefined → setBudget(0) via ?? 0
+  it("defaults budget to 0 when user.budget is undefined (line 52 nullish coalescing branch)", async () => {
+    currentAuthUser = {
+      ...authUser,
+      budget: undefined as unknown as number,
+    };
+    renderComponent();
+
+    await waitFor(() =>
+      expect(screen.getByTestId("budget-value")).toHaveTextContent("0"),
+    );
   });
 
   it("submits updated profile data, password, avatar, and budget", async () => {
@@ -260,5 +354,38 @@ describe("ProfileTab", () => {
     await waitFor(() =>
       expect(screen.getByTestId("avatar-preview")).toHaveTextContent("none"),
     );
+  });
+
+  // onSubmit: if (data.oldPwd && data.newPwd) false branch — no password fields appended
+  it("does not include password fields in FormData when oldPwd is empty", async () => {
+    renderComponent();
+
+    await userEvent.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => expect(updateUser).toHaveBeenCalledTimes(1));
+    const [, formData] = updateUser.mock.calls[0] as [string, FormData];
+    expect(formData.get("oldPassword")).toBeNull();
+    expect(formData.get("password")).toBeNull();
+  });
+
+  // onSubmit: if (avatarFile) false branch — no avatar appended
+  it("does not include avatar in FormData when no file selected", async () => {
+    renderComponent();
+
+    await userEvent.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => expect(updateUser).toHaveBeenCalledTimes(1));
+    const [, formData] = updateUser.mock.calls[0] as [string, FormData];
+    expect(formData.get("avatar")).toBeNull();
+  });
+
+  // onSubmit: error when e is not an Error instance → String(e)
+  it("shows string error toast when saving fails with non-Error rejection", async () => {
+    updateUser.mockRejectedValue("plain string error");
+    renderComponent();
+
+    await userEvent.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith("plain string error"));
   });
 });

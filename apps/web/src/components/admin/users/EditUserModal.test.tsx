@@ -27,6 +27,10 @@ vi.mock("@/lib/toast", () => ({
 describe("EditUserModal", () => {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const onCloseMock = vi.fn();
+  const getFileInput = () =>
+    document.querySelector("input[type=file]") as HTMLInputElement | null;
+  const getSubmitButton = () =>
+    document.querySelector("button[type=submit]") as HTMLButtonElement | null;
 
   const mockUser: AdminUser = {
     id: "user-1",
@@ -34,8 +38,8 @@ describe("EditUserModal", () => {
     username: "alice",
     email: "alice@wonderland.com",
     avatar: "avatar.png",
-    is_admin: 0 as any, // Just casting it for test
-    totp_enabled: 0 as any,
+    is_admin: false,
+    totp_enabled: false,
     created: "2024-01-01 10:00:00",
   };
 
@@ -54,9 +58,9 @@ describe("EditUserModal", () => {
 
   it("renders correctly with user data", () => {
     renderComponent();
-    
+
     expect(screen.getByRole("heading", { name: /edit_user/i })).toBeInTheDocument();
-    
+
     // Check initial values
     const inputs = Array.from(document.querySelectorAll("input")).filter(i => i.type !== "file");
     expect((inputs[0] as HTMLInputElement).value).toBe("Alice Liddell");
@@ -66,23 +70,51 @@ describe("EditUserModal", () => {
     expect((inputs[3] as HTMLInputElement).value).toBe("");
   });
 
-  it("shows admin badge if user is admin", () => {
-    renderComponent({ ...mockUser, is_admin: 1 as any }); // or true depending on the casting
+  // Lines 119-123: admin badge conditional rendering
+  it("shows admin badge if user is admin (lines 119-123)", () => {
+    renderComponent({ ...mockUser, is_admin: true });
     expect(screen.getByText(/admin/)).toBeInTheDocument();
+    // The Crown icon wrapper span with admin text
+    const adminBadge = screen.getByText("admin");
+    expect(adminBadge).toBeInTheDocument();
+  });
+
+  // Lines 113-146: no admin badge when user is not admin
+  it("does not show admin badge when user is not admin", () => {
+    renderComponent({ ...mockUser, is_admin: false });
+    // "admin" text should NOT appear in the title area as a badge
+    // (the heading is "edit_user", no crown badge)
+    const heading = screen.getByRole("heading", { name: /edit_user/i });
+    expect(heading).not.toHaveTextContent("admin");
+  });
+
+  // Lines 127-214: password section rendering
+  it("renders change_password section with optional label (lines 127+)", () => {
+    renderComponent();
+    expect(screen.getByText("change_password")).toBeInTheDocument();
+    // The optional label is rendered as "(optional)" with surrounding parentheses
+    expect(screen.getByText("(optional)")).toBeInTheDocument();
+  });
+
+  // Lines 131-146: password fields visible
+  it("renders new_password and confirm_password fields (lines 131-146)", () => {
+    renderComponent();
+    expect(screen.getByText("new_password")).toBeInTheDocument();
+    expect(screen.getByText("confirm_password")).toBeInTheDocument();
   });
 
   it("submits changes correctly without password or avatar", async () => {
     vi.mocked(adminService.updateUser).mockResolvedValue({ success: true } as any);
-    
+
     renderComponent();
-    
+
     const inputs = Array.from(document.querySelectorAll("input")).filter(i => i.type !== "file");
-    
+
     // Clear name and type new one
     await userEvent.clear(inputs[0]);
     await userEvent.type(inputs[0], "Alice Bob");
-    
-    const submitBtn = document.querySelector("button[type=submit]");
+
+    const submitBtn = getSubmitButton();
     if (submitBtn) await userEvent.click(submitBtn);
 
     await waitFor(() => {
@@ -99,15 +131,15 @@ describe("EditUserModal", () => {
 
   it("submits password change correctly", async () => {
     vi.mocked(adminService.updateUser).mockResolvedValue({ success: true } as any);
-    
+
     renderComponent();
-    
+
     const inputs = Array.from(document.querySelectorAll("input")).filter(i => i.type !== "file");
-    
+
     await userEvent.type(inputs[3], "newpassword123");
     await userEvent.type(inputs[4], "newpassword123");
-    
-    const submitBtn = document.querySelector("button[type=submit]");
+
+    const submitBtn = getSubmitButton();
     if (submitBtn) await userEvent.click(submitBtn);
 
     await waitFor(() => {
@@ -119,13 +151,13 @@ describe("EditUserModal", () => {
 
   it("shows password mismatch error", async () => {
     renderComponent();
-    
+
     const inputs = Array.from(document.querySelectorAll("input")).filter(i => i.type !== "file");
-    
+
     await userEvent.type(inputs[3], "newpassword123");
     await userEvent.type(inputs[4], "mismatched");
-    
-    const submitBtn = document.querySelector("button[type=submit]");
+
+    const submitBtn = getSubmitButton();
     if (submitBtn) await userEvent.click(submitBtn);
 
     await waitFor(() => {
@@ -136,16 +168,16 @@ describe("EditUserModal", () => {
   it("submits with avatar upload", async () => {
     vi.mocked(adminService.updateUser).mockResolvedValue({ success: true } as any);
     vi.mocked(adminService.uploadAvatar).mockResolvedValue({ success: true } as any);
-    
+
     renderComponent();
-    
+
     const file = new File(["dummy"], "new-avatar.png", { type: "image/png" });
-    const fileInput = document.querySelector("input[type=file]");
+    const fileInput = getFileInput();
     if (fileInput) {
       await userEvent.upload(fileInput, file);
     }
 
-    const submitBtn = document.querySelector("button[type=submit]");
+    const submitBtn = getSubmitButton();
     if (submitBtn) await userEvent.click(submitBtn);
 
     await waitFor(() => {
@@ -156,13 +188,13 @@ describe("EditUserModal", () => {
 
   it("previews selected avatar", async () => {
     renderComponent();
-    
+
     const file = new File(["dummy"], "new-avatar.png", { type: "image/png" });
-    const fileInput = document.querySelector("input[type=file]");
+    const fileInput = getFileInput();
     if (fileInput) {
       await userEvent.upload(fileInput, file);
     }
-    
+
     expect(URL.createObjectURL).toHaveBeenCalledWith(file);
     const img = document.querySelector("img");
     expect(img?.getAttribute("src")).toBe("mocked-preview-url");
@@ -170,10 +202,10 @@ describe("EditUserModal", () => {
 
   it("handles api error on update", async () => {
     vi.mocked(adminService.updateUser).mockRejectedValue(new Error("Update failed"));
-    
+
     renderComponent();
-    
-    const submitBtn = document.querySelector("button[type=submit]");
+
+    const submitBtn = getSubmitButton();
     if (submitBtn) await userEvent.click(submitBtn);
 
     await waitFor(() => {
@@ -184,10 +216,10 @@ describe("EditUserModal", () => {
 
   it("handles string error on update", async () => {
     vi.mocked(adminService.updateUser).mockRejectedValue("String error");
-    
+
     renderComponent();
-    
-    const submitBtn = document.querySelector("button[type=submit]");
+
+    const submitBtn = getSubmitButton();
     if (submitBtn) await userEvent.click(submitBtn);
 
     await waitFor(() => {
@@ -197,24 +229,33 @@ describe("EditUserModal", () => {
 
   it("closes when cancel or close button is clicked", async () => {
     renderComponent();
-    
+
     const cancelBtn = screen.getByRole("button", { name: "cancel" });
     await userEvent.click(cancelBtn);
-    
+
     expect(onCloseMock).toHaveBeenCalled();
   });
-  
+
   it("renders with initials avatar if user has no avatar", () => {
     renderComponent({ ...mockUser, avatar: "" });
     // should display initials (displayName -> Alice Liddell -> A)
     expect(screen.getByText("A")).toBeInTheDocument();
   });
-  
+
   it("can click the change avatar button", async () => {
     renderComponent();
-    
+
     const changeAvatarBtn = screen.getByRole("button", { name: "change_avatar" });
     await userEvent.click(changeAvatarBtn);
     // it triggers input click, which we implicitly test via upload
+  });
+
+  // Line 113: onOpenChange triggers onClose when dialog closed
+  it("calls onClose when dialog is closed via onOpenChange (line 113)", () => {
+    renderComponent();
+    // Pressing Escape triggers onOpenChange(false) => !open && onClose()
+    const { fireEvent } = require("@testing-library/react");
+    fireEvent.keyDown(document, { key: "Escape", code: "Escape" });
+    expect(onCloseMock).toHaveBeenCalled();
   });
 });

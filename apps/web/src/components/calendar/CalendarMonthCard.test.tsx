@@ -208,6 +208,33 @@ describe("CalendarMonthCard", () => {
     expect(onSelectDay).not.toHaveBeenCalledWith(30);
   });
 
+  it("shows singular 'event' badge when statsCount is 1", () => {
+    render(
+      <CalendarMonthCard
+        month={4}
+        year={2026}
+        now={new Date(2026, 2, 20)}
+        daysInMonth={30}
+        isCurrentMonth={false}
+        loading={false}
+        statsCount={1}
+        selectedDay={null}
+        allCells={[{ day: 1, type: "current" }]}
+        entriesByDay={{}}
+        mainCurrency={getCurrency()}
+        currencyById={new Map([["cur-1", getCurrency()]])}
+        paymentTracking={false}
+        paymentRecords={[]}
+        onPrev={vi.fn()}
+        onNext={vi.fn()}
+        onGoToday={vi.fn()}
+        onSelectDay={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("1 event")).toBeInTheDocument();
+  });
+
   it("renders image logo directly without paymentTracking and handles onError", () => {
     const subscriptionA = getSubscription({ id: "sub-1", name: "Netflix", price: 10 });
     mocks.getLogoUrl.mockReturnValue("https://cdn.example.com/netflix.png");

@@ -165,4 +165,16 @@ describe("CurrencyInput", () => {
     );
     expect(screen.getByPlaceholderText("0.00")).toBeInTheDocument();
   });
+
+  it("treats a non-numeric string value as 0 and shows empty display", () => {
+    // typeof value === "string" → parseFloat("abc") = NaN → || 0 → numeric = 0
+    render(<CurrencyInput value="abc" onChange={() => {}} />);
+    expect(screen.getByRole("textbox")).toHaveValue("");
+  });
+
+  it("treats string '0' as 0 and shows empty display", () => {
+    // typeof value === "string" → parseFloat("0") = 0 → || 0 keeps 0 → numeric = 0
+    render(<CurrencyInput value="0" onChange={() => {}} />);
+    expect(screen.getByRole("textbox")).toHaveValue("");
+  });
 });

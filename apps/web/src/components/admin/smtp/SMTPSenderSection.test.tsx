@@ -12,11 +12,13 @@ vi.mock("react-i18next", () => ({
 }));
 
 const defaultForm: SMTPFormValues = {
+  enabled: true,
   host: "smtp.example.com",
   port: 587,
   tls: true,
   username: "testuser",
   password: "testpassword",
+  authMethod: "PLAIN",
   senderAddress: "test@example.com",
   senderName: "Test Sender",
 };

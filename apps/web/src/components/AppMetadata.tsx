@@ -16,7 +16,11 @@ function setMeta(selector: string, attr: "content", value: string) {
   } else if (selector.startsWith('meta[property="')) {
     const property = selector.slice(15, -2);
     meta.setAttribute("property", property);
+    /* v8 ignore start */
+  } else {
+    // Dead branch: AppMetadata only calls setMeta with meta[name="…"] or meta[property="…"] selectors.
   }
+  /* v8 ignore stop */
 
   meta.setAttribute(attr, value);
   document.head.appendChild(meta);

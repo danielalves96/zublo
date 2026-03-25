@@ -84,17 +84,26 @@ describe("createAppRouter", () => {
 
 describe("settingsRoute.validateSearch", () => {
   it("returns tab when search.tab is a string", () => {
-    const result = settingsRoute.options.validateSearch?.({ tab: "general" });
+    const validateSearch = settingsRoute.options.validateSearch as
+      | ((search: Record<string, unknown>) => { tab?: string })
+      | undefined;
+    const result = validateSearch?.({ tab: "general" });
     expect(result).toEqual({ tab: "general" });
   });
 
   it("returns undefined tab when search.tab is not a string", () => {
-    const result = settingsRoute.options.validateSearch?.({ tab: 42 });
+    const validateSearch = settingsRoute.options.validateSearch as
+      | ((search: Record<string, unknown>) => { tab?: string })
+      | undefined;
+    const result = validateSearch?.({ tab: 42 });
     expect(result).toEqual({ tab: undefined });
   });
 
   it("returns undefined tab when search.tab is absent", () => {
-    const result = settingsRoute.options.validateSearch?.({});
+    const validateSearch = settingsRoute.options.validateSearch as
+      | ((search: Record<string, unknown>) => { tab?: string })
+      | undefined;
+    const result = validateSearch?.({});
     expect(result).toEqual({ tab: undefined });
   });
 });
@@ -103,12 +112,18 @@ describe("settingsRoute.validateSearch", () => {
 
 describe("adminRoute.validateSearch", () => {
   it("returns tab when search.tab is a string", () => {
-    const result = adminRoute.options.validateSearch?.({ tab: "users" });
+    const validateSearch = adminRoute.options.validateSearch as
+      | ((search: Record<string, unknown>) => { tab?: string })
+      | undefined;
+    const result = validateSearch?.({ tab: "users" });
     expect(result).toEqual({ tab: "users" });
   });
 
   it("returns undefined tab when search.tab is not a string", () => {
-    const result = adminRoute.options.validateSearch?.({ tab: null });
+    const validateSearch = adminRoute.options.validateSearch as
+      | ((search: Record<string, unknown>) => { tab?: string })
+      | undefined;
+    const result = validateSearch?.({ tab: null });
     expect(result).toEqual({ tab: undefined });
   });
 });
@@ -216,13 +231,33 @@ describe("route component rendering", () => {
     expect(screen.getByText("layout")).toBeInTheDocument();
   });
 
-  it("renders password-reset page via router (covers PasswordResetPage lazy callback)", async () => {
+  it("renders password-reset page via router (covers PasswordResetPage lazy callback — line 23)", async () => {
     window.history.pushState({}, "", "/password-reset");
     const router = createAppRouter(makeContext({ user: null }));
     await router.load();
     render(<RouterProvider router={router} />);
     await screen.findByText("password-reset");
     expect(screen.getByText("password-reset")).toBeInTheDocument();
+  });
+
+  // Line 20: lazy import of TotpPage
+  it("renders totp page via router (covers TotpPage lazy import — line 20)", async () => {
+    window.history.pushState({}, "", "/totp");
+    const router = createAppRouter(makeContext({ user: null }));
+    await router.load();
+    render(<RouterProvider router={router} />);
+    await screen.findByText("totp");
+    expect(screen.getByText("totp")).toBeInTheDocument();
+  });
+
+  // Line 23: lazy import of PasswordResetPage (explicit extra coverage)
+  it("renders register page via router (covers RegisterPage lazy import)", async () => {
+    window.history.pushState({}, "", "/register");
+    const router = createAppRouter(makeContext({ user: null }));
+    await router.load();
+    render(<RouterProvider router={router} />);
+    await screen.findByText("register");
+    expect(screen.getByText("register")).toBeInTheDocument();
   });
 });
 

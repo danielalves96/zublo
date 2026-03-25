@@ -1,6 +1,7 @@
 import { renderHook } from "@testing-library/react";
 
 import { INITIAL_SUBSCRIPTION_FILTERS } from "@/components/subscriptions/subscriptionsPage.types";
+import type { SubscriptionSortKey } from "@/components/subscriptions/subscriptionsPage.types";
 import type { Subscription } from "@/types";
 
 import { useFilteredSubscriptions } from "./useFilteredSubscriptions";
@@ -97,12 +98,18 @@ describe("useFilteredSubscriptions", () => {
       }),
     ];
 
-    const { result, rerender } = renderHook(
+    const { result, rerender } = renderHook<
+      ReturnType<typeof useFilteredSubscriptions>,
+      {
+        sort: SubscriptionSortKey;
+        sortDir: "asc" | "desc";
+      }
+    >(
       ({
         sort,
         sortDir,
       }: {
-        sort: "name" | "price" | "date" | "status";
+        sort: SubscriptionSortKey;
         sortDir: "asc" | "desc";
       }) =>
         useFilteredSubscriptions({
@@ -168,6 +175,87 @@ describe("useFilteredSubscriptions", () => {
     );
 
     expect(result.current.map((s) => s.id)).toEqual(["sub-3", "sub-2"]);
+  });
+
+  it("sorts by date with empty next_payment falling back to empty string", () => {
+    const subscriptions = [
+      getSubscription({ id: "sub-1", name: "Alpha", next_payment: "2026-04-01" }),
+      getSubscription({ id: "sub-2", name: "Beta", next_payment: "" }),
+      getSubscription({ id: "sub-3", name: "Gamma", next_payment: "2026-03-01" }),
+    ];
+
+    const { result } = renderHook(() =>
+      useFilteredSubscriptions({
+        subscriptions,
+        searchTerm: "",
+        filters: INITIAL_SUBSCRIPTION_FILTERS,
+        sort: "date",
+        sortDir: "asc",
+      }),
+    );
+
+    // Empty string sorts before any date string, so sub-2 comes first
+    expect(result.current.map((s) => s.id)).toEqual(["sub-2", "sub-3", "sub-1"]);
+  });
+
+  it("treats undefined category, payer, and payment_method as empty string when filtering", () => {
+    // Covers subscription.category ?? "", subscription.payer ?? "", subscription.payment_method ?? ""
+    const subscriptions = [
+      getSubscription({
+        id: "sub-1",
+        name: "Netflix",
+        // category, payer, payment_method are all undefined
+        category: undefined,
+        payer: undefined,
+        payment_method: undefined,
+      }),
+    ];
+
+    const { result } = renderHook(() =>
+      useFilteredSubscriptions({
+        subscriptions,
+        searchTerm: "",
+        filters: {
+          state: "active",
+          categories: [],
+          members: [],
+          payments: [],
+        },
+        sort: "name",
+        sortDir: "asc",
+      }),
+    );
+
+    // No filters active → subscription passes through
+    expect(result.current.map((s) => s.id)).toEqual(["sub-1"]);
+  });
+
+  it("excludes subscription when category filter is set and category is undefined", () => {
+    const subscriptions = [
+      getSubscription({
+        id: "sub-1",
+        name: "Netflix",
+        category: undefined,
+      }),
+    ];
+
+    const { result } = renderHook(() =>
+      useFilteredSubscriptions({
+        subscriptions,
+        searchTerm: "",
+        filters: {
+          state: "active",
+          categories: ["streaming"],
+          members: [],
+          payments: [],
+        },
+        sort: "name",
+        sortDir: "asc",
+      }),
+    );
+
+    // category is undefined → "" which doesn't match "streaming"
+    expect(result.current).toHaveLength(0);
   });
 
   it("moves inactive subscriptions to the bottom after sorting", () => {

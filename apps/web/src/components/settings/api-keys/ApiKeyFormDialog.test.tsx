@@ -106,7 +106,8 @@ describe("ApiKeyFormDialog", () => {
     expect(onSubmit).toHaveBeenCalledWith("My Key", ["subscriptions:read"]);
   });
 
-  it("does not call onSubmit when name is empty", () => {
+  // Line 108: guard — does not call onSubmit when name is empty (even if button click forced)
+  it("does not call onSubmit when name is empty (line 108 guard)", () => {
     const onSubmit = vi.fn();
     render(
       <ApiKeyFormDialog
@@ -120,7 +121,30 @@ describe("ApiKeyFormDialog", () => {
         initialPermissions={["subscriptions:read"]}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+    // Button is disabled when name is empty, but we force click via Enter key with empty name
+    const nameInput = screen.getByPlaceholderText("api_key_name_placeholder");
+    fireEvent.keyDown(nameInput, { key: "Enter" });
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  // Line 108: guard — does not call onSubmit when permissions are empty
+  it("does not call onSubmit when permissions are empty (line 108 guard)", () => {
+    const onSubmit = vi.fn();
+    render(
+      <ApiKeyFormDialog
+        open={true}
+        onClose={vi.fn()}
+        onSubmit={onSubmit}
+        isPending={false}
+        title="Create Key"
+        submitLabel="Create"
+        nameInputId="key-name"
+      />,
+    );
+    const nameInput = screen.getByPlaceholderText("api_key_name_placeholder");
+    fireEvent.change(nameInput, { target: { value: "My Key" } });
+    // No permissions selected — submit is disabled but also handleSubmit guard fires
+    fireEvent.keyDown(nameInput, { key: "Enter" });
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
@@ -296,6 +320,25 @@ describe("ApiKeyFormDialog", () => {
       />,
     );
     expect(screen.getByTestId("custom-icon")).toBeInTheDocument();
+  });
+
+  // Line 121: dialog onOpenChange triggers handleClose when dialog is closed externally
+  it("calls onClose via dialog onOpenChange when dialog is closed with Escape (line 121)", () => {
+    const onClose = vi.fn();
+    render(
+      <ApiKeyFormDialog
+        open={true}
+        onClose={onClose}
+        onSubmit={vi.fn()}
+        isPending={false}
+        title="Create Key"
+        submitLabel="Create"
+        nameInputId="key-name"
+      />,
+    );
+    // Pressing Escape triggers onOpenChange(false) which calls handleClose -> onClose
+    fireEvent.keyDown(document, { key: "Escape", code: "Escape" });
+    expect(onClose).toHaveBeenCalled();
   });
 });
 

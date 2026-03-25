@@ -181,6 +181,28 @@ describe("AIModelSelector", () => {
     expect(screen.getByText("no_models_found")).toBeInTheDocument();
   });
 
+  it("does not clear search when popover closes (nextOpen false branch)", () => {
+    render(
+      <AIModelSelector
+        canFetchModels={true}
+        fetchingModels={false}
+        model=""
+        models={["gpt-4", "gpt-3.5"]}
+        onFetchModels={vi.fn()}
+        onModelChange={vi.fn()}
+      />,
+    );
+    // Open the popover
+    fireEvent.click(screen.getByRole("combobox"));
+    // Type something in the search box
+    const searchInput = screen.getByPlaceholderText("search_model");
+    fireEvent.change(searchInput, { target: { value: "gpt" } });
+    // Close the popover by clicking the trigger again
+    fireEvent.click(screen.getByRole("combobox"));
+    // Popover is now closed — the false branch of `if (nextOpen)` was taken
+    expect(screen.queryByPlaceholderText("search_model")).not.toBeInTheDocument();
+  });
+
   it("calls onModelChange and closes popover when a model is selected", () => {
     const onModelChange = vi.fn();
     render(

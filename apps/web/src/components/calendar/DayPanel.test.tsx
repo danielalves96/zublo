@@ -327,6 +327,98 @@ describe("DayPanel", () => {
     expect(screen.getByText("no_subscriptions_due")).toBeInTheDocument();
   });
 
+  it("renders frequency prefix when sub.frequency > 1", () => {
+    const entry = {
+      sub: getSubscription({ id: "sub-1", frequency: 3 }),
+      date: new Date(2026, 2, 10),
+    };
+
+    render(
+      <DayPanel
+        day={10}
+        month={3}
+        year={2026}
+        entries={[entry]}
+        total={10}
+        mainCurrency={getCurrency()}
+        currencies={[getCurrency()]}
+        now={new Date(2026, 2, 8)}
+        t={(key) => key}
+        paymentTracking={false}
+        paymentRecords={[]}
+        onSelectEntry={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    // frequency > 1 shows "${frequency}× " prefix
+    expect(screen.getByText(/3×/)).toBeInTheDocument();
+  });
+
+  it("shows overdue CircleDot in logo-image div when isOverdue is true and logo exists", () => {
+    // getLogoUrl returns a URL (set in beforeEach to "https://cdn.example.com/netflix.png")
+    const entry = {
+      sub: getSubscription({ id: "sub-1" }),
+      // date is in the past relative to now, making isOverdue true
+      date: new Date(2026, 2, 5),
+    };
+
+    render(
+      <DayPanel
+        day={5}
+        month={3}
+        year={2026}
+        entries={[entry]}
+        total={10}
+        mainCurrency={getCurrency()}
+        currencies={[getCurrency()]}
+        now={new Date(2026, 2, 10)}
+        t={(key) => key}
+        paymentTracking
+        paymentRecords={[]}
+        onSelectEntry={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    // Both "overdue" badge (in info section) and CircleDot (in logo-image div) are rendered
+    expect(screen.getByText("overdue")).toBeInTheDocument();
+    // The logo img must be present (getLogoUrl returned a URL)
+    expect(screen.getByAltText("Netflix")).toBeInTheDocument();
+  });
+
+  it("uses the dollar sign fallback when cur is undefined (cur?.symbol ?? '$')", () => {
+    // sub has no expand, and its currency id doesn't match any currency in the list
+    const entry = {
+      sub: {
+        ...getSubscription({ id: "sub-1", currency: "nonexistent-cur" }),
+        expand: undefined,
+      },
+      date: new Date(2026, 2, 10),
+    };
+
+    render(
+      <DayPanel
+        day={10}
+        month={3}
+        year={2026}
+        entries={[entry]}
+        total={10}
+        mainCurrency={getCurrency()}
+        currencies={[getCurrency({ id: "cur-1" })]}
+        now={new Date(2026, 2, 8)}
+        t={(key) => key}
+        paymentTracking={false}
+        paymentRecords={[]}
+        onSelectEntry={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    // formatPrice is called with "$" (the fallback symbol) because cur is undefined
+    expect(mocks.formatPrice).toHaveBeenCalledWith(expect.any(Number), "$");
+  });
+
   it("shows paid badge in no-logo div when paymentTracking and isPaid are true", () => {
     mocks.getLogoUrl.mockReturnValue(null);
     const paymentRecords = [

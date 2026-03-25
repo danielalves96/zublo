@@ -99,8 +99,18 @@ describe("ChatSidebar", () => {
           {
             label: "Today",
             items: [
-              { id: "conv-1", title: "First conversation" },
-              { id: "conv-2", title: "Second conversation" },
+              {
+                id: "conv-1",
+                title: "First conversation",
+                created: "2026-01-01T00:00:00.000Z",
+                updated: "2026-01-01T00:00:00.000Z",
+              },
+              {
+                id: "conv-2",
+                title: "Second conversation",
+                created: "2026-01-02T00:00:00.000Z",
+                updated: "2026-01-02T00:00:00.000Z",
+              },
             ],
           },
         ]}
@@ -141,7 +151,14 @@ describe("ChatSidebar", () => {
         conversationGroups={[
           {
             label: "Today",
-            items: [{ id: "conv-1", title: "First conversation" }],
+            items: [
+              {
+                id: "conv-1",
+                title: "First conversation",
+                created: "2026-01-01T00:00:00.000Z",
+                updated: "2026-01-01T00:00:00.000Z",
+              },
+            ],
           },
         ]}
         convsLoading={false}

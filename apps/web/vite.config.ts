@@ -1,7 +1,7 @@
 /// <reference types="vitest" />
-import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import { defineConfig } from "vitest/config";
 
 function getVendorPackageName(id: string) {
   const [, modulePath] = id.split("node_modules/");
@@ -29,9 +29,30 @@ export default defineConfig({
     setupFiles: ["./src/test/setup.ts"],
     coverage: {
       provider: "v8",
-      reporter: ["text", "lcov", "html"],
+      reporter: ["text", "json", "html", "lcov"],
       include: ["src/**/*.{ts,tsx}"],
-      exclude: ["src/test/**", "src/main.tsx", "src/**/*.d.ts"],
+      thresholds: {
+        lines: 100,
+        functions: 100,
+        branches: 100,
+        statements: 100,
+      },
+      exclude: [
+        "node_modules/",
+        "src/test/**",
+        "src/test/setup.ts",
+        "src/main.tsx",
+        "src/**/*.d.ts",
+        "**/*.config.ts",
+        // Pure TypeScript type-only files (no runtime code to instrument)
+        "src/types.ts",
+        "src/components/admin/smtp/smtp.types.ts",
+        "src/components/admin/users/types.ts",
+        "src/components/chat/chat.types.ts",
+        "src/components/statistics/statistics.types.ts",
+        // Re-export-only module (v8 cannot instrument bare re-exports)
+        "src/lib/toast.ts",
+      ],
     },
   },
   resolve: {

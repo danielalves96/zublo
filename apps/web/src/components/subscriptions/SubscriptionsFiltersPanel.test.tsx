@@ -13,11 +13,13 @@ import { SubscriptionsFiltersPanel } from "./SubscriptionsFiltersPanel";
 const defaultFilters: SubscriptionFiltersState = {
   state: "all",
   categories: [],
+  members: [],
+  payments: [],
 };
 
 const categories: Category[] = [
-  { id: "cat-1", name: "Entertainment", user: "u1", color: "#ff0000" },
-  { id: "cat-2", name: "Utilities", user: "u1", color: "#00ff00" },
+  { id: "cat-1", name: "Entertainment", user: "u1" },
+  { id: "cat-2", name: "Utilities", user: "u1" },
 ];
 
 describe("SubscriptionsFiltersPanel", () => {
@@ -44,7 +46,12 @@ describe("SubscriptionsFiltersPanel", () => {
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: "active" }));
-    expect(onChange).toHaveBeenCalledWith({ state: "active", categories: [] });
+    expect(onChange).toHaveBeenCalledWith({
+      state: "active",
+      categories: [],
+      members: [],
+      payments: [],
+    });
   });
 
   it("does not render category section when categories list is empty", () => {
@@ -81,7 +88,12 @@ describe("SubscriptionsFiltersPanel", () => {
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Entertainment" }));
-    expect(onChange).toHaveBeenCalledWith({ state: "all", categories: ["cat-1"] });
+    expect(onChange).toHaveBeenCalledWith({
+      state: "all",
+      categories: ["cat-1"],
+      members: [],
+      payments: [],
+    });
   });
 
   it("removes a category from filters when clicked and it was already selected", () => {
@@ -89,11 +101,16 @@ describe("SubscriptionsFiltersPanel", () => {
     render(
       <SubscriptionsFiltersPanel
         categories={categories}
-        filters={{ state: "all", categories: ["cat-1"] }}
+        filters={{ state: "all", categories: ["cat-1"], members: [], payments: [] }}
         onChange={onChange}
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Entertainment" }));
-    expect(onChange).toHaveBeenCalledWith({ state: "all", categories: [] });
+    expect(onChange).toHaveBeenCalledWith({
+      state: "all",
+      categories: [],
+      members: [],
+      payments: [],
+    });
   });
 });

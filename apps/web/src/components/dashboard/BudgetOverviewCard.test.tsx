@@ -77,6 +77,49 @@ describe("BudgetOverviewCard", () => {
     );
   });
 
+  it("renders em-dash when totalMonthly is undefined and shows initials when mostExpensive has no logo", () => {
+    render(
+      <BudgetOverviewCard
+        budget={100}
+        budgetUsed={50}
+        isOverBudget={false}
+        totalMonthly={undefined}
+        subscriptionsCount={1}
+        mostExpensive={{
+          name: "Disney Plus",
+          monthly: 10,
+          logo: undefined,
+          record: getSubscription({ name: "Disney Plus" }),
+        }}
+        formatValue={(value) => `$${value.toFixed(2)}`}
+      />,
+    );
+
+    // totalMonthly is undefined → "—" shown for both spent and remaining
+    const dashes = screen.getAllByText("—");
+    expect(dashes.length).toBeGreaterThanOrEqual(1);
+
+    // mostExpensive has no logo → shows initials span
+    expect(screen.getByText("D")).toBeInTheDocument();
+  });
+
+  it("renders em-dash for subscriptionsCount when it is undefined (line 146 nullish branch)", () => {
+    render(
+      <BudgetOverviewCard
+        budget={100}
+        budgetUsed={30}
+        isOverBudget={false}
+        totalMonthly={30}
+        subscriptionsCount={undefined}
+        mostExpensive={null}
+        formatValue={(value) => `$${value.toFixed(2)}`}
+      />,
+    );
+
+    // subscriptionsCount ?? "—" → shows "—" when undefined
+    expect(screen.getByText("—")).toBeInTheDocument();
+  });
+
   it("renders the empty budget state and over-budget indicator", () => {
     const { rerender } = render(
       <BudgetOverviewCard
