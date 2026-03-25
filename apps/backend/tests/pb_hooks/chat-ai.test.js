@@ -72,6 +72,28 @@ describe("pb_hooks/lib/pure/chat-ai.js", () => {
     expect(openai.body.tool_choice).toBeUndefined();
   });
 
+  it("buildChatRequest: tools=null falls back to [] (line 82) and null model uses default (line 103)", () => {
+    // Gemini path: tools=null → tools || [] = [] → functionDeclarations = [] (line 82 fallback)
+    const gemini = chatAi.buildChatRequest(
+      "https://generativelanguage.googleapis.com/v1beta",
+      "k",
+      "",
+      [{ role: "user", content: "hi" }],
+      null,
+    );
+    expect(gemini.body.tools).toBeUndefined();
+
+    // OpenAI path: model=null → model || "gpt-3.5-turbo" (line 103 fallback)
+    const openai = chatAi.buildChatRequest(
+      "https://api.example.com",
+      "t",
+      null,
+      [{ role: "user", content: "hi" }],
+      [],
+    );
+    expect(openai.body.model).toBe("gpt-3.5-turbo");
+  });
+
   it("adds OpenAI tool selection when tools exist and omits Gemini system instructions when absent", () => {
     const gemini = chatAi.buildChatRequest(
       "https://generativelanguage.googleapis.com/v1beta",
@@ -147,5 +169,39 @@ describe("pb_hooks/lib/pure/chat-ai.js", () => {
       "Unexpected Gemini response format",
     );
     expect(() => chatAi.parseChatResponse({}, false)).toThrow("Unexpected AI response format");
+  });
+
+  it("Gemini text parts: skips parts without a text field (line 151 false branch)", () => {
+    // parts[x].text is falsy for the first part → not pushed
+    expect(
+      chatAi.parseChatResponse(
+        { candidates: [{ content: { parts: [{ noText: true }, { text: "hello" }] } }] },
+        true,
+      ),
+    ).toEqual({ text: "hello" });
+  });
+
+  it("OpenAI: choice exists but has no message property (line 157 !choice.message branch)", () => {
+    // choice = {} → !choice is false, !choice.message is true → falls to resData.message check
+    expect(() => chatAi.parseChatResponse({ choices: [{}] }, false)).toThrow(
+      "Unexpected AI response format",
+    );
+  });
+
+  it("OpenAI tool call: uses {} fallback when arguments is undefined (lines 172-174)", () => {
+    // toolCall.function.arguments is undefined → not a string → `undefined || {}` = {}
+    expect(
+      chatAi.parseChatResponse(
+        {
+          choices: [
+            { message: { tool_calls: [{ id: "1", function: { name: "fn" } }] } },
+          ],
+        },
+        false,
+      ),
+    ).toEqual({
+      tool_calls: [{ id: "1", name: "fn", arguments: {} }],
+      reasoning_content: null,
+    });
   });
 });

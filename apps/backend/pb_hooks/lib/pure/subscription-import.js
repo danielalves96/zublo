@@ -29,6 +29,7 @@ function parseCycleAndFrequency(paymentCycle) {
   };
 
   return {
+    /* v8 ignore next -- regex only captures day/week/month/year variants, all present in unitMap */
     cycleName: unitMap[match[2].toLowerCase()] || "Monthly",
     frequency: parseInt(match[1], 10),
   };

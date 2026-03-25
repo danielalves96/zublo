@@ -28,6 +28,11 @@ describe("pb_hooks/lib/pure/exchange-rates.js", () => {
     ).toThrow("Main currency 'BRL' was not found in the API response.");
   });
 
+  it("treats a null eurRates argument as an empty map and still works when main is EUR", () => {
+    // covers the `eurRates || {}` fallback branch on line 2
+    expect(normalizeRatesByMainCurrency(null, "EUR", ["EUR"])).toEqual({ EUR: 1 });
+  });
+
   it("returns 1 for the main currency even when it also exists in the rates map", () => {
     expect(
       normalizeRatesByMainCurrency({ USD: 1.08, EUR: 1 }, "USD", ["USD", "EUR"]),

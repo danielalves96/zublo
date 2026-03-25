@@ -18,6 +18,12 @@ export default {
       provider: "custom",
       customProviderModule: coverageProviderPath,
       reporter: ["text", "lcov", "html"],
+      thresholds: {
+        lines: 100,
+        functions: 100,
+        branches: 100,
+        statements: 100,
+      },
       reportsDirectory: "coverage",
       all: true,
       include: [

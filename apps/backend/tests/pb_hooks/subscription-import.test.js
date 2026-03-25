@@ -5,6 +5,8 @@ describe("pb_hooks/lib/pure/subscription-import.js", () => {
     expect(subscriptionImport.detectWallosFormat({ Name: "Netflix" })).toBe(true);
     expect(subscriptionImport.detectWallosFormat({ "Payment Cycle": "Monthly" })).toBe(true);
     expect(subscriptionImport.detectWallosFormat({ name: "Netflix" })).toBe(false);
+    // covers `subscription || {}` fallback on lines 2-3
+    expect(subscriptionImport.detectWallosFormat(null)).toBe(false);
   });
 
   it("parses direct and interval-based payment cycles", () => {
@@ -35,5 +37,8 @@ describe("pb_hooks/lib/pure/subscription-import.js", () => {
     expect(subscriptionImport.parseWallosPrice("R$29.90")).toEqual({ symbol: "R$", price: 29.9 });
     expect(subscriptionImport.parseWallosPrice("12.5")).toEqual({ symbol: "", price: 12.5 });
     expect(subscriptionImport.parseWallosPrice("free")).toEqual({ symbol: "", price: 0 });
+    // covers `priceValue || "0"` (line 38) and `parseFloat("0") || 0` (line 45)
+    expect(subscriptionImport.parseWallosPrice(null)).toEqual({ symbol: "", price: 0 });
+    expect(subscriptionImport.parseWallosPrice("$0")).toEqual({ symbol: "$", price: 0 });
   });
 });

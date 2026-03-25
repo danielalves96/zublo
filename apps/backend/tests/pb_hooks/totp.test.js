@@ -211,6 +211,27 @@ describe("pb_hooks/lib/totp.js::verifyTOTP", () => {
   });
 });
 
+describe("pb_hooks/lib/totp.js::module loading branch", () => {
+  it("loads totp-core via __hooks when the PocketBase global is present (line 1 true branch)", () => {
+    const path = require("node:path");
+    const totpPath = require.resolve("../../pb_hooks/lib/totp.js");
+    const hooksDir = path.resolve(__dirname, "../../pb_hooks");
+
+    const originalHooks = global.__hooks;
+    global.__hooks = hooksDir;
+    delete require.cache[totpPath];
+
+    try {
+      const freshTotp = require("../../pb_hooks/lib/totp.js");
+      expect(typeof freshTotp.generateTOTPAt).toBe("function");
+      expect(typeof freshTotp.generateBackupCodes).toBe("function");
+    } finally {
+      global.__hooks = originalHooks;
+      delete require.cache[totpPath];
+    }
+  });
+});
+
 describe("pb_hooks/lib/totp.js::direct helpers", () => {
   it("supports direct TOTP generation and verification with custom digits and step sizes", () => {
     const timestampMs = 120_000;
@@ -219,6 +240,19 @@ describe("pb_hooks/lib/totp.js::direct helpers", () => {
     expect(code).toMatch(/^\d{8}$/);
     expect(verifyTOTPAt(RFC6238_SECRET_BASE32, code, timestampMs, 0, 8, 60)).toBe(true);
     expect(verifyTOTPAt(RFC6238_SECRET_BASE32, code, timestampMs + 60_000, 0, 8, 60)).toBe(false);
+  });
+
+  it("normalizeBackupCode handles null/undefined via String(value || '') fallback (line 161)", () => {
+    expect(normalizeBackupCode(null)).toBe("");
+    expect(normalizeBackupCode(undefined)).toBe("");
+  });
+
+  it("verifyTOTP accepts an explicit nowMs option instead of Date.now() (line 153 false branch)", () => {
+    const now = 120_000;
+    const { otp } = generateTotpWithNode(RFC6238_SECRET_BASE32, now);
+    // passes options.nowMs explicitly → settings.nowMs !== undefined → uses it directly
+    expect(verifyTOTP(RFC6238_SECRET_BASE32, otp, { nowMs: now })).toBe(true);
+    expect(verifyTOTP(RFC6238_SECRET_BASE32, "000000", { nowMs: now })).toBe(false);
   });
 
   it("normalizes backup codes and finds a matching saved code index", () => {
