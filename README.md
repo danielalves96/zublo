@@ -72,14 +72,14 @@ Demo screenshots
 
 
 <p align="center">
-  <img src="./.github/assets/dashboard.png" alt="Zublo dashboard demo" width="80%" />
+  <img src="./.github/assets/dashboard.png" alt="Zublo dashboard demo" width="100%" />
 </p>
 
 <p align="center">
-  <img src="./.github/assets/subscriptions.png" alt="Subscriptions view" width="80%" />
-  <img src="./.github/assets/calendar.png" alt="Calendar view" width="80%" />
-  <img src="./.github/assets/statistics.png" alt="Statistics view" width="80%" />
-  <img src="./.github/assets/chat.png" alt="Chat view" width="80%" />
+  <img src="./.github/assets/subscriptions.png" alt="Subscriptions view" width="100%" />
+  <img src="./.github/assets/calendar.png" alt="Calendar view" width="100%" />
+  <img src="./.github/assets/statistics.png" alt="Statistics view" width="100%" />
+  <img src="./.github/assets/chat.png" alt="Chat view" width="100%" />
 </p>
 
 
