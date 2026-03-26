@@ -1,7 +1,5 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-var totpLib = require(__hooks + "/lib/totp.js");
-
 /**
  * Zublo — Custom API Routes
  *
@@ -12,6 +10,10 @@ var totpLib = require(__hooks + "/lib/totp.js");
  * - Calendar (iCal feed, monthly data)
  * - Database backup/restore
  * - Admin utilities
+ *
+ * NOTE: In PocketBase JSVM (Goja), file-scope helper bindings are not
+ * reliably available inside router callbacks. Require helpers inside
+ * each callback so the runtime can always resolve them at request time.
  */
 
 // ================================================================
@@ -48,9 +50,6 @@ routerAdd("GET", "/api/auth/is-admin", (e) => {
 // ================================================================
 // TOTP UTILITIES
 // ================================================================
-
-var verifyTOTP = totpLib.verifyTOTP;
-var generateBackupCodes = totpLib.generateBackupCodes;
 
 const TOTP_LOGIN_CHALLENGE_TTL_MS = 5 * 60 * 1000;
 
@@ -104,6 +103,8 @@ function findUserByTotpLoginChallenge(challenge) {
 // ROUTE: TOTP Setup — generate secret + backup codes (not saved yet)
 // ================================================================
 routerAdd('POST', '/api/auth/totp/setup', function (e) {
+  var totpLib = require(__hooks + "/lib/totp.js");
+  var generateBackupCodes = totpLib.generateBackupCodes;
   if (!e.auth) return e.json(401, { error: 'Authentication required' });
 
   var user = $app.findRecordById('users', e.auth.id);
@@ -123,6 +124,9 @@ routerAdd('POST', '/api/auth/totp/setup', function (e) {
 // ROUTE: TOTP Verify — confirm code, then persist and enable 2FA
 // ================================================================
 routerAdd('POST', '/api/auth/totp/verify', function (e) {
+  var totpLib = require(__hooks + "/lib/totp.js");
+  var verifyTOTP = totpLib.verifyTOTP;
+  var generateBackupCodes = totpLib.generateBackupCodes;
   if (!e.auth) return e.json(401, { error: 'Authentication required' });
 
   var body = e.requestInfo().body;
@@ -151,6 +155,8 @@ routerAdd('POST', '/api/auth/totp/verify', function (e) {
 // ROUTE: TOTP Disable — verify current code (or backup), then disable
 // ================================================================
 routerAdd('POST', '/api/auth/totp/disable', function (e) {
+  var totpLib = require(__hooks + "/lib/totp.js");
+  var verifyTOTP = totpLib.verifyTOTP;
   if (!e.auth) return e.json(401, { error: 'Authentication required' });
 
   var body = e.requestInfo().body;
@@ -179,6 +185,8 @@ routerAdd('POST', '/api/auth/totp/disable', function (e) {
 // ROUTE: TOTP Re-enable — verify code, flip totp_enabled back on
 // ================================================================
 routerAdd('POST', '/api/auth/totp/reenable', function (e) {
+  var totpLib = require(__hooks + "/lib/totp.js");
+  var verifyTOTP = totpLib.verifyTOTP;
   if (!e.auth) return e.json(401, { error: 'Authentication required' });
 
   var body = e.requestInfo().body;
@@ -197,6 +205,8 @@ routerAdd('POST', '/api/auth/totp/reenable', function (e) {
 // ROUTE: TOTP Delete — verify code/backup then wipe all TOTP data
 // ================================================================
 routerAdd('POST', '/api/auth/totp/delete', function (e) {
+  var totpLib = require(__hooks + "/lib/totp.js");
+  var verifyTOTP = totpLib.verifyTOTP;
   if (!e.auth) return e.json(401, { error: 'Authentication required' });
 
   var body = e.requestInfo().body;
@@ -224,6 +234,9 @@ routerAdd('POST', '/api/auth/totp/delete', function (e) {
 // ROUTE: TOTP Regenerate Backup Codes
 // ================================================================
 routerAdd('POST', '/api/auth/totp/regenerate_backup', function (e) {
+  var totpLib = require(__hooks + "/lib/totp.js");
+  var verifyTOTP = totpLib.verifyTOTP;
+  var generateBackupCodes = totpLib.generateBackupCodes;
   if (!e.auth) return e.json(401, { error: 'Authentication required' });
 
   var body = e.requestInfo().body;
@@ -266,6 +279,8 @@ routerAdd('POST', '/api/auth/totp/login-challenge', function (e) {
 // PocketBase auth token only after the second factor succeeds.
 // ================================================================
 routerAdd('POST', '/api/auth/totp/login-verify', function (e) {
+  var totpLib = require(__hooks + "/lib/totp.js");
+  var verifyTOTP = totpLib.verifyTOTP;
   var body = e.requestInfo().body;
   var challenge = String(body.challenge || '').trim();
   var code = String(body.code || '').replace(/\s/g, '');

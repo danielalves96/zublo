@@ -1,12 +1,14 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-var dateHelpers = require(__hooks + "/lib/date-helpers.js");
-
 // ================================================================
 // ROUTE: POST /api/costs/snapshot — calculate & upsert current month cost
 // Called automatically by the dashboard when yearly_costs is empty.
+// NOTE: In PocketBase JSVM (Goja), file-scope helper bindings are not
+// reliably available inside router callbacks. Require helpers inside
+// each callback so the runtime can always resolve them at request time.
 // ================================================================
 routerAdd("POST", "/api/costs/snapshot", (e) => {
+  const dateHelpers = require(__hooks + "/lib/date-helpers.js");
   if (!e.auth) return e.json(401, { error: "Authentication required" });
 
   const userId = e.auth.id;

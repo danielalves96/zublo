@@ -68,34 +68,20 @@ If you want a focused alternative to bloated finance software or closed SaaS tra
 
 ## Demo
 
-This section should sell the project before people read the rest. Use it like a product landing page, not a documentation appendix.
+Demo screenshots
 
-Recommended assets:
 
-- one GIF showing the main flow
-- one screenshot of the subscriptions view
-- one screenshot of calendar or statistics
-- one screenshot that reinforces self-hosting or settings depth
-
-```md
-![Zublo dashboard demo](./.github/assets/dashboard.gif)
-![Zublo subscriptions view](./.github/assets/subscriptions.png)
-![Zublo calendar view](./.github/assets/calendar.png)
-```
-
-Suggested layout once the assets exist:
-
-```html
 <p align="center">
-  <img src="./.github/assets/dashboard.gif" alt="Zublo dashboard demo" width="100%" />
+  <img src="./.github/assets/dashboard.png" alt="Zublo dashboard demo" width="80%" />
 </p>
 
 <p align="center">
-  <img src="./.github/assets/subscriptions.png" alt="Subscriptions view" width="32%" />
-  <img src="./.github/assets/calendar.png" alt="Calendar view" width="32%" />
-  <img src="./.github/assets/settings.png" alt="Settings view" width="32%" />
+  <img src="./.github/assets/subscriptions.png" alt="Subscriptions view" width="80%" />
+  <img src="./.github/assets/calendar.png" alt="Calendar view" width="80%" />
+  <img src="./.github/assets/statistics.png" alt="Statistics view" width="80%" />
+  <img src="./.github/assets/chat.png" alt="Chat view" width="80%" />
 </p>
-```
+
 
 ## Feature Overview
 
@@ -162,8 +148,6 @@ That narrow scope is the point.
 
 ## Deploy In Minutes
 
-If someone lands on this repo, they should be able to run it without reading the whole codebase.
-
 Create a `docker-compose.yml` like this:
 
 ```yaml
@@ -186,7 +170,6 @@ Start it:
 docker compose up -d
 ```
 
-That is the entire pitch for most self-hosters: pull the image, mount a data directory, and start using the app.
 
 Then open:
 

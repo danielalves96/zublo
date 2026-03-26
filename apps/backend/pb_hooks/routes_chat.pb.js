@@ -1,8 +1,5 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-var aiParsers = require(__hooks + "/lib/pure/ai-parsers.js");
-var chatAi = require(__hooks + "/lib/pure/chat-ai.js");
-
 // ================================================================
 // ROUTE: POST /api/ai/chat
 // NOTE: All helpers are defined inside the routerAdd callback.
@@ -12,6 +9,8 @@ var chatAi = require(__hooks + "/lib/pure/chat-ai.js");
 // inside the callback guarantees correct scoping.
 // ================================================================
 routerAdd("POST", "/api/ai/chat", function (e) {
+  var aiParsers = require(__hooks + "/lib/pure/ai-parsers.js");
+  var chatAi = require(__hooks + "/lib/pure/chat-ai.js");
   if (!e.auth) throw new ForbiddenError("Authentication required");
   var userId = e.auth.id;
 

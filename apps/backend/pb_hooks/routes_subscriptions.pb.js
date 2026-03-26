@@ -1,12 +1,14 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-var dateHelpers = require(__hooks + "/lib/date-helpers.js");
-var importParsers = require(__hooks + "/lib/pure/subscription-import.js");
-
 // ================================================================
 // ROUTE: Subscriptions Import
+// NOTE: In PocketBase JSVM (Goja), file-scope helper bindings are not
+// reliably available inside router callbacks. Require helpers inside
+// each callback so the runtime can always resolve them at request time.
 // ================================================================
 routerAdd("POST", "/api/subscriptions/import", (e) => {
+  const dateHelpers = require(__hooks + "/lib/date-helpers.js");
+  const importParsers = require(__hooks + "/lib/pure/subscription-import.js");
   if (!e.auth) throw new ForbiddenError("Authentication required");
   const userId = e.auth.id;
   const data = e.requestInfo().body;
@@ -271,6 +273,7 @@ routerAdd("POST", "/api/subscription/clone", (e) => {
 // ROUTE: Subscription Renew
 // ================================================================
 routerAdd("POST", "/api/subscription/renew", (e) => {
+  const dateHelpers = require(__hooks + "/lib/date-helpers.js");
   if (!e.auth) throw new ForbiddenError("Authentication required");
   const data = e.requestInfo().body;
   const subId = data.id;

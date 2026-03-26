@@ -1,8 +1,10 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
-
+// NOTE: In PocketBase JSVM (Goja), file-scope helper bindings are not
+// reliably available inside router callbacks. extractApiKey requires
+// authHeaders internally so it is always self-contained at call time.
 function extractApiKey(e) {
+  var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
   return authHeaders.extractBearerToken(e.request.header.get("Authorization"));
 }
 

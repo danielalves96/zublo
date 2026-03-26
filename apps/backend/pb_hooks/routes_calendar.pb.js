@@ -1,13 +1,15 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
-var calendarUtils = require(__hooks + "/lib/pure/calendar-utils.js");
-
 // ================================================================
 // ROUTE: Calendar iCal Feed
 // GET /api/calendar/ical?key=wk_xxx  (requires calendar:read permission)
+// NOTE: In PocketBase JSVM (Goja), file-scope helper bindings are not
+// reliably available inside router callbacks. Require helpers inside
+// each callback so the runtime can always resolve them at request time.
 // ================================================================
 routerAdd("GET", "/api/calendar/ical", function(e) {
+  var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+  var calendarUtils = require(__hooks + "/lib/pure/calendar-utils.js");
   var userId = e.auth ? e.auth.id : null;
   var rawKey = e.request.url.query().get("key")
     || authHeaders.extractBearerToken(e.request.header.get("Authorization"));
@@ -94,6 +96,7 @@ routerAdd("GET", "/api/calendar/ical", function(e) {
 // ROUTE: Calendar Monthly Data
 // ================================================================
 routerAdd("GET", "/api/calendar/data", (e) => {
+  const calendarUtils = require(__hooks + "/lib/pure/calendar-utils.js");
   if (!e.auth) throw new ForbiddenError("Authentication required");
   const userId = e.auth.id;
 

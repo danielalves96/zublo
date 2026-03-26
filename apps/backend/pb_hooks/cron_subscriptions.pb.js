@@ -1,7 +1,5 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-var { normalizeReminderSlots } = require(__hooks + "/lib/pure/reminder-slots.js");
-
 // ================================================================
 // CRON 1: Update Next Payment Dates
 // NOTE: In PocketBase JSVM (Goja), file-scope helper bindings are not
@@ -45,6 +43,7 @@ cronAdd("updateNextPayment", "0 0 * * *", () => {
 // CRON 4: Send Payment Notifications (hourly, granular reminders)
 // ================================================================
 cronAdd("sendNotifications", "0 * * * *", () => {
+  const { normalizeReminderSlots } = require(__hooks + "/lib/pure/reminder-slots.js");
   const notifHelpers = require(__hooks + "/lib/notifications.js");
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -186,6 +185,7 @@ cronAdd("sendNotifications", "0 * * * *", () => {
 // CRON 5: Send Cancellation Notifications (hourly, granular reminders)
 // ================================================================
 cronAdd("sendCancellationNotifications", "0 * * * *", () => {
+  const { normalizeReminderSlots } = require(__hooks + "/lib/pure/reminder-slots.js");
   const notifHelpers = require(__hooks + "/lib/notifications.js");
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());

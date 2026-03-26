@@ -1,11 +1,13 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-var dateHelpers = require(__hooks + "/lib/date-helpers.js");
-
 // ================================================================
 // CRON 3: Store Yearly/Monthly Cost Snapshot
+// NOTE: In PocketBase JSVM (Goja), file-scope helper bindings are not
+// reliably available inside cron callbacks. Require helpers inside
+// each cron callback so the runtime can always resolve them at run time.
 // ================================================================
 cronAdd("storeYearlyCost", "0 3 1 * *", () => {
+  const dateHelpers = require(__hooks + "/lib/date-helpers.js");
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth() + 1;

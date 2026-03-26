@@ -1,6 +1,8 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-var logoUtils = require(__hooks + "/lib/pure/logo-utils.js");
+// NOTE: In PocketBase JSVM (Goja), file-scope helper bindings are not
+// reliably available inside router callbacks. Require helpers inside
+// each callback so the runtime can always resolve them at request time.
 
 function getQueryParam(e, key) {
   let value = "";
@@ -19,6 +21,7 @@ function getQueryParam(e, key) {
 // ROUTE: Logo Search
 // ================================================================
 routerAdd("GET", "/api/logo_search", (e) => {
+  const logoUtils = require(__hooks + "/lib/pure/logo-utils.js");
   try {
     if (!e.auth) {
       return e.json(403, { error: "Authentication required" });

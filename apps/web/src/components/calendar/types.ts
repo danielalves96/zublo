@@ -72,24 +72,6 @@ export function getOccurrencesInMonth(
 
   const freq = Math.max(1, sub.frequency || 1);
 
-  const add = (d: Date): Date => {
-    const r = new Date(d);
-    if (cycleName === "Daily") r.setDate(r.getDate() + freq);
-    else if (cycleName === "Weekly") r.setDate(r.getDate() + freq * 7);
-    else if (cycleName === "Monthly") r.setMonth(r.getMonth() + freq);
-    else if (cycleName === "Yearly") r.setFullYear(r.getFullYear() + freq);
-    return r;
-  };
-
-  const sub1 = (d: Date): Date => {
-    const r = new Date(d);
-    if (cycleName === "Daily") r.setDate(r.getDate() - freq);
-    else if (cycleName === "Weekly") r.setDate(r.getDate() - freq * 7);
-    else if (cycleName === "Monthly") r.setMonth(r.getMonth() - freq);
-    else if (cycleName === "Yearly") r.setFullYear(r.getFullYear() - freq);
-    return r;
-  };
-
   const monthStart = new Date(year, month - 1, 1);
   const monthEnd = new Date(year, month, 0, 23, 59, 59);
 
@@ -104,6 +86,35 @@ export function getOccurrencesInMonth(
   } else {
     cursor = new Date(sub.next_payment);
   }
+
+  // Preserve the intended day-of-month so month arithmetic never overflows.
+  // e.g. a subscription on the 30th must land on the 30th (or last day of
+  // shorter months), not silently drift when setMonth() wraps around.
+  const originalDay = cursor.getDate();
+
+  const addMonths = (d: Date, n: number): Date => {
+    const targetMonth = d.getMonth() + n;
+    const yr = d.getFullYear() + Math.floor(targetMonth / 12);
+    const mo = ((targetMonth % 12) + 12) % 12;
+    const daysInTarget = new Date(yr, mo + 1, 0).getDate();
+    return new Date(yr, mo, Math.min(originalDay, daysInTarget));
+  };
+
+  const add = (d: Date): Date => {
+    if (cycleName === "Daily") { const r = new Date(d); r.setDate(r.getDate() + freq); return r; }
+    if (cycleName === "Weekly") { const r = new Date(d); r.setDate(r.getDate() + freq * 7); return r; }
+    if (cycleName === "Monthly") return addMonths(d, freq);
+    if (cycleName === "Yearly") return addMonths(d, freq * 12);
+    return new Date(d);
+  };
+
+  const sub1 = (d: Date): Date => {
+    if (cycleName === "Daily") { const r = new Date(d); r.setDate(r.getDate() - freq); return r; }
+    if (cycleName === "Weekly") { const r = new Date(d); r.setDate(r.getDate() - freq * 7); return r; }
+    if (cycleName === "Monthly") return addMonths(d, -freq);
+    if (cycleName === "Yearly") return addMonths(d, -freq * 12);
+    return new Date(d);
+  };
 
   if (isNaN(cursor.getTime())) return [];
 

@@ -47,6 +47,12 @@ const nextMonthDate = () => {
   return d.toISOString().split("T")[0];
 };
 
+const toDateOnly = (value: string | null | undefined): string => {
+  if (!value) return "";
+  const match = value.match(/\d{4}-\d{2}-\d{2}/);
+  return match?.[0] ?? value.slice(0, 10);
+};
+
 export function useSubscriptionForm({
   sub,
   currencies,
@@ -115,8 +121,8 @@ export function useSubscriptionForm({
         currency: sub.currency,
         frequency: String(sub.frequency),
         cycle: sub.cycle,
-        next_payment: sub.next_payment,
-        start_date: sub.start_date || new Date().toISOString().split("T")[0],
+        next_payment: toDateOnly(sub.next_payment),
+        start_date: toDateOnly(sub.start_date) || new Date().toISOString().split("T")[0],
         payment_method: sub.payment_method || "",
         payer: sub.payer || "",
         category: sub.category || "",
@@ -127,7 +133,7 @@ export function useSubscriptionForm({
         notify_days_before: String(sub.notify_days_before || 3),
         inactive: sub.inactive,
         auto_mark_paid: !!sub.auto_mark_paid,
-        cancellation_date: sub.cancellation_date || "",
+        cancellation_date: toDateOnly(sub.cancellation_date),
       });
     } else {
       const mainCur = currencies.find((c) => c.is_main);
