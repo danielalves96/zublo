@@ -1,0 +1,30 @@
+name: Test Coverage
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  coverage:
+    name: Test & Coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.6
+
+      - name: Install root dependencies
+        run: bun install
+
+      - name: Install web dependencies
+        working-directory: apps/web
+        run: bun install
+
+      - name: Frontend — test with coverage
+        run: bun run test:front:coverage
+
+      - name: Backend — test with coverage
+        run: bun run test:back:coverage

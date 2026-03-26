@@ -62,6 +62,28 @@ bun run lint
 bun run build
 ```
 
+## Test Coverage Requirement
+
+All pull requests must maintain 100% test coverage across both frontend and backend. This is enforced automatically by the CI workflow on every PR — it will block merge if coverage drops.
+
+To verify locally before opening a PR:
+
+```bash
+# Run both suites with coverage
+bun run test:coverage
+
+# Or individually
+bun run test:front:coverage   # React frontend (Vitest + v8)
+bun run test:back:coverage    # PocketBase hooks (Vitest + v8)
+```
+
+Coverage thresholds (lines, functions, branches, statements) are set to 100% in:
+
+- `apps/web/vite.config.ts` — frontend
+- `apps/backend/vitest.config.mjs` — backend
+
+If your change adds new code, it must be covered. If it modifies existing behavior, update the relevant tests.
+
 If your change is frontend-heavy or reorganizes feature modules, also review [apps/web/ARCHITECTURE.md](./apps/web/ARCHITECTURE.md).
 
 ## Repository Hygiene
