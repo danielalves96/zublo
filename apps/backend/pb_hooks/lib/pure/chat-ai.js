@@ -110,13 +110,23 @@ function buildChatRequest(rawUrl, apiKey, model, messages, tools) {
     openAiBody.tool_choice = "auto";
   }
 
+  // Build headers explicitly — object spread (`...`) is not reliably supported in the
+  // PocketBase Goja runtime and can silently produce empty header maps, causing 401s.
+  var openAiHeaders = { "Content-Type": "application/json" };
+  if (apiKey) {
+    openAiHeaders["Authorization"] = "Bearer " + apiKey;
+  }
+  // OpenRouter requires these headers for all requests, especially on free-tier models.
+  // Without them the API responds with 401 even when the key itself is valid.
+  if (rawUrl && rawUrl.indexOf("openrouter.ai") !== -1) {
+    openAiHeaders["HTTP-Referer"] = "https://github.com/danielalves96/zublo";
+    openAiHeaders["X-Title"] = "Zublo";
+  }
+
   return {
     isGemini: false,
     url: rawUrl + "/chat/completions",
-    headers: {
-      "Content-Type": "application/json",
-      ...(apiKey ? { Authorization: "Bearer " + apiKey } : {}),
-    },
+    headers: openAiHeaders,
     body: openAiBody,
   };
 }

@@ -23,7 +23,7 @@ migrate(
 
     for (const f of col.fields) {
       if (f.name === "api_key") {
-        f.hidden = true;
+        f.hidden = false;
       }
     }
 

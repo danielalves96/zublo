@@ -151,12 +151,16 @@ routerAdd("POST", "/api/cron/{job}", function(e) {
 
   // ----------------------------------------------------------------
   if (job === "update_exchange_rates") {
-    var fixers = $app.findRecordsByFilter("fixer_settings", "api_key != ''", "", 0, 0);
+    // NOTE: api_key is a hidden field (migration 0017) — PocketBase silently drops hidden
+    // fields from filter expressions. Fetch all fixer_settings and validate the key in JS.
+    var fixers = $app.findRecordsByFilter("fixer_settings", "1=1", "", 0, 0);
     var updated = 0;
 
     for (var i = 0; i < fixers.length; i++) {
       var fixer = fixers[i];
       var apiKey = fixer.get("api_key");
+      // Skip records where no API key has been stored yet
+      if (!String(apiKey || "").trim()) continue;
       var provider = fixer.get("provider") || "fixer";
       var userId = fixer.get("user");
       try {

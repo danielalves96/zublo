@@ -25,7 +25,6 @@ export function AITab() {
   const [providerName, setProviderName] = useState("");
   const [apiUrl, setApiUrl] = useState("");
   const [apiKey, setApiKey] = useState("");
-  const [apiKeyConfigured, setApiKeyConfigured] = useState(false);
   const [removeStoredApiKey, setRemoveStoredApiKey] = useState(false);
   const [model, setModel] = useState("");
   const [models, setModels] = useState<string[]>([]);
@@ -37,21 +36,20 @@ export function AITab() {
     enabled: !!user?.id,
   });
 
-  // Initialize form state from loaded settings (only once)
+  // Derived state: is there a key saved on the server?
+  const isKeySavedOnServer = aiSettings?.api_key_configured ?? false;
+
+  // Initialize form state from loaded settings
   useEffect(() => {
-    if (aiSettings && !initialized) {
-      setEnabled(aiSettings.enabled ?? false);
-      setProviderName(aiSettings.name ?? "");
-      setApiUrl(aiSettings.url ?? "");
-      setApiKey("");
-      setApiKeyConfigured(aiSettings.api_key_configured ?? false);
-      setRemoveStoredApiKey(false);
-      setModel(aiSettings.model ?? "");
-      setInitialized(true);
-    }
-    if (aiSettings === null && !initialized) {
-      setApiKeyConfigured(false);
-      setRemoveStoredApiKey(false);
+    if (aiSettings !== undefined && !initialized) {
+      if (aiSettings) {
+        setEnabled(aiSettings.enabled ?? false);
+        setProviderName(aiSettings.name ?? "");
+        setApiUrl(aiSettings.url ?? "");
+        setApiKey("");
+        setRemoveStoredApiKey(false);
+        setModel(aiSettings.model ?? "");
+      }
       setInitialized(true);
     }
   }, [aiSettings, initialized]);
@@ -94,16 +92,24 @@ export function AITab() {
         user: user?.id,
       };
 
+      // API Key Logic:
+      // 1. Explicitly requested removal
       if (removeStoredApiKey) {
         data.api_key = "";
         data.api_key_configured = false;
-      } else if (trimmedApiKey) {
+      }
+      // 2. User typed a new key
+      else if (trimmedApiKey) {
         data.api_key = trimmedApiKey;
         data.api_key_configured = true;
-      } else if (!aiSettings?.id || !apiKeyConfigured) {
+      }
+      // 3. Updating an existing record where no key is currently saved
+      else if (!isKeySavedOnServer) {
         data.api_key = "";
         data.api_key_configured = false;
       }
+      // 4. Otherwise (isKeySavedOnServer === true and trimmedApiKey is empty):
+      //    Do NOT include api_key in 'data' so the server keeps the existing value.
 
       if (aiSettings?.id) {
         return aiService.updateSettings(aiSettings.id, data);
@@ -114,11 +120,6 @@ export function AITab() {
       qc.invalidateQueries({ queryKey: queryKeys.aiSettings(user?.id ?? "") });
       setApiKey("");
       setRemoveStoredApiKey(false);
-      if (apiKey.trim()) {
-        setApiKeyConfigured(true);
-      } else if (removeStoredApiKey) {
-        setApiKeyConfigured(false);
-      }
       toast.success(t("success_save"));
     },
     onError: () => toast.error(t("error_save")),
@@ -196,7 +197,7 @@ export function AITab() {
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-3">
                 <Label className="text-base font-semibold">{t("api_key")}</Label>
-                {apiKeyConfigured && !removeStoredApiKey && (
+                {isKeySavedOnServer && !removeStoredApiKey && (
                   <Button
                     type="button"
                     variant="ghost"
@@ -219,13 +220,13 @@ export function AITab() {
                   setApiKey(e.target.value);
                   setRemoveStoredApiKey(false);
                 }}
-                placeholder={apiKeyConfigured && !removeStoredApiKey ? "••••••••••••••••" : t("api_key_placeholder")}
+                placeholder={isKeySavedOnServer && !removeStoredApiKey ? "••••••••••••••••" : t("api_key_placeholder")}
                 className="h-12 rounded-xl text-base bg-background font-mono"
               />
               <p className="text-sm text-muted-foreground">
                 {removeStoredApiKey
                   ? `${t("api_key_auth_desc")} ${t("save")}.`
-                  : apiKeyConfigured
+                  : isKeySavedOnServer
                     ? `${t("saved")}. ${t("api_key_auth_desc")}`
                     : t("api_key_auth_desc")}
               </p>

@@ -639,5 +639,6 @@
   "chat.older": "Older",
   "chat.delete_conversation_confirm": "Delete this conversation? This cannot be undone.",
   "chat.rename_placeholder": "Conversation title...",
-  "chat.loading_conversation": "Loading conversation..."
+  "chat.loading_conversation": "Loading conversation...",
+  "ai_model_capability_hint": "Note: Some models do not support tool use (Subscription Management). If you experience errors during chat, try switching to a more capable model like GPT-4o or Gemini Flash."
 }

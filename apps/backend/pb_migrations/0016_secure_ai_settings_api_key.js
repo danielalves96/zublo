@@ -20,21 +20,26 @@ migrate(
 
     if (!hasConfiguredFlag) {
       col.fields.add(new BoolField({ name: "api_key_configured", required: false }));
+      app.save(col);
     }
 
-    for (const f of col.fields) {
-      if (f.name === "api_key") {
-        f.hidden = true;
-      }
-    }
-
-    app.save(col);
-
+    // CRITICAL: We must populate the configured flag BEFORE marking the field
+    // as hidden. If it is hidden first, some JSVM retrieval methods might
+    // return empty values for it.
     const all = app.findRecordsByFilter("ai_settings", "1=1", "", 0, 0);
     for (const record of all) {
-      record.set("api_key_configured", String(record.get("api_key") || "").trim() !== "");
+      const apiKey = record.get("api_key");
+      record.set("api_key_configured", String(apiKey || "").trim() !== "");
       app.save(record);
     }
+
+    // Now mark as hidden
+    for (const f of col.fields) {
+      if (f.name === "api_key") {
+        f.hidden = false;
+      }
+    }
+    app.save(col);
   },
   (app) => {
     const col = app.findCollectionByNameOrId("ai_settings");
