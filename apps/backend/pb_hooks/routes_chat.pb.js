@@ -168,7 +168,7 @@ routerAdd("POST", "/api/ai/chat", function (e) {
           "cycles", "name = {:name}", "", 1, 0,
           { name: args.cycle }
         );
-        if (cycles.length === 0) return { error: "Cycle not found: " + args.cycle + ". Use: Daily, Weekly, Monthly, or Yearly." };
+        if (cycles.length === 0) return { error: "Cycle not found: " + args.cycle + ". Use: Daily, Weekly, Monthly, Quarterly, Half-Yearly, or Yearly." };
         sub.set("cycle", cycles[0].id);
       }
 
@@ -437,7 +437,7 @@ routerAdd("POST", "/api/ai/chat", function (e) {
         if (cycles.length > 0) cycleId = cycles[0].id;
       } catch (_) { }
       if (!cycleId) {
-        return { error: "Cycle not found: " + args.cycle + ". Use: Daily, Weekly, Monthly, or Yearly." };
+        return { error: "Cycle not found: " + args.cycle + ". Use: Daily, Weekly, Monthly, Quarterly, Half-Yearly, or Yearly." };
       }
 
       var categoryId = "";
@@ -1464,7 +1464,7 @@ routerAdd("POST", "/api/ai/chat", function (e) {
 
       glossary:
         "**Zublo glossary:**\n\n" +
-        "- **Cycle**: billing period unit — Daily, Weekly, Monthly, or Yearly.\n" +
+        "- **Cycle**: billing period unit — Daily, Weekly, Monthly, Quarterly, Half-Yearly, or Yearly.\n" +
         "- **Frequency**: how many cycles between charges (default 1). Frequency=3 + Cycle=Monthly = quarterly billing.\n" +
         "- **Next payment**: date the next charge is expected. Advances automatically when payment is recorded.\n" +
         "- **Start date**: when the subscription began. Used for progress bars and history.\n" +

@@ -103,7 +103,7 @@ export interface Household {
 
 export interface Cycle {
   id: string;
-  name: "Daily" | "Weekly" | "Monthly" | "Yearly";
+  name: "Daily" | "Weekly" | "Monthly" | "Quarterly" | "Half-Yearly" | "Yearly";
 }
 
 export interface Frequency {
