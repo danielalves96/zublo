@@ -16,6 +16,7 @@ import {
   getLogoUrl,
   getOccurrencesInMonth,
   getPaymentRecord,
+  parseLocalDate,
   toDateOnly,
   toDateStr,
   toMain,
@@ -330,6 +331,27 @@ describe("calendar types helpers", () => {
     );
     // With freq=1 and monthly cycle, exactly one occurrence in March
     expect(result).toHaveLength(1);
+  });
+
+  it("parses stored dates as local calendar days and rejects impossible ones", () => {
+    expect(parseLocalDate("2026-03-15")).toEqual(new Date(2026, 2, 15));
+    // The stored form carries a time and a zone; only the calendar day matters.
+    expect(parseLocalDate("2026-03-15 10:30:00.000Z")).toEqual(new Date(2026, 2, 15));
+    expect(parseLocalDate("2026-03-15T10:30:00.000Z")).toEqual(new Date(2026, 2, 15));
+
+    // Date would roll these into the following month instead of failing.
+    expect(parseLocalDate("2026-02-31")).toBe(null);
+    expect(parseLocalDate("2026-13-01")).toBe(null);
+    expect(parseLocalDate("2026-00-10")).toBe(null);
+
+    // Anything that is not the stored shape still goes through Date, but is
+    // flattened to local midnight so bounds stay comparable.
+    expect(parseLocalDate("2026-3-15")).toEqual(new Date(2026, 2, 15));
+
+    expect(parseLocalDate("not-a-date")).toBe(null);
+    expect(parseLocalDate("")).toBe(null);
+    expect(parseLocalDate(undefined)).toBe(null);
+    expect(parseLocalDate(null)).toBe(null);
   });
 
   it("converts to the main currency, delegates logo urls, and picks deterministic colors", () => {

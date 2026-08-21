@@ -59,6 +59,8 @@ export function getPaymentRecord(
   return paid[0] ?? matches[0];
 }
 
+const DATE_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+
 /**
  * Parses a stored date (date-only or ISO datetime) as a local calendar date so
  * comparisons stay in the user's timezone instead of drifting through UTC.
@@ -67,16 +69,31 @@ export function parseLocalDate(value: string | undefined | null): Date | null {
   if (!value) return null;
 
   const datePart = value.split(/[T ]/)[0];
-  const parts = datePart.split("-");
+  const match = DATE_ONLY_PATTERN.exec(datePart);
 
-  if (parts.length >= 3) {
-    const [y, m, d] = parts.map(Number);
-    const parsed = new Date(y, m - 1, d);
-    return isNaN(parsed.getTime()) ? null : parsed;
+  if (match) {
+    const [year, month, day] = [Number(match[1]), Number(match[2]), Number(match[3])];
+    const parsed = new Date(year, month - 1, day);
+
+    // Date silently rolls impossible days into the next month (Feb 31 becomes
+    // Mar 3), which would move a projection bound without anyone noticing, so
+    // only a value that round-trips unchanged is a real date.
+    if (
+      parsed.getFullYear() !== year
+      || parsed.getMonth() !== month - 1
+      || parsed.getDate() !== day
+    ) {
+      return null;
+    }
+
+    return parsed;
   }
 
   const fallback = new Date(value);
-  return isNaN(fallback.getTime()) ? null : fallback;
+  if (isNaN(fallback.getTime())) return null;
+
+  // Every bound is compared as a local calendar day, whatever shape it arrived in.
+  return new Date(fallback.getFullYear(), fallback.getMonth(), fallback.getDate());
 }
 
 export function getOccurrencesInMonth(
