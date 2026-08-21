@@ -29,6 +29,8 @@
   "admin": "Admin",
   "about": "About",
   "monthly": "Monthly",
+  "quarterly": "Quarterly",
+  "half_yearly": "Half-Yearly",
   "yearly": "Yearly",
   "weekly": "Weekly",
   "daily": "Daily",

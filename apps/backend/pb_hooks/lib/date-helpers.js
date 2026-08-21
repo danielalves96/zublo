@@ -1,7 +1,7 @@
 /**
  * Advances a date by the given cycle and frequency.
  * @param {Date} date
- * @param {string} cycleName - "Daily" | "Weekly" | "Monthly" | "Yearly"
+ * @param {string} cycleName - "Daily" | "Weekly" | "Monthly" | "Quarterly" | "Half-Yearly" | "Yearly"
  * @param {number} frequency - multiplier
  * @returns {Date}
  */
@@ -17,6 +17,14 @@ function advanceDate(date, cycleName, frequency) {
       break;
     case "Monthly":
       result.setMonth(result.getMonth() + frequency);
+      break;
+    case "Quarterly":
+      // 1 quarter = 3 months
+      result.setMonth(result.getMonth() + frequency * 3);
+      break;
+    case "Half-Yearly":
+      // 1 half-year = 6 months
+      result.setMonth(result.getMonth() + frequency * 6);
       break;
     case "Yearly":
       result.setFullYear(result.getFullYear() + frequency);
@@ -44,6 +52,12 @@ function getPricePerMonth(price, cycleName, frequency, exchangeRate) {
       return (converted / frequency) * 4.33;
     case "Monthly":
       return converted / frequency;
+    case "Quarterly":
+      // Price is charged every (frequency * 3) months
+      return converted / (frequency * 3);
+    case "Half-Yearly":
+      // Price is charged every (frequency * 6) months
+      return converted / (frequency * 6);
     case "Yearly":
       return converted / (frequency * 12);
     default:
