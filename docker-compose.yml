@@ -9,10 +9,13 @@ services:
     environment:
       PB_ENCRYPTION_KEY: ${PB_ENCRYPTION_KEY}
     volumes:
-      - /srv/apps/zublo/data:/pb/pb_data #change this path to your desired path
+      - zublo-volume:/pb/pb_data # Persistent data stored in a Docker named volume (Windows/WSL friendly). If upgrading from a bind mount, migrate existing pb_data into this volume; replace with /path:/pb/pb_data to use a bind mount.
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:9597/api/health"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 15s
+
+volumes:
+  zublo-volume:
