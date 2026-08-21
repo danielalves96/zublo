@@ -30,6 +30,14 @@ describe("pb_hooks/lib/pure/oidc-core.js", () => {
       expect(oidc.buildDiscoveryUrl(discovery)).toBe(discovery);
     });
 
+    it("only treats a trailing well-known path as an already-complete URL", () => {
+      expect(oidc.buildDiscoveryUrl("https://idp.example.com/.well-known/openid-configuration/v2"))
+        .toBe(
+          "https://idp.example.com/.well-known/openid-configuration/v2"
+          + "/.well-known/openid-configuration",
+        );
+    });
+
     it("returns an empty string when no issuer is configured", () => {
       expect(oidc.buildDiscoveryUrl("")).toBe("");
     });
@@ -272,29 +280,44 @@ describe("pb_hooks/lib/pure/oidc-core.js", () => {
   });
 
   describe("canProvisionNewAccount", () => {
+    const count = (value) => () => value;
+
     it("refuses to create accounts while registrations are closed", () => {
-      expect(oidc.canProvisionNewAccount({ openRegistrations: false }, 0)).toBe(false);
-      expect(oidc.canProvisionNewAccount(null, 0)).toBe(false);
+      expect(oidc.canProvisionNewAccount({ openRegistrations: false }, count(0))).toBe(false);
+      expect(oidc.canProvisionNewAccount(null, count(0))).toBe(false);
     });
 
     it("allows creation when registrations are open and no limit is set", () => {
-      expect(oidc.canProvisionNewAccount({ openRegistrations: true }, 999)).toBe(true);
-      expect(oidc.canProvisionNewAccount({ openRegistrations: true, maxUsers: 0 }, 999)).toBe(true);
+      expect(oidc.canProvisionNewAccount({ openRegistrations: true }, count(999))).toBe(true);
+      expect(oidc.canProvisionNewAccount({ openRegistrations: true, maxUsers: 0 }, count(999)))
+        .toBe(true);
     });
 
     it("stops creating accounts once max_users is reached", () => {
       const policy = { openRegistrations: true, maxUsers: 3 };
 
-      expect(oidc.canProvisionNewAccount(policy, 2)).toBe(true);
-      expect(oidc.canProvisionNewAccount(policy, 3)).toBe(false);
-      expect(oidc.canProvisionNewAccount(policy, 4)).toBe(false);
+      expect(oidc.canProvisionNewAccount(policy, count(2))).toBe(true);
+      expect(oidc.canProvisionNewAccount(policy, count(3))).toBe(false);
+      expect(oidc.canProvisionNewAccount(policy, count(4))).toBe(false);
     });
 
     it("ignores an unusable limit rather than locking everyone out", () => {
-      expect(oidc.canProvisionNewAccount({ openRegistrations: true, maxUsers: NaN }, 5))
+      expect(oidc.canProvisionNewAccount({ openRegistrations: true, maxUsers: NaN }, count(5)))
         .toBe(true);
-      expect(oidc.canProvisionNewAccount({ openRegistrations: true, maxUsers: -1 }, 5))
+      expect(oidc.canProvisionNewAccount({ openRegistrations: true, maxUsers: -1 }, count(5)))
         .toBe(true);
+    });
+
+    it("does not count the users at all unless a limit is configured", () => {
+      const countUsers = vi.fn(() => 0);
+
+      expect(oidc.canProvisionNewAccount({ openRegistrations: false }, countUsers)).toBe(false);
+      expect(oidc.canProvisionNewAccount({ openRegistrations: true }, countUsers)).toBe(true);
+      expect(countUsers).not.toHaveBeenCalled();
+
+      expect(oidc.canProvisionNewAccount({ openRegistrations: true, maxUsers: 2 }, countUsers))
+        .toBe(true);
+      expect(countUsers).toHaveBeenCalledTimes(1);
     });
   });
 

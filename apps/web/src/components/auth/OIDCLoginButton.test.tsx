@@ -30,6 +30,8 @@ vi.mock("@/services/oidc", () => ({
 import { OIDCLoginButton } from "./OIDCLoginButton";
 
 describe("OIDCLoginButton", () => {
+  const realLocation = Object.getOwnPropertyDescriptor(window, "location");
+
   beforeEach(() => {
     vi.clearAllMocks();
     sessionStorage.clear();
@@ -37,6 +39,16 @@ describe("OIDCLoginButton", () => {
       configurable: true,
       value: { ...window.location, assign: mocks.assign },
     });
+  });
+
+  // jsdom is shared across the file, so the stub has to be handed back or it
+  // leaks into whatever runs next.
+  afterEach(() => {
+    if (realLocation) {
+      Object.defineProperty(window, "location", realLocation);
+    } else {
+      Reflect.deleteProperty(window, "location");
+    }
   });
 
   it("stores the issued state and redirects to the provider", async () => {

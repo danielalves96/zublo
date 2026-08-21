@@ -53,7 +53,7 @@ function readOidcSettings() {
 
 /** Counts the existing accounts so `max_users` can be honoured. */
 function countUsers() {
-  return $app.findRecordsByFilter("users", "1=1", "", 0, 0).length;
+  return $app.countRecords("users");
 }
 
 /** Fetches the provider discovery document and validates the endpoints it lists. */
@@ -298,7 +298,7 @@ routerAdd("POST", "/api/auth/oidc/callback", (e) => {
   if (!user) {
     // Creating an account here is a self-registration, so it obeys the same
     // policy the admin set for the signup form.
-    if (!oidc.canProvisionNewAccount(settings, countUsers())) {
+    if (!oidc.canProvisionNewAccount(settings, countUsers)) {
       return e.json(403, { error: "Registrations are closed on this instance" });
     }
 

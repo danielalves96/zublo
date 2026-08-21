@@ -29,7 +29,9 @@ function normalizeIssuerUrl(issuerUrl) {
 function buildDiscoveryUrl(issuerUrl) {
   const issuer = normalizeIssuerUrl(issuerUrl);
   if (!issuer) return "";
-  if (issuer.indexOf(DISCOVERY_PATH) !== -1) return issuer;
+  // Only a URL that *ends* with the well-known path is already a discovery
+  // URL; the same text deeper in a path is just part of the issuer.
+  if (issuer.slice(-DISCOVERY_PATH.length) === DISCOVERY_PATH) return issuer;
   return issuer + DISCOVERY_PATH;
 }
 
@@ -149,14 +151,17 @@ function canClaimExistingAccount(profile) {
  * Signing in through a provider still creates a local account, so the admin's
  * signup policy applies: registrations must be open and the user limit, when
  * one is set, must not be reached yet.
+ *
+ * `countUsers` is a callback rather than a number so the caller only pays for
+ * counting when a limit is actually configured.
  */
-function canProvisionNewAccount(policy, userCount) {
+function canProvisionNewAccount(policy, countUsers) {
   if (!policy || !policy.openRegistrations) return false;
 
   const max = Number(policy.maxUsers);
-  if (isFinite(max) && max > 0 && Number(userCount) >= max) return false;
+  if (!isFinite(max) || max <= 0) return true;
 
-  return true;
+  return Number(countUsers()) < max;
 }
 
 /**
