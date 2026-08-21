@@ -4,7 +4,7 @@ import type { Currency, PaymentRecord, Subscription } from "@/types";
 
 const mocks = vi.hoisted(() => ({
   getColorForSub: vi.fn(() => "bg-blue-500/15"),
-  getLogoUrl: vi.fn((sub: Subscription) => {
+  getLogoUrl: vi.fn((sub: Subscription): string | null => {
     if (sub.id === "sub-1") {
       return "https://cdn.example.com/netflix.png";
     }

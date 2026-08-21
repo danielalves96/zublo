@@ -1095,7 +1095,7 @@ describe("SubscriptionFormModal", () => {
       ] as any;
     });
 
-    const fetchMock = vi.fn().mockImplementation((url: string) => {
+    const fetchMock = vi.fn().mockImplementation(() => {
       return Promise.resolve({ ok: false });
     });
     vi.stubGlobal("fetch", fetchMock);

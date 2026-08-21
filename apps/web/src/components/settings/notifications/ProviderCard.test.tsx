@@ -73,21 +73,21 @@ describe("ProviderCard", () => {
   it("applies sm:grid-cols-2 when provider has more than one field", () => {
     const multiFieldProvider: ProviderConfig = {
       ...provider,
-      id: "smtp",
-      label: "SMTP",
-      enabledKey: "smtp_enabled",
+      id: "telegram",
+      label: "Telegram",
+      enabledKey: "telegram_enabled",
       fields: [
         {
-          key: "smtp_host",
-          labelKey: "smtp_host",
+          key: "telegram_bot_token",
+          labelKey: "bot_token",
           type: "text",
-          placeholder: "smtp.example.com",
+          placeholder: "123456:ABC",
         },
         {
-          key: "smtp_port",
-          labelKey: "smtp_port",
-          type: "number",
-          placeholder: "587",
+          key: "telegram_chat_id",
+          labelKey: "chat_id",
+          type: "text",
+          placeholder: "-1001234567890",
         },
       ],
     };
@@ -95,7 +95,7 @@ describe("ProviderCard", () => {
     const { container } = render(
       <ProviderCard
         provider={multiFieldProvider}
-        formData={{ smtp_enabled: true } as Partial<NotificationsConfig>}
+        formData={{ telegram_enabled: true } as Partial<NotificationsConfig>}
         onChange={vi.fn()}
         onTest={vi.fn()}
         isTesting={false}

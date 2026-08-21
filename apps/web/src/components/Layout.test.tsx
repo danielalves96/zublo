@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 
 import { queryKeys } from "@/lib/queryKeys";
+import type { User } from "@/types";
 
 const mocks = vi.hoisted(() => ({
   pathname: "/dashboard",
@@ -14,7 +15,7 @@ const mocks = vi.hoisted(() => ({
     email: "daniel@example.com",
     avatar: "avatar.png",
     mobile_navigation: true,
-  },
+  } as User | null,
   isAdmin: true,
   useQueryEnabled: true as boolean | undefined,
   capturedQueryKey: undefined as unknown,

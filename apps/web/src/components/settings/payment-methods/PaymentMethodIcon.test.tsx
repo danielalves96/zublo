@@ -7,7 +7,7 @@ vi.mock("react-i18next", () => ({
 }));
 
 const { iconUrl } = vi.hoisted(() => ({
-  iconUrl: vi.fn(() => null),
+  iconUrl: vi.fn((): string | null => null),
 }));
 
 vi.mock("@/services/paymentMethods", () => ({

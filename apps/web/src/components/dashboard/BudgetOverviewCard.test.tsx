@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 
 const { logoUrl } = vi.hoisted(() => ({
-  logoUrl: vi.fn(() => "https://cdn.example.com/logo.png"),
+  logoUrl: vi.fn((): string | null => "https://cdn.example.com/logo.png"),
 }));
 
 vi.mock("react-i18next", () => ({

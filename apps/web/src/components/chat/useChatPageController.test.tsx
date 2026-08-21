@@ -1,4 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
+import type { MutableRefObject } from "react";
 
 import { MAX_SPREADSHEET_ROWS } from "@/components/chat/constants";
 import { queryKeys } from "@/lib/queryKeys";
@@ -201,7 +202,9 @@ describe("useChatPageController", () => {
     } as HTMLDivElement;
 
     act(() => {
-      result.current.scrollRef.current = scrollNode;
+      (
+        result.current.scrollRef as MutableRefObject<HTMLDivElement | null>
+      ).current = scrollNode;
       result.current.setInput("Trigger scroll");
     });
 
