@@ -27,6 +27,11 @@ const PasswordResetPage = lazy(() =>
     default: m.PasswordResetPage,
   })),
 );
+const OIDCCallbackPage = lazy(() =>
+  import("@/pages/auth/OIDCCallbackPage").then((m) => ({
+    default: m.OIDCCallbackPage,
+  })),
+);
 
 // Lazily loaded (only after authentication)
 const DashboardPage = lazy(() =>
@@ -101,6 +106,13 @@ const passwordResetRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/password-reset",
   component: PasswordResetPage,
+});
+
+// Default redirect URL suggested in Admin → OIDC
+const oidcCallbackRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/oidc/callback",
+  component: OIDCCallbackPage,
 });
 
 // ─── Protected Layout Route ────────────────────────────────────────────────────
@@ -203,6 +215,7 @@ const routeTree = rootRoute.addChildren([
   registerRoute,
   totpRoute,
   passwordResetRoute,
+  oidcCallbackRoute,
   protectedLayoutRoute.addChildren([
     indexRoute,
     dashboardRoute,
