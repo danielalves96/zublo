@@ -102,6 +102,30 @@ describe("useCalendarMonthData", () => {
     vi.useRealTimers();
   });
 
+  it("does not show subscriptions in months before their start date", () => {
+    // Regression (#19): a subscription starting on 2026-01-01 must not appear
+    // in December 2025 or any earlier month.
+    const subscription = getSubscription({
+      start_date: "2026-01-01",
+      next_payment: "2026-01-05",
+    });
+
+    const { result } = renderHook(() =>
+      useCalendarMonthData({
+        subscriptions: [subscription],
+        cycles: [{ id: "cycle-monthly", name: "Monthly" }],
+        currencies: [getCurrency({ is_main: true })],
+        year: 2025,
+        month: 12,
+        selectedDay: 5,
+      }),
+    );
+
+    expect(result.current.entriesByDay).toEqual({});
+    expect(result.current.selectedEntries).toEqual([]);
+    expect(result.current.stats).toEqual({ count: 0, total: 0, due: 0 });
+  });
+
   it("falls back to the first currency and returns empty selected data when no day is selected", () => {
     const firstCurrency = getCurrency({ id: "cur-a", is_main: false });
 

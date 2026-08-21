@@ -59,6 +59,26 @@ export function getPaymentRecord(
   return paid[0] ?? matches[0];
 }
 
+/**
+ * Parses a stored date (date-only or ISO datetime) as a local calendar date so
+ * comparisons stay in the user's timezone instead of drifting through UTC.
+ */
+export function parseLocalDate(value: string | undefined | null): Date | null {
+  if (!value) return null;
+
+  const datePart = value.split(/[T ]/)[0];
+  const parts = datePart.split("-");
+
+  if (parts.length >= 3) {
+    const [y, m, d] = parts.map(Number);
+    const parsed = new Date(y, m - 1, d);
+    return isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  const fallback = new Date(value);
+  return isNaN(fallback.getTime()) ? null : fallback;
+}
+
 export function getOccurrencesInMonth(
   sub: Subscription,
   year: number,
@@ -75,17 +95,31 @@ export function getOccurrencesInMonth(
   const monthStart = new Date(year, month - 1, 1);
   const monthEnd = new Date(year, month, 0, 23, 59, 59);
 
-  let cursor: Date;
-  if (!sub.next_payment) return [];
+  const anchor = parseLocalDate(sub.next_payment);
+  if (!anchor) return [];
 
-  const datePart = sub.next_payment.split(/[T ]/)[0];
-  const parts = datePart.split("-");
-  if (parts.length >= 3) {
-    const [py, pm, pd] = parts.map(Number);
-    cursor = new Date(py, pm - 1, pd);
-  } else {
-    cursor = new Date(sub.next_payment);
-  }
+  let cursor = anchor;
+
+  // Occurrences only exist inside the subscription's own lifetime: never before
+  // its start date and never after a scheduled cancellation date.
+  const startDate = parseLocalDate(sub.start_date);
+  const endDate = parseLocalDate(sub.cancellation_date);
+
+  const rangeStart =
+    startDate && startDate > monthStart ? startDate : monthStart;
+  const rangeEnd =
+    endDate && endDate < monthEnd
+      ? new Date(
+          endDate.getFullYear(),
+          endDate.getMonth(),
+          endDate.getDate(),
+          23,
+          59,
+          59,
+        )
+      : monthEnd;
+
+  if (rangeStart > rangeEnd) return [];
 
   // Preserve the intended day-of-month so month arithmetic never overflows.
   // e.g. a subscription on the 30th must land on the 30th (or last day of
@@ -116,10 +150,8 @@ export function getOccurrencesInMonth(
     return new Date(d);
   };
 
-  if (isNaN(cursor.getTime())) return [];
-
   let g = 0;
-  while (cursor > monthStart && g++ < 600) {
+  while (cursor > rangeStart && g++ < 600) {
     const prev = sub1(cursor);
     if (prev.getTime() >= cursor.getTime()) break;
     cursor = prev;
@@ -127,8 +159,8 @@ export function getOccurrencesInMonth(
 
   const results: Date[] = [];
   g = 0;
-  while (cursor <= monthEnd && g++ < 600) {
-    if (cursor >= monthStart) results.push(new Date(cursor));
+  while (cursor <= rangeEnd && g++ < 600) {
+    if (cursor >= rangeStart) results.push(new Date(cursor));
     const next = add(cursor);
     if (next.getTime() <= cursor.getTime()) break;
     cursor = next;
