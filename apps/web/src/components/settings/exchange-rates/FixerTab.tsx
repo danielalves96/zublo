@@ -20,7 +20,6 @@ export function FixerTab() {
   const qc = useQueryClient();
 
   const [apiKey, setApiKey] = useState("");
-  const [apiKeyConfigured, setApiKeyConfigured] = useState(false);
   const [removeStoredApiKey, setRemoveStoredApiKey] = useState(false);
   const [provider, setProvider] = useState<"fixer" | "apilayer">("fixer");
 
@@ -30,10 +29,12 @@ export function FixerTab() {
     enabled: !!user?.id,
   });
 
+  // Derived state: is there a key saved on the server?
+  const isKeySavedOnServer = settings?.api_key_configured ?? false;
+
   useEffect(() => {
     if (settings) {
       setApiKey("");
-      setApiKeyConfigured(settings.api_key_configured ?? false);
       setRemoveStoredApiKey(false);
       setProvider(settings.provider || "fixer");
     }
@@ -43,7 +44,7 @@ export function FixerTab() {
     mutationFn: () => {
       const trimmedApiKey = apiKey.trim();
       const hasEffectiveApiKey =
-        !removeStoredApiKey && (trimmedApiKey.length > 0 || apiKeyConfigured);
+        !removeStoredApiKey && (trimmedApiKey.length > 0 || isKeySavedOnServer);
 
       const payload: Partial<FixerSettings> = {
         provider,
@@ -51,16 +52,24 @@ export function FixerTab() {
         user: user!.id,
       };
 
+      // API Key Logic:
+      // 1. Explicitly requested removal
       if (removeStoredApiKey) {
         payload.api_key = "";
         payload.api_key_configured = false;
-      } else if (trimmedApiKey) {
+      }
+      // 2. User typed a new key
+      else if (trimmedApiKey) {
         payload.api_key = trimmedApiKey;
         payload.api_key_configured = true;
-      } else if (!settings?.id || !apiKeyConfigured) {
+      }
+      // 3. Updating an existing record where no key is currently saved
+      else if (!isKeySavedOnServer) {
         payload.api_key = "";
         payload.api_key_configured = false;
       }
+      // 4. Otherwise (isKeySavedOnServer === true and trimmedApiKey is empty):
+      //    Do NOT include api_key in 'payload' so the server keeps the existing value.
 
       return settings?.id
         ? fixerService.updateSettings(settings.id, payload)
@@ -70,11 +79,6 @@ export function FixerTab() {
       qc.invalidateQueries({ queryKey: ["fixer_settings", user?.id ?? ""] });
       setApiKey("");
       setRemoveStoredApiKey(false);
-      if (apiKey.trim()) {
-        setApiKeyConfigured(true);
-      } else if (removeStoredApiKey) {
-        setApiKeyConfigured(false);
-      }
       toast.success(t("success_update"));
     },
     onError: () => toast.error(t("error")),
@@ -89,9 +93,9 @@ export function FixerTab() {
     onError: (err: Error) => toast.error(err.message || t("error")),
   });
 
-  const canSave = removeStoredApiKey || apiKey.trim().length > 0 || apiKeyConfigured;
+  const canSave = removeStoredApiKey || apiKey.trim().length > 0 || isKeySavedOnServer;
   const canUpdateRates =
-    !removeStoredApiKey && (apiKeyConfigured || apiKey.trim().length > 0);
+    !removeStoredApiKey && (isKeySavedOnServer || apiKey.trim().length > 0);
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -110,7 +114,7 @@ export function FixerTab() {
 
         <FixerApiKeyField
           apiKey={apiKey}
-          apiKeyConfigured={apiKeyConfigured}
+          apiKeyConfigured={isKeySavedOnServer}
           provider={provider}
           providerLink={FIXER_PROVIDER_LINKS[provider]}
           removeStoredApiKey={removeStoredApiKey}
@@ -133,7 +137,7 @@ export function FixerTab() {
           onUpdateRates={() => updateRatesMut.mutate()}
         />
 
-        {apiKeyConfigured && !removeStoredApiKey && (
+        {isKeySavedOnServer && !removeStoredApiKey && (
           <p className="text-xs text-muted-foreground bg-muted/50 rounded-xl p-3">
             {t("fixer_configured_hint")}
           </p>

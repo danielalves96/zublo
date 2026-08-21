@@ -22,13 +22,17 @@ routerAdd("POST", "/api/fixer/update", (e) => {
   if (!e.auth) throw new ForbiddenError("Authentication required");
   const userId = e.auth.id;
 
-  // Load fixer settings for this user
-  const fixers = $app.findRecordsByFilter(
-    "fixer_settings", "user = {:u} && api_key != ''", "", 1, 0, { u: userId }
+  // Load fixer settings for this user.
+  // NOTE: api_key is a hidden field (migration 0017) — PocketBase silently drops hidden
+  // fields from filter expressions, so we must load the record by user and then validate
+  // the key value in JavaScript instead.
+  const fixerCandidates = $app.findRecordsByFilter(
+    "fixer_settings", "user = {:u}", "", 1, 0, { u: userId }
   );
-  if (fixers.length === 0) {
+  if (fixerCandidates.length === 0 || !String(fixerCandidates[0].get("api_key") || "").trim()) {
     return e.json(400, { error: "No exchange rate API key configured." });
   }
+  const fixers = fixerCandidates;
 
   const fixer = fixers[0];
   const apiKey = fixer.get("api_key");

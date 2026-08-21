@@ -48,7 +48,15 @@ routerAdd("POST", "/api/ai/chat", function (e) {
     });
 
     if (res.statusCode !== 200) {
-      throw new Error("AI API error " + res.statusCode + ": " + aiParsers.getRawResponseText(res));
+      var errText = aiParsers.getRawResponseText(res);
+      // Special handling for OpenRouter models that don't support tool use (e.g. :free models)
+      if (res.statusCode === 404 && errText.indexOf("tool use") !== -1) {
+        throw new Error(
+          "Model '" + model + "' does not support tool use (function calling). " +
+          "Subscription management features require a more capable model (e.g., GPT-4o, Gemini Flash, or similar)."
+        );
+      }
+      throw new Error("AI API error " + res.statusCode + ": " + errText);
     }
 
     var resData = JSON.parse(aiParsers.getRawResponseText(res));

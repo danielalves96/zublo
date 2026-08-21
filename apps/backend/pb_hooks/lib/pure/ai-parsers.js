@@ -42,26 +42,35 @@ function buildRecommendationRequest(rawUrl, apiKey, model, systemPrompt, userPro
   const isGemini = detectGeminiUrl(rawUrl);
 
   if (isGemini) {
+    const aiHeaders = { "Content-Type": "application/json" };
+    if (apiKey) {
+      aiHeaders["x-goog-api-key"] = apiKey;
+    }
+
     return {
       isGemini: true,
       aiUrl: rawUrl + "/models/" + (model || "gemini-1.5-flash") + ":generateContent",
-      aiHeaders: {
-        "Content-Type": "application/json",
-        ...(apiKey ? { "x-goog-api-key": apiKey } : {}),
-      },
+      aiHeaders: aiHeaders,
       aiBody: {
         contents: [{ parts: [{ text: systemPrompt + "\n\n" + userPrompt }] }],
       },
     };
   }
 
+  const aiHeaders = { "Content-Type": "application/json" };
+  if (apiKey) {
+    aiHeaders["Authorization"] = "Bearer " + apiKey;
+  }
+  // OpenRouter requires these headers for all requests, especially on free-tier models.
+  if (rawUrl && rawUrl.indexOf("openrouter.ai") !== -1) {
+    aiHeaders["HTTP-Referer"] = "https://github.com/danielalves96/zublo";
+    aiHeaders["X-Title"] = "Zublo";
+  }
+
   return {
     isGemini: false,
     aiUrl: rawUrl + "/chat/completions",
-    aiHeaders: {
-      "Content-Type": "application/json",
-      ...(apiKey ? { Authorization: "Bearer " + apiKey } : {}),
-    },
+    aiHeaders: aiHeaders,
     aiBody: {
       model: model || "",
       messages: [

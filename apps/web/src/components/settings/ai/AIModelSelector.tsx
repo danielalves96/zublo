@@ -131,6 +131,12 @@ export function AIModelSelector({
         />
       )}
 
+      {model && (
+        <p className="text-sm text-muted-foreground mt-2 italic">
+          {t("ai_model_capability_hint")}
+        </p>
+      )}
+
       {models.length === 0 && (
         <p className="text-sm text-muted-foreground">{t("fetch_models_hint")}</p>
       )}
