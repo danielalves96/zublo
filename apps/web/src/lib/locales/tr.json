@@ -552,6 +552,7 @@
   "oidc_provider_placeholder": "örneğin Google, Otantik",
   "registration_settings": "Kayıt akışını ve sunucu seçeneklerini yönetin.",
   "open_registrations_desc": "Yeni kullanıcıların kendi kendine kaydolmasına izin verin.",
+  "registrations_closed": "Bu örnekte kayıtlar kapalı.",
   "require_email_validation_desc": "Giriş yapmadan önce e-posta doğrulamasını zorunlu kılın.",
   "disable_login_desc": "Tüm oturum açma işlemlerini devre dışı bırakın (kilitleme modu).",
   "update_notifications_desc": "Yeni uygulama sürümleri hakkında yöneticiyi bilgilendirin.",

@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   updateUser: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
+  isRegistrationOpen: vi.fn(),
 }));
 
 vi.mock("react-i18next", () => ({
@@ -31,6 +32,12 @@ vi.mock("@tanstack/react-router", () => ({
 
 vi.mock("@/components/AppLogo", () => ({
   LogoWithName: () => <div>logo</div>,
+}));
+
+vi.mock("@/services/registration", () => ({
+  registrationService: {
+    isOpen: mocks.isRegistrationOpen,
+  },
 }));
 
 vi.mock("@/contexts/AuthContext", () => ({
@@ -127,6 +134,7 @@ describe("RegisterPage", () => {
     mocks.updateCurrency.mockResolvedValue(undefined);
     mocks.updateUser.mockResolvedValue(undefined);
     mocks.refreshUser.mockResolvedValue(undefined);
+    mocks.isRegistrationOpen.mockResolvedValue(true);
   });
 
   it("registers the user, applies the preferred currency, refreshes auth, and redirects", async () => {
@@ -354,5 +362,32 @@ describe("RegisterPage", () => {
     // Currency update skipped entirely since currency is EUR
     expect(mocks.listCurrencies).not.toHaveBeenCalled();
     expect(mocks.updateCurrency).not.toHaveBeenCalled();
+  });
+
+  it("turns visitors away when the instance is not accepting registrations", async () => {
+    // The page is reachable by url even with the login link hidden.
+    mocks.isRegistrationOpen.mockResolvedValue(false);
+    render(<RegisterPage />);
+
+    await waitFor(() =>
+      expect(mocks.navigate).toHaveBeenCalledWith({ to: "/login", replace: true }),
+    );
+    expect(mocks.toastError).toHaveBeenCalledWith("registrations_closed");
+  });
+
+  it("stays put while the instance is open", async () => {
+    render(<RegisterPage />);
+
+    await waitFor(() => expect(mocks.isRegistrationOpen).toHaveBeenCalled());
+    expect(mocks.navigate).not.toHaveBeenCalled();
+  });
+
+  it("lets the form render when the check is unreachable, leaving the refusal to the server", async () => {
+    mocks.isRegistrationOpen.mockRejectedValue(new Error("offline"));
+    render(<RegisterPage />);
+
+    await waitFor(() => expect(mocks.isRegistrationOpen).toHaveBeenCalled());
+    expect(mocks.navigate).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("username")).toBeInTheDocument();
   });
 });

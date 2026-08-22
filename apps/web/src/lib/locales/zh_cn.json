@@ -552,6 +552,7 @@
   "oidc_provider_placeholder": "例如谷歌、Authentik",
   "registration_settings": "管理注册流程和服务器选项。",
   "open_registrations_desc": "允许新用户自行注册。",
+  "registrations_closed": "此实例已关闭注册。",
   "require_email_validation_desc": "登录前需要验证电子邮件。",
   "disable_login_desc": "禁用所有登录（锁定模式）。",
   "update_notifications_desc": "通知管理员新的应用程序版本。",

@@ -468,6 +468,7 @@
   "oidc_provider_placeholder": "ex: Google, Authentik",
   "registration_settings": "Gerencie o fluxo de registro e opções do servidor.",
   "open_registrations_desc": "Permitir que novos usuários se registrem.",
+  "registrations_closed": "Os cadastros estão fechados nesta instância.",
   "require_email_validation_desc": "Exigir verificação de e-mail antes do login.",
   "disable_login_desc": "Desabilitar todos os logins (modo de bloqueio).",
   "update_notifications_desc": "Notificar o administrador sobre novas versões do aplicativo.",

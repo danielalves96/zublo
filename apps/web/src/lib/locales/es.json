@@ -552,6 +552,7 @@
   "oidc_provider_placeholder": "p.ej. Google, Auténtico",
   "registration_settings": "Gestionar el flujo de registro y las opciones del servidor.",
   "open_registrations_desc": "Permitir que los nuevos usuarios se registren por sí mismos.",
+  "registrations_closed": "Los registros están cerrados en esta instancia.",
   "require_email_validation_desc": "Requerir verificación por correo electrónico antes de iniciar sesión.",
   "disable_login_desc": "Deshabilite todos los inicios de sesión (modo de bloqueo).",
   "update_notifications_desc": "Notificar al administrador sobre nuevas versiones de la aplicación.",

@@ -552,6 +552,7 @@
   "oidc_provider_placeholder": "par ex. Google, Authentique",
   "registration_settings": "Gérez le flux d’inscription et les options du serveur.",
   "open_registrations_desc": "Autorisez les nouveaux utilisateurs à s’auto-inscrire.",
+  "registrations_closed": "Les inscriptions sont fermées sur cette instance.",
   "require_email_validation_desc": "Exiger une vérification par e-mail avant de vous connecter.",
   "disable_login_desc": "Désactivez toutes les connexions (mode verrouillage).",
   "update_notifications_desc": "Informez l'administrateur des nouvelles versions de l'application.",

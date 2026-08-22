@@ -552,6 +552,7 @@
   "oidc_provider_placeholder": "např. Google, Authentik",
   "registration_settings": "Spravujte registrační tok a možnosti serveru.",
   "open_registrations_desc": "Povolit novým uživatelům, aby se sami registrovali.",
+  "registrations_closed": "Registrace jsou na této instanci uzavřeny.",
   "require_email_validation_desc": "Před přihlášením vyžadovat ověření e-mailu.",
   "disable_login_desc": "Zakázat všechna přihlášení (režim uzamčení).",
   "update_notifications_desc": "Informujte správce o nových verzích aplikace.",

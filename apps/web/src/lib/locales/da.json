@@ -552,6 +552,7 @@
   "oidc_provider_placeholder": "f.eks. Google, Authentik",
   "registration_settings": "Administrer registreringsflow og serverindstillinger.",
   "open_registrations_desc": "Tillad nye brugere at selvregistrere sig.",
+  "registrations_closed": "Registreringer er lukket på denne instans.",
   "require_email_validation_desc": "Kræv e-mailbekræftelse før login.",
   "disable_login_desc": "Deaktiver alle logins (lockdown-tilstand).",
   "update_notifications_desc": "Giv administrator besked om nye appversioner.",

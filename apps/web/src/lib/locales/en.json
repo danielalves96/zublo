@@ -554,6 +554,7 @@
   "oidc_provider_placeholder": "e.g. Google, Authentik",
   "registration_settings": "Manage registration flow and server options.",
   "open_registrations_desc": "Allow new users to self-register.",
+  "registrations_closed": "Registrations are closed on this instance.",
   "require_email_validation_desc": "Require email verification before login.",
   "disable_login_desc": "Disable all logins (lockdown mode).",
   "update_notifications_desc": "Notify admin about new app versions.",

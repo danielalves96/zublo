@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   toastError: vi.fn(),
   isTotpRequiredError: vi.fn(),
   fetchMock: vi.fn(),
+  isRegistrationOpen: vi.fn(),
 }));
 
 vi.mock("react-i18next", () => ({
@@ -47,6 +48,12 @@ vi.mock("@/services/auth", () => ({
   isTotpRequiredError: mocks.isTotpRequiredError,
 }));
 
+vi.mock("@/services/registration", () => ({
+  registrationService: {
+    isOpen: mocks.isRegistrationOpen,
+  },
+}));
+
 import { LoginPage } from "./LoginPage";
 
 describe("LoginPage", () => {
@@ -59,6 +66,7 @@ describe("LoginPage", () => {
     });
     mocks.login.mockResolvedValue(undefined);
     mocks.isTotpRequiredError.mockReturnValue(false);
+    mocks.isRegistrationOpen.mockResolvedValue(true);
     vi.stubGlobal("fetch", mocks.fetchMock);
   });
 
@@ -222,5 +230,36 @@ describe("LoginPage", () => {
     await new Promise((r) => setTimeout(r, 50));
 
     expect(mocks.navigate).not.toHaveBeenCalled();
+  });
+
+  it("offers the signup link while the instance accepts registrations", async () => {
+    render(<LoginPage />);
+
+    expect(await screen.findByText("create_account")).toBeInTheDocument();
+  });
+
+  it("hides the signup link once registrations are closed", async () => {
+    mocks.isRegistrationOpen.mockResolvedValue(false);
+    render(<LoginPage />);
+
+    await waitFor(() => expect(mocks.isRegistrationOpen).toHaveBeenCalled());
+    expect(screen.queryByText("create_account")).not.toBeInTheDocument();
+  });
+
+  it("does not render the link before the server has answered", () => {
+    // Never resolves, so the component stays in its unknown state.
+    mocks.isRegistrationOpen.mockReturnValue(new Promise(() => {}));
+    render(<LoginPage />);
+
+    expect(screen.queryByText("create_account")).not.toBeInTheDocument();
+  });
+
+  it("falls back to offering the link when the check is unreachable", async () => {
+    // The create request is still refused server-side, so the worst case is a
+    // clear error instead of a signup path nobody can find.
+    mocks.isRegistrationOpen.mockRejectedValue(new Error("offline"));
+    render(<LoginPage />);
+
+    expect(await screen.findByText("create_account")).toBeInTheDocument();
   });
 });

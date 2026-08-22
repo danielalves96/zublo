@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
@@ -19,6 +19,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { SS_KEYS } from "@/lib/constants";
 import { toast } from "@/lib/toast";
 import { isTotpRequiredError } from "@/services/auth";
+import { registrationService } from "@/services/registration";
 
 type LoginForm = {
   email: string;
@@ -29,6 +30,8 @@ export function LoginPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { login } = useAuth();
+  // null until the server answers, so a closed instance never flashes the link.
+  const [registrationOpen, setRegistrationOpen] = useState<boolean | null>(null);
 
   const schema = z.object({
     email: z.string().min(1, t("required")).email(t("validation_invalid_email")),
@@ -67,6 +70,15 @@ export function LoginPage() {
       })
       .catch(() => {});
   }, [navigate]);
+
+  useEffect(() => {
+    registrationService
+      .isOpen()
+      .then(setRegistrationOpen)
+      // The backend enforces the policy on the create request either way, so
+      // an unreachable check falls back to offering the link.
+      .catch(() => setRegistrationOpen(true));
+  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -115,12 +127,14 @@ export function LoginPage() {
               {isSubmitting ? t("loading") : t("login")}
             </Button>
           </form>
-          <p className="mt-4 text-center text-sm text-muted-foreground">
-            {t("no_account")}{" "}
-            <Link to="/register" className="text-primary hover:underline">
-              {t("create_account")}
-            </Link>
-          </p>
+          {registrationOpen && (
+            <p className="mt-4 text-center text-sm text-muted-foreground">
+              {t("no_account")}{" "}
+              <Link to="/register" className="text-primary hover:underline">
+                {t("create_account")}
+              </Link>
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>

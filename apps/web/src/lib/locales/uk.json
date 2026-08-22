@@ -552,6 +552,7 @@
   "oidc_provider_placeholder": "напр. Google, Authentik",
   "registration_settings": "Керуйте потоком реєстрації та параметрами сервера.",
   "open_registrations_desc": "Дозволити новим користувачам самостійно реєструватися.",
+  "registrations_closed": "Реєстрацію на цьому екземплярі закрито.",
   "require_email_validation_desc": "Вимагати підтвердження електронної пошти перед входом.",
   "disable_login_desc": "Вимкнути всі входи (режим блокування).",
   "update_notifications_desc": "Повідомляти адміністратора про нові версії програми.",

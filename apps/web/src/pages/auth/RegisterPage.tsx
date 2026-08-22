@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { Controller,useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
@@ -27,6 +28,7 @@ import i18n from "@/lib/i18n";
 import { toast } from "@/lib/toast";
 import { authService } from "@/services/auth";
 import { currenciesService } from "@/services/currencies";
+import { registrationService } from "@/services/registration";
 import { usersService } from "@/services/users";
 
 const COMMON_CURRENCIES = [
@@ -53,6 +55,22 @@ export function RegisterPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { refreshUser } = useAuth();
+
+  // The page is reachable by url even when the login page hides the link, so
+  // a closed instance turns visitors away here too. The server refuses the
+  // create request regardless; this only saves someone filling in a form
+  // that was always going to be rejected.
+  useEffect(() => {
+    registrationService
+      .isOpen()
+      .then((open) => {
+        if (!open) {
+          toast.error(t("registrations_closed"));
+          navigate({ to: "/login", replace: true });
+        }
+      })
+      .catch(() => {});
+  }, [navigate, t]);
 
   const schema = z
     .object({
