@@ -17,60 +17,11 @@
  * Nothing secret is exposed: only whether OIDC is usable and its display name.
  *
  * NOTE: In PocketBase JSVM (Goja), file-scope helper bindings are not
- * reliably available inside router callbacks. Require helpers inside
- * each callback so the runtime can always resolve them at request time.
+ * reliably available inside router callbacks: handlers run on a pooled
+ * runtime that never evaluated this file's top level. Require helpers
+ * inside each callback so the runtime can always resolve them at
+ * request time.
  */
-
-const OIDC_STATE_TTL_MS = 10 * 60 * 1000;
-
-/**
- * Reads the singleton admin_settings record. Besides the OIDC credentials this
- * carries the access policy the admin set for the signup form, because signing
- * in through a provider is still subject to it.
- */
-function readOidcSettings() {
-  let record = null;
-  try {
-    const all = $app.findRecordsByFilter("admin_settings", "", "", 1, 0);
-    if (all.length > 0) record = all[0];
-  } catch (_) {}
-
-  if (!record) return null;
-
-  return {
-    enabled: record.getBool("oidc_enabled"),
-    providerName: record.getString("oidc_provider_name"),
-    clientId: record.getString("oidc_client_id"),
-    clientSecret: record.getString("oidc_client_secret"),
-    issuerUrl: record.getString("oidc_issuer_url"),
-    redirectUrl: record.getString("oidc_redirect_url"),
-    scopes: record.getString("oidc_scopes"),
-    openRegistrations: record.getBool("open_registrations"),
-    maxUsers: record.getFloat("max_users"),
-    disableLogin: record.getBool("disable_login"),
-  };
-}
-
-/** Counts the existing accounts so `max_users` can be honoured. */
-function countUsers() {
-  return $app.countRecords("users");
-}
-
-/** Fetches the provider discovery document and validates the endpoints it lists. */
-function discoverOidcEndpoints(issuerUrl) {
-  const oidc = require(__hooks + "/lib/pure/oidc-core.js");
-
-  const res = $http.send({
-    url: oidc.buildDiscoveryUrl(issuerUrl),
-    method: "GET",
-    headers: { "Accept": "application/json" },
-  });
-
-  if (res.statusCode !== 200 || !res.json) return null;
-
-  const endpoints = oidc.extractDiscoveryEndpoints(res.json);
-  return oidc.hasRequiredEndpoints(endpoints) ? endpoints : null;
-}
 
 // ================================================================
 // ROUTE: GET /api/auth/oidc/config — public, reveals only whether an SSO
@@ -78,11 +29,12 @@ function discoverOidcEndpoints(issuerUrl) {
 // ================================================================
 routerAdd("GET", "/api/auth/oidc/config", (e) => {
   const oidc = require(__hooks + "/lib/pure/oidc-core.js");
+  const oidcSettings = require(__hooks + "/lib/oidc-settings.js");
   e.response.header().set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
   e.response.header().set("Pragma", "no-cache");
   e.response.header().set("Expires", "0");
 
-  const settings = readOidcSettings();
+  const settings = oidcSettings.readOidcSettings();
   if (!oidc.isOidcConfigured(settings) || settings.disableLogin) {
     return e.json(200, { enabled: false, provider_name: "" });
   }
@@ -96,8 +48,9 @@ routerAdd("GET", "/api/auth/oidc/config", (e) => {
 // ================================================================
 routerAdd("GET", "/api/auth/oidc/authorize", (e) => {
   const oidc = require(__hooks + "/lib/pure/oidc-core.js");
+  const oidcSettings = require(__hooks + "/lib/oidc-settings.js");
 
-  const settings = readOidcSettings();
+  const settings = oidcSettings.readOidcSettings();
   if (!oidc.isOidcConfigured(settings)) {
     return e.json(400, { error: "OIDC is not configured" });
   }
@@ -107,7 +60,7 @@ routerAdd("GET", "/api/auth/oidc/authorize", (e) => {
 
   let endpoints = null;
   try {
-    endpoints = discoverOidcEndpoints(settings.issuerUrl);
+    endpoints = oidcSettings.discoverOidcEndpoints(settings.issuerUrl);
   } catch (err) {
     return e.json(502, { error: "OIDC discovery failed: " + err });
   }
@@ -140,6 +93,7 @@ routerAdd("GET", "/api/auth/oidc/authorize", (e) => {
 // ================================================================
 routerAdd("POST", "/api/auth/oidc/callback", (e) => {
   const oidc = require(__hooks + "/lib/pure/oidc-core.js");
+  const oidcSettings = require(__hooks + "/lib/oidc-settings.js");
 
   const body = e.requestInfo().body;
   const code = String(body.code || "").trim();
@@ -148,7 +102,7 @@ routerAdd("POST", "/api/auth/oidc/callback", (e) => {
   if (!code) return e.json(400, { error: "code is required" });
   if (!state) return e.json(400, { error: "state is required" });
 
-  const settings = readOidcSettings();
+  const settings = oidcSettings.readOidcSettings();
   if (!oidc.isOidcConfigured(settings)) {
     return e.json(400, { error: "OIDC is not configured" });
   }
@@ -160,7 +114,7 @@ routerAdd("POST", "/api/auth/oidc/callback", (e) => {
     state,
     (payload) => $security.hs256(payload, settings.clientSecret),
     Date.now(),
-    OIDC_STATE_TTL_MS,
+    oidcSettings.OIDC_STATE_TTL_MS,
     (expected, actual) => $security.equal(expected, actual),
   );
   if (!stateIsValid) {
@@ -169,7 +123,7 @@ routerAdd("POST", "/api/auth/oidc/callback", (e) => {
 
   let endpoints = null;
   try {
-    endpoints = discoverOidcEndpoints(settings.issuerUrl);
+    endpoints = oidcSettings.discoverOidcEndpoints(settings.issuerUrl);
   } catch (err) {
     return e.json(502, { error: "OIDC discovery failed: " + err });
   }
@@ -298,7 +252,7 @@ routerAdd("POST", "/api/auth/oidc/callback", (e) => {
   if (!user) {
     // Creating an account here is a self-registration, so it obeys the same
     // policy the admin set for the signup form.
-    if (!oidc.canProvisionNewAccount(settings, countUsers)) {
+    if (!oidc.canProvisionNewAccount(settings, oidcSettings.countUsers)) {
       return e.json(403, { error: "Registrations are closed on this instance" });
     }
 
