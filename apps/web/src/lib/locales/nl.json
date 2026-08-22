@@ -557,6 +557,7 @@
   "oidc_login_failed": "Eenmalige aanmelding mislukt. Probeer het opnieuw.",
   "registration_settings": "Beheer de registratiestroom en serveropties.",
   "open_registrations_desc": "Sta nieuwe gebruikers toe zichzelf te registreren.",
+  "registrations_closed": "Registraties zijn gesloten op deze instantie.",
   "require_email_validation_desc": "Vereist e-mailverificatie voordat u inlogt.",
   "disable_login_desc": "Schakel alle logins uit (lockdown-modus).",
   "update_notifications_desc": "Houd de beheerder op de hoogte van nieuwe app-versies.",

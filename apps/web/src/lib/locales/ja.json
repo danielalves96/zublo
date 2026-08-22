@@ -557,6 +557,7 @@
   "oidc_login_failed": "シングルサインオンに失敗しました。もう一度お試しください。",
   "registration_settings": "登録フローとサーバー オプションを管理します。",
   "open_registrations_desc": "新しいユーザーが自己登録できるようにします。",
+  "registrations_closed": "このインスタンスでは登録が締め切られています。",
   "require_email_validation_desc": "ログインする前にメール認証が必要です。",
   "disable_login_desc": "すべてのログインを無効にします (ロックダウン モード)。",
   "update_notifications_desc": "新しいアプリのバージョンについて管理者に通知します。",

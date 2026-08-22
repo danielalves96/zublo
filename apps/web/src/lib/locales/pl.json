@@ -557,6 +557,7 @@
   "oidc_login_failed": "Logowanie jednokrotne nie powiodło się. Spróbuj ponownie.",
   "registration_settings": "Zarządzaj przepływem rejestracji i opcjami serwera.",
   "open_registrations_desc": "Pozwól nowym użytkownikom na samodzielną rejestrację.",
+  "registrations_closed": "Rejestracje są zamknięte na tej instancji.",
   "require_email_validation_desc": "Wymagaj weryfikacji e-mailem przed zalogowaniem.",
   "disable_login_desc": "Wyłącz wszystkie logowania (tryb blokady).",
   "update_notifications_desc": "Powiadom administratora o nowych wersjach aplikacji.",

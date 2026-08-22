@@ -557,6 +557,7 @@
   "oidc_login_failed": "Single sign-on non riuscito. Riprova.",
   "registration_settings": "Gestisci il flusso di registrazione e le opzioni del server.",
   "open_registrations_desc": "Consenti ai nuovi utenti di autoregistrarsi.",
+  "registrations_closed": "Le registrazioni sono chiuse su questa istanza.",
   "require_email_validation_desc": "Richiedi la verifica dell'e-mail prima dell'accesso.",
   "disable_login_desc": "Disabilita tutti gli accessi (modalità di blocco).",
   "update_notifications_desc": "Notifica all'amministratore le nuove versioni dell'app.",

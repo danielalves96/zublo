@@ -21,6 +21,7 @@ import { SS_KEYS } from "@/lib/constants";
 import { toast } from "@/lib/toast";
 import { isTotpRequiredError } from "@/services/auth";
 import { oidcService } from "@/services/oidc";
+import { registrationService } from "@/services/registration";
 
 type LoginForm = {
   email: string;
@@ -32,6 +33,8 @@ export function LoginPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [oidcProviderName, setOidcProviderName] = useState<string | null>(null);
+  // null until the server answers, so a closed instance never flashes the link.
+  const [registrationOpen, setRegistrationOpen] = useState<boolean | null>(null);
 
   const schema = z.object({
     email: z.string().min(1, t("required")).email(t("validation_invalid_email")),
@@ -70,6 +73,15 @@ export function LoginPage() {
       })
       .catch(() => {});
   }, [navigate]);
+
+  useEffect(() => {
+    registrationService
+      .isOpen()
+      .then(setRegistrationOpen)
+      // The backend enforces the policy on the create request either way, so
+      // an unreachable check falls back to offering the link.
+      .catch(() => setRegistrationOpen(true));
+  }, []);
 
   // The OIDC settings are admin-only, so the login page asks the public
   // endpoint whether an SSO provider is configured.
@@ -139,12 +151,14 @@ export function LoginPage() {
               <OIDCLoginButton providerName={oidcProviderName} />
             </div>
           )}
-          <p className="mt-4 text-center text-sm text-muted-foreground">
-            {t("no_account")}{" "}
-            <Link to="/register" className="text-primary hover:underline">
-              {t("create_account")}
-            </Link>
-          </p>
+          {registrationOpen && (
+            <p className="mt-4 text-center text-sm text-muted-foreground">
+              {t("no_account")}{" "}
+              <Link to="/register" className="text-primary hover:underline">
+                {t("create_account")}
+              </Link>
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>

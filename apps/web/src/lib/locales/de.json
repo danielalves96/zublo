@@ -557,6 +557,7 @@
   "oidc_login_failed": "Single Sign-on fehlgeschlagen. Bitte erneut versuchen.",
   "registration_settings": "Verwalten Sie den Registrierungsablauf und die Serveroptionen.",
   "open_registrations_desc": "Ermöglichen Sie neuen Benutzern die Selbstregistrierung.",
+  "registrations_closed": "Registrierungen sind auf dieser Instanz geschlossen.",
   "require_email_validation_desc": "Vor der Anmeldung ist eine E-Mail-Bestätigung erforderlich.",
   "disable_login_desc": "Deaktivieren Sie alle Anmeldungen (Sperrmodus).",
   "update_notifications_desc": "Benachrichtigen Sie den Administrator über neue App-Versionen.",
