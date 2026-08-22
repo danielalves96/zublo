@@ -12,5 +12,6 @@ describe("constants", () => {
 
   it("exports the expected sessionStorage keys", () => {
     expect(SS_KEYS.TOTP_LOGIN_CHALLENGE).toBe("zublo_totp_login_challenge");
+    expect(SS_KEYS.OIDC_LOGIN_STATE).toBe("zublo_oidc_login_state");
   });
 });

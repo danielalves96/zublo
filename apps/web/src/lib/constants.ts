@@ -14,4 +14,6 @@ export const LS_KEYS = {
 /** sessionStorage keys used across the application. */
 export const SS_KEYS = {
   TOTP_LOGIN_CHALLENGE: "zublo_totp_login_challenge",
+  /** State issued before redirecting to the OIDC provider (CSRF protection). */
+  OIDC_LOGIN_STATE: "zublo_oidc_login_state",
 } as const;

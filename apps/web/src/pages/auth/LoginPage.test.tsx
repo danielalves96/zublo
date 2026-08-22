@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   toastError: vi.fn(),
   isTotpRequiredError: vi.fn(),
   fetchMock: vi.fn(),
+  getOidcConfig: vi.fn(),
 }));
 
 vi.mock("react-i18next", () => ({
@@ -47,6 +48,18 @@ vi.mock("@/services/auth", () => ({
   isTotpRequiredError: mocks.isTotpRequiredError,
 }));
 
+vi.mock("@/services/oidc", () => ({
+  oidcService: {
+    getConfig: mocks.getOidcConfig,
+  },
+}));
+
+vi.mock("@/components/auth/OIDCLoginButton", () => ({
+  OIDCLoginButton: ({ providerName }: { providerName: string }) => (
+    <button type="button">sso:{providerName}</button>
+  ),
+}));
+
 import { LoginPage } from "./LoginPage";
 
 describe("LoginPage", () => {
@@ -59,6 +72,7 @@ describe("LoginPage", () => {
     });
     mocks.login.mockResolvedValue(undefined);
     mocks.isTotpRequiredError.mockReturnValue(false);
+    mocks.getOidcConfig.mockResolvedValue({ enabled: false, providerName: "" });
     vi.stubGlobal("fetch", mocks.fetchMock);
   });
 
@@ -222,5 +236,33 @@ describe("LoginPage", () => {
     await new Promise((r) => setTimeout(r, 50));
 
     expect(mocks.navigate).not.toHaveBeenCalled();
+  });
+
+  it("shows the SSO button when OIDC is enabled", async () => {
+    mocks.getOidcConfig.mockResolvedValue({
+      enabled: true,
+      providerName: "Authentik",
+    });
+
+    render(<LoginPage />);
+
+    expect(await screen.findByText("sso:Authentik")).toBeInTheDocument();
+    expect(screen.getByText("or")).toBeInTheDocument();
+  });
+
+  it("hides the SSO button when OIDC is disabled", async () => {
+    render(<LoginPage />);
+
+    await waitFor(() => expect(mocks.getOidcConfig).toHaveBeenCalled());
+    expect(screen.queryByText("or")).not.toBeInTheDocument();
+  });
+
+  it("hides the SSO button when the OIDC config request fails", async () => {
+    mocks.getOidcConfig.mockRejectedValue(new Error("network error"));
+
+    render(<LoginPage />);
+
+    await waitFor(() => expect(mocks.getOidcConfig).toHaveBeenCalled());
+    expect(screen.queryByText("or")).not.toBeInTheDocument();
   });
 });

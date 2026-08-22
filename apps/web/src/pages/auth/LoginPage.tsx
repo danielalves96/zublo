@@ -1,11 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
 
 import { LogoWithName } from "@/components/AppLogo";
+import { OIDCLoginButton } from "@/components/auth/OIDCLoginButton";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -19,6 +20,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { SS_KEYS } from "@/lib/constants";
 import { toast } from "@/lib/toast";
 import { isTotpRequiredError } from "@/services/auth";
+import { oidcService } from "@/services/oidc";
 
 type LoginForm = {
   email: string;
@@ -29,6 +31,7 @@ export function LoginPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { login } = useAuth();
+  const [oidcProviderName, setOidcProviderName] = useState<string | null>(null);
 
   const schema = z.object({
     email: z.string().min(1, t("required")).email(t("validation_invalid_email")),
@@ -67,6 +70,17 @@ export function LoginPage() {
       })
       .catch(() => {});
   }, [navigate]);
+
+  // The OIDC settings are admin-only, so the login page asks the public
+  // endpoint whether an SSO provider is configured.
+  useEffect(() => {
+    oidcService
+      .getConfig()
+      .then((config) => {
+        if (config.enabled) setOidcProviderName(config.providerName);
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -115,6 +129,16 @@ export function LoginPage() {
               {isSubmitting ? t("loading") : t("login")}
             </Button>
           </form>
+          {oidcProviderName !== null && (
+            <div className="mt-4 space-y-4">
+              <div className="flex items-center gap-3">
+                <span className="h-px flex-1 bg-border" />
+                <span className="text-xs uppercase text-muted-foreground">{t("or")}</span>
+                <span className="h-px flex-1 bg-border" />
+              </div>
+              <OIDCLoginButton providerName={oidcProviderName} />
+            </div>
+          )}
           <p className="mt-4 text-center text-sm text-muted-foreground">
             {t("no_account")}{" "}
             <Link to="/register" className="text-primary hover:underline">

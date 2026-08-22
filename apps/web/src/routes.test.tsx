@@ -59,6 +59,9 @@ vi.mock("@/pages/auth/TotpPage", () => ({
 vi.mock("@/pages/auth/PasswordResetPage", () => ({
   PasswordResetPage: () => <div>password-reset</div>,
 }));
+vi.mock("@/pages/auth/OIDCCallbackPage", () => ({
+  OIDCCallbackPage: () => <div>oidc-callback</div>,
+}));
 
 const fakeUser = { id: "1", email: "user@test.com" } as any;
 
@@ -248,6 +251,15 @@ describe("route component rendering", () => {
     render(<RouterProvider router={router} />);
     await screen.findByText("totp");
     expect(screen.getByText("totp")).toBeInTheDocument();
+  });
+
+  it("renders the OIDC callback page via router (covers OIDCCallbackPage lazy import)", async () => {
+    window.history.pushState({}, "", "/oidc/callback");
+    const router = createAppRouter(makeContext({ user: null }));
+    await router.load();
+    render(<RouterProvider router={router} />);
+    await screen.findByText("oidc-callback");
+    expect(screen.getByText("oidc-callback")).toBeInTheDocument();
   });
 
   // Line 23: lazy import of PasswordResetPage (explicit extra coverage)
