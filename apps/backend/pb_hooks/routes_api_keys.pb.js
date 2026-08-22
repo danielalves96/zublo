@@ -1,12 +1,10 @@
 /// <reference path="../pb_data/types.d.ts" />
 
 // NOTE: In PocketBase JSVM (Goja), file-scope helper bindings are not
-// reliably available inside router callbacks. extractApiKey requires
-// authHeaders internally so it is always self-contained at call time.
-function extractApiKey(e) {
-  var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
-  return authHeaders.extractBearerToken(e.request.header.get("Authorization"));
-}
+// reliably available inside router callbacks: handlers run on a pooled
+// runtime that never evaluated this file's top level. Require helpers
+// inside each callback so the runtime can always resolve them at
+// request time.
 
 // ================================================================
 // GET /api/api-keys  — list keys for the authenticated user
@@ -185,7 +183,8 @@ routerAdd("PUT", "/api/api-keys/{id}", function(e) {
 // ================================================================
 routerAdd("GET", "/api/external/subscriptions", function(e) {
   try {
-    var rawKey = extractApiKey(e);
+    var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+    var rawKey = authHeaders.extractBearerToken(e.request.header.get("Authorization"));
 
     // inline resolveApiKey
     var userId = null;
@@ -248,7 +247,8 @@ routerAdd("GET", "/api/external/subscriptions", function(e) {
 // ================================================================
 routerAdd("GET", "/api/external/subscriptions/{id}", function(e) {
   try {
-    var rawKey = extractApiKey(e);
+    var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+    var rawKey = authHeaders.extractBearerToken(e.request.header.get("Authorization"));
 
     var userId = null;
     if (rawKey) {
@@ -310,7 +310,8 @@ routerAdd("GET", "/api/external/subscriptions/{id}", function(e) {
 // ================================================================
 routerAdd("GET", "/api/external/cycles", function(e) {
   try {
-    var rawKey = extractApiKey(e);
+    var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+    var rawKey = authHeaders.extractBearerToken(e.request.header.get("Authorization"));
 
     var userId = null;
     if (rawKey) {
@@ -342,7 +343,8 @@ routerAdd("GET", "/api/external/cycles", function(e) {
 // ================================================================
 routerAdd("POST", "/api/external/subscriptions", function(e) {
   try {
-    var rawKey = extractApiKey(e);
+    var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+    var rawKey = authHeaders.extractBearerToken(e.request.header.get("Authorization"));
 
     // inline resolveApiKey
     var userId = null;
@@ -408,7 +410,8 @@ routerAdd("POST", "/api/external/subscriptions", function(e) {
 // ================================================================
 routerAdd("GET", "/api/external/statistics", function(e) {
   try {
-    var rawKey = extractApiKey(e);
+    var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+    var rawKey = authHeaders.extractBearerToken(e.request.header.get("Authorization"));
 
     // inline resolveApiKey
     var userId = null;
@@ -477,7 +480,8 @@ routerAdd("GET", "/api/external/statistics", function(e) {
 // ================================================================
 routerAdd("GET", "/api/external/categories", function(e) {
   try {
-    var rawKey = extractApiKey(e);
+    var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+    var rawKey = authHeaders.extractBearerToken(e.request.header.get("Authorization"));
 
     var userId = null;
     if (rawKey) {
@@ -517,7 +521,8 @@ routerAdd("GET", "/api/external/categories", function(e) {
 // ================================================================
 routerAdd("POST", "/api/external/categories", function(e) {
   try {
-    var rawKey = extractApiKey(e);
+    var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+    var rawKey = authHeaders.extractBearerToken(e.request.header.get("Authorization"));
 
     var userId = null;
     if (rawKey) {
@@ -554,7 +559,8 @@ routerAdd("POST", "/api/external/categories", function(e) {
 // ================================================================
 routerAdd("GET", "/api/external/payment-methods", function(e) {
   try {
-    var rawKey = extractApiKey(e);
+    var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+    var rawKey = authHeaders.extractBearerToken(e.request.header.get("Authorization"));
 
     var userId = null;
     if (rawKey) {
@@ -594,7 +600,8 @@ routerAdd("GET", "/api/external/payment-methods", function(e) {
 // ================================================================
 routerAdd("POST", "/api/external/payment-methods", function(e) {
   try {
-    var rawKey = extractApiKey(e);
+    var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+    var rawKey = authHeaders.extractBearerToken(e.request.header.get("Authorization"));
 
     var userId = null;
     if (rawKey) {
@@ -631,7 +638,8 @@ routerAdd("POST", "/api/external/payment-methods", function(e) {
 // ================================================================
 routerAdd("GET", "/api/external/household", function(e) {
   try {
-    var rawKey = extractApiKey(e);
+    var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+    var rawKey = authHeaders.extractBearerToken(e.request.header.get("Authorization"));
 
     var userId = null;
     if (rawKey) {
@@ -671,7 +679,8 @@ routerAdd("GET", "/api/external/household", function(e) {
 // ================================================================
 routerAdd("POST", "/api/external/household", function(e) {
   try {
-    var rawKey = extractApiKey(e);
+    var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+    var rawKey = authHeaders.extractBearerToken(e.request.header.get("Authorization"));
 
     var userId = null;
     if (rawKey) {
@@ -708,7 +717,8 @@ routerAdd("POST", "/api/external/household", function(e) {
 // ================================================================
 routerAdd("GET", "/api/external/currencies", function(e) {
   try {
-    var rawKey = extractApiKey(e);
+    var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+    var rawKey = authHeaders.extractBearerToken(e.request.header.get("Authorization"));
 
     var userId = null;
     if (rawKey) {
@@ -750,7 +760,8 @@ routerAdd("GET", "/api/external/currencies", function(e) {
 // ================================================================
 routerAdd("POST", "/api/external/currencies", function(e) {
   try {
-    var rawKey = extractApiKey(e);
+    var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+    var rawKey = authHeaders.extractBearerToken(e.request.header.get("Authorization"));
 
     var userId = null;
     if (rawKey) {
@@ -791,7 +802,8 @@ routerAdd("POST", "/api/external/currencies", function(e) {
 // ================================================================
 routerAdd("DELETE", "/api/external/subscriptions/{id}", function(e) {
   try {
-    var rawKey = extractApiKey(e);
+    var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+    var rawKey = authHeaders.extractBearerToken(e.request.header.get("Authorization"));
     var userId = null;
     if (rawKey) {
       var kh = $security.sha256(rawKey);
@@ -823,7 +835,8 @@ routerAdd("DELETE", "/api/external/subscriptions/{id}", function(e) {
 // ================================================================
 routerAdd("PUT", "/api/external/subscriptions/{id}", function(e) {
   try {
-    var rawKey = extractApiKey(e);
+    var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+    var rawKey = authHeaders.extractBearerToken(e.request.header.get("Authorization"));
     var userId = null;
     if (rawKey) {
       var kh = $security.sha256(rawKey);
@@ -873,7 +886,8 @@ routerAdd("PUT", "/api/external/subscriptions/{id}", function(e) {
 // ================================================================
 routerAdd("DELETE", "/api/external/categories/{id}", function(e) {
   try {
-    var rawKey = extractApiKey(e);
+    var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+    var rawKey = authHeaders.extractBearerToken(e.request.header.get("Authorization"));
     var userId = null;
     if (rawKey) {
       var kh = $security.sha256(rawKey);
@@ -905,7 +919,8 @@ routerAdd("DELETE", "/api/external/categories/{id}", function(e) {
 // ================================================================
 routerAdd("PUT", "/api/external/categories/{id}", function(e) {
   try {
-    var rawKey = extractApiKey(e);
+    var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+    var rawKey = authHeaders.extractBearerToken(e.request.header.get("Authorization"));
     var userId = null;
     if (rawKey) {
       var kh = $security.sha256(rawKey);
@@ -941,7 +956,8 @@ routerAdd("PUT", "/api/external/categories/{id}", function(e) {
 // ================================================================
 routerAdd("DELETE", "/api/external/payment-methods/{id}", function(e) {
   try {
-    var rawKey = extractApiKey(e);
+    var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+    var rawKey = authHeaders.extractBearerToken(e.request.header.get("Authorization"));
     var userId = null;
     if (rawKey) {
       var kh = $security.sha256(rawKey);
@@ -973,7 +989,8 @@ routerAdd("DELETE", "/api/external/payment-methods/{id}", function(e) {
 // ================================================================
 routerAdd("PUT", "/api/external/payment-methods/{id}", function(e) {
   try {
-    var rawKey = extractApiKey(e);
+    var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+    var rawKey = authHeaders.extractBearerToken(e.request.header.get("Authorization"));
     var userId = null;
     if (rawKey) {
       var kh = $security.sha256(rawKey);
@@ -1009,7 +1026,8 @@ routerAdd("PUT", "/api/external/payment-methods/{id}", function(e) {
 // ================================================================
 routerAdd("DELETE", "/api/external/household/{id}", function(e) {
   try {
-    var rawKey = extractApiKey(e);
+    var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+    var rawKey = authHeaders.extractBearerToken(e.request.header.get("Authorization"));
     var userId = null;
     if (rawKey) {
       var kh = $security.sha256(rawKey);
@@ -1041,7 +1059,8 @@ routerAdd("DELETE", "/api/external/household/{id}", function(e) {
 // ================================================================
 routerAdd("PUT", "/api/external/household/{id}", function(e) {
   try {
-    var rawKey = extractApiKey(e);
+    var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+    var rawKey = authHeaders.extractBearerToken(e.request.header.get("Authorization"));
     var userId = null;
     if (rawKey) {
       var kh = $security.sha256(rawKey);
@@ -1077,7 +1096,8 @@ routerAdd("PUT", "/api/external/household/{id}", function(e) {
 // ================================================================
 routerAdd("DELETE", "/api/external/currencies/{id}", function(e) {
   try {
-    var rawKey = extractApiKey(e);
+    var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+    var rawKey = authHeaders.extractBearerToken(e.request.header.get("Authorization"));
     var userId = null;
     if (rawKey) {
       var kh = $security.sha256(rawKey);
@@ -1109,7 +1129,8 @@ routerAdd("DELETE", "/api/external/currencies/{id}", function(e) {
 // ================================================================
 routerAdd("PUT", "/api/external/currencies/{id}", function(e) {
   try {
-    var rawKey = extractApiKey(e);
+    var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+    var rawKey = authHeaders.extractBearerToken(e.request.header.get("Authorization"));
     var userId = null;
     if (rawKey) {
       var kh = $security.sha256(rawKey);
@@ -1146,7 +1167,8 @@ routerAdd("PUT", "/api/external/currencies/{id}", function(e) {
 // ================================================================
 routerAdd("PATCH", "/api/external/subscriptions/{id}/status", function(e) {
   try {
-    var rawKey = extractApiKey(e);
+    var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+    var rawKey = authHeaders.extractBearerToken(e.request.header.get("Authorization"));
     var userId = null;
     if (rawKey) {
       var kh = $security.sha256(rawKey);
@@ -1183,7 +1205,8 @@ routerAdd("PATCH", "/api/external/subscriptions/{id}/status", function(e) {
 // ================================================================
 routerAdd("POST", "/api/external/subscriptions/{id}/mark-paid", function(e) {
   try {
-    var rawKey = extractApiKey(e);
+    var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+    var rawKey = authHeaders.extractBearerToken(e.request.header.get("Authorization"));
     var userId = null;
     if (rawKey) {
       var kh = $security.sha256(rawKey);
@@ -1229,7 +1252,8 @@ routerAdd("POST", "/api/external/subscriptions/{id}/mark-paid", function(e) {
 // ================================================================
 routerAdd("POST", "/api/external/subscriptions/batch", function(e) {
   try {
-    var rawKey = extractApiKey(e);
+    var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+    var rawKey = authHeaders.extractBearerToken(e.request.header.get("Authorization"));
     var userId = null;
     if (rawKey) {
       var kh = $security.sha256(rawKey);
@@ -1276,7 +1300,8 @@ routerAdd("POST", "/api/external/subscriptions/batch", function(e) {
 // ================================================================
 routerAdd("POST", "/api/external/categories/bulk-rename", function(e) {
   try {
-    var rawKey = extractApiKey(e);
+    var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+    var rawKey = authHeaders.extractBearerToken(e.request.header.get("Authorization"));
     var userId = null;
     if (rawKey) {
       var kh = $security.sha256(rawKey);
@@ -1315,7 +1340,8 @@ routerAdd("POST", "/api/external/categories/bulk-rename", function(e) {
 // ================================================================
 routerAdd("PUT", "/api/external/currencies/{id}/main", function(e) {
   try {
-    var rawKey = extractApiKey(e);
+    var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+    var rawKey = authHeaders.extractBearerToken(e.request.header.get("Authorization"));
     var userId = null;
     if (rawKey) {
       var kh = $security.sha256(rawKey);
