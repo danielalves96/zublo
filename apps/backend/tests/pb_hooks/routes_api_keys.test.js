@@ -1,7 +1,8 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-const HOOKS_DIR = path.join(__dirname, "../../pb_hooks");
+const { HOOKS_DIR, fileScopeBindings, skipToMatchingBrace } = require("./helpers/hook-source.js");
+
 const SOURCE = fs.readFileSync(path.join(HOOKS_DIR, "routes_api_keys.pb.js"), "utf8");
 
 /**
@@ -13,47 +14,22 @@ const SOURCE = fs.readFileSync(path.join(HOOKS_DIR, "routes_api_keys.pb.js"), "u
  */
 function extractHandlers(source) {
   const handlers = [];
-  let index = source.indexOf("\nrouterAdd(");
+  const registration = /^routerAdd\(\s*"([^"]+)"\s*,\s*"([^"]+)"/gm;
+  let call;
 
-  while (index !== -1) {
-    const open = source.indexOf("(", index);
-    const commas = [];
-    let depth = 0;
-    let cursor = open;
-    let quote = "";
-
-    for (; cursor < source.length; cursor++) {
-      const char = source[cursor];
-
-      if (quote) {
-        if (char === "\\") cursor++;
-        else if (char === quote) quote = "";
-        continue;
-      }
-      if (char === '"' || char === "'") { quote = char; continue; }
-      if (char === "/" && source[cursor + 1] === "/") {
-        cursor = source.indexOf("\n", cursor);
-        continue;
-      }
-      if (char === "/" && source[cursor + 1] === "*") {
-        cursor = source.indexOf("*/", cursor) + 1;
-        continue;
-      }
-      if (char === "(" || char === "[" || char === "{") depth++;
-      if (char === ")" || char === "]" || char === "}") {
-        depth--;
-        if (depth === 0) break;
-      }
-      if (char === "," && depth === 1) commas.push(cursor);
-    }
+  while ((call = registration.exec(source)) !== null) {
+    const open = source.indexOf("(", call.index);
+    const argsEnd = skipToMatchingBrace(source, open);
+    const args = source.slice(open, argsEnd);
+    const handlerStart = args.search(/function\b|\([^)]*\)\s*=>/);
 
     handlers.push({
-      method: /routerAdd\(\s*"([^"]+)"\s*,\s*"([^"]+)"/.exec(source.slice(index))[1],
-      route: /routerAdd\(\s*"([^"]+)"\s*,\s*"([^"]+)"/.exec(source.slice(index))[2],
-      source: source.slice(commas[commas.length - 1] + 1, cursor).trim(),
+      method: call[1],
+      route: call[2],
+      source: args.slice(handlerStart).trim(),
     });
 
-    index = source.indexOf("\nrouterAdd(", cursor);
+    registration.lastIndex = argsEnd;
   }
 
   return handlers;
@@ -96,11 +72,7 @@ describe("pb_hooks/routes_api_keys.pb.js", () => {
   });
 
   it("declares no file-scope bindings, which a pooled runtime would not have", () => {
-    const fileScopeDeclarations = SOURCE
-      .split("\n")
-      .filter((line) => /^(function|var|const|let)\s/.test(line));
-
-    expect(fileScopeDeclarations).toEqual([]);
+    expect(fileScopeBindings(SOURCE)).toEqual([]);
   });
 
   it.each(handlers.map((handler) => [handler.method + " " + handler.route, handler]))(

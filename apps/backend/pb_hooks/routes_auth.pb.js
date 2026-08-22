@@ -12,8 +12,10 @@
  * - Admin utilities
  *
  * NOTE: In PocketBase JSVM (Goja), file-scope helper bindings are not
- * reliably available inside router callbacks. Require helpers inside
- * each callback so the runtime can always resolve them at request time.
+ * reliably available inside router callbacks: handlers run on a pooled
+ * runtime that never evaluated this file's top level. Require helpers
+ * inside each callback so the runtime can always resolve them at
+ * request time.
  */
 
 // ================================================================
@@ -46,58 +48,6 @@ routerAdd("GET", "/api/auth/is-admin", (e) => {
 
   return e.json(200, { isAdmin: all[0].id === e.auth.id });
 });
-
-// ================================================================
-// TOTP UTILITIES
-// ================================================================
-
-const TOTP_LOGIN_CHALLENGE_TTL_MS = 5 * 60 * 1000;
-
-function hashTotpLoginChallenge(challenge) {
-  return $security.sha256(String(challenge || ""));
-}
-
-function clearTotpLoginChallenge(user) {
-  user.set("totp_login_challenge_hash", "");
-  user.set("totp_login_challenge_expires", "");
-}
-
-function createTotpLoginChallenge(user) {
-  const challenge = $security.randomString(64);
-  const expiresAt = new Date(Date.now() + TOTP_LOGIN_CHALLENGE_TTL_MS).toISOString();
-
-  user.set("totp_login_challenge_hash", hashTotpLoginChallenge(challenge));
-  user.set("totp_login_challenge_expires", expiresAt);
-  $app.save(user);
-
-  return { challenge, expiresAt };
-}
-
-function findUserByTotpLoginChallenge(challenge) {
-  const normalizedChallenge = String(challenge || "").trim();
-  if (!normalizedChallenge) return null;
-
-  const rows = $app.findRecordsByFilter(
-    "users",
-    "totp_login_challenge_hash = {:hash}",
-    "",
-    1,
-    0,
-    { hash: hashTotpLoginChallenge(normalizedChallenge) },
-  );
-
-  if (!rows || rows.length === 0) return null;
-
-  const user = rows[0];
-  const expiresAt = String(user.get("totp_login_challenge_expires") || "");
-  if (!expiresAt || Date.parse(expiresAt) <= Date.now()) {
-    clearTotpLoginChallenge(user);
-    $app.save(user);
-    return null;
-  }
-
-  return user;
-}
 
 // ================================================================
 // ROUTE: TOTP Setup — generate secret + backup codes (not saved yet)
@@ -257,6 +207,7 @@ routerAdd('POST', '/api/auth/totp/regenerate_backup', function (e) {
 // Stores only a short-lived hashed challenge server-side.
 // ================================================================
 routerAdd('POST', '/api/auth/totp/login-challenge', function (e) {
+  var totpChallenge = require(__hooks + "/lib/totp-challenge.js");
   if (!e.auth) return e.json(401, { error: 'Authentication required' });
 
   var user = $app.findRecordById('users', e.auth.id);
@@ -264,8 +215,8 @@ routerAdd('POST', '/api/auth/totp/login-challenge', function (e) {
     return e.json(400, { error: '2FA is not enabled for this account' });
   }
 
-  clearTotpLoginChallenge(user);
-  var issued = createTotpLoginChallenge(user);
+  totpChallenge.clearTotpLoginChallenge(user);
+  var issued = totpChallenge.createTotpLoginChallenge(user);
 
   return e.json(200, {
     challenge: issued.challenge,
@@ -279,6 +230,7 @@ routerAdd('POST', '/api/auth/totp/login-challenge', function (e) {
 // PocketBase auth token only after the second factor succeeds.
 // ================================================================
 routerAdd('POST', '/api/auth/totp/login-verify', function (e) {
+  var totpChallenge = require(__hooks + "/lib/totp-challenge.js");
   var totpLib = require(__hooks + "/lib/totp.js");
   var verifyTOTP = totpLib.verifyTOTP;
   var body = e.requestInfo().body;
@@ -288,12 +240,12 @@ routerAdd('POST', '/api/auth/totp/login-verify', function (e) {
   if (!challenge) return e.json(400, { error: 'challenge is required' });
   if (!code) return e.json(400, { error: 'code is required' });
 
-  var user = findUserByTotpLoginChallenge(challenge);
+  var user = totpChallenge.findUserByTotpLoginChallenge(challenge);
   if (!user) {
     return e.json(401, { error: 'Invalid or expired login challenge' });
   }
   if (!user.get('totp_enabled')) {
-    clearTotpLoginChallenge(user);
+    totpChallenge.clearTotpLoginChallenge(user);
     $app.save(user);
     return e.json(400, { error: '2FA is not enabled for this account' });
   }
@@ -322,7 +274,7 @@ routerAdd('POST', '/api/auth/totp/login-verify', function (e) {
     return e.json(401, { error: 'Invalid verification code' });
   }
 
-  clearTotpLoginChallenge(user);
+  totpChallenge.clearTotpLoginChallenge(user);
   $app.save(user);
 
   return e.json(200, {

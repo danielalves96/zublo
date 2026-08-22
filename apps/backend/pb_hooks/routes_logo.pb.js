@@ -1,27 +1,17 @@
 /// <reference path="../pb_data/types.d.ts" />
 
 // NOTE: In PocketBase JSVM (Goja), file-scope helper bindings are not
-// reliably available inside router callbacks. Require helpers inside
-// each callback so the runtime can always resolve them at request time.
-
-function getQueryParam(e, key) {
-  let value = "";
-  try {
-    value = e.request.url.query().get(key) || "";
-  } catch (_) { }
-  if (!value) {
-    try {
-      value = e.requestInfo().query[key] || "";
-    } catch (_) { }
-  }
-  return String(value || "").trim();
-}
+// reliably available inside router callbacks: handlers run on a pooled
+// runtime that never evaluated this file's top level. Require helpers
+// inside each callback so the runtime can always resolve them at
+// request time.
 
 // ================================================================
 // ROUTE: Logo Search
 // ================================================================
 routerAdd("GET", "/api/logo_search", (e) => {
   const logoUtils = require(__hooks + "/lib/pure/logo-utils.js");
+  const { getQueryParam } = require(__hooks + "/lib/pure/request-query.js");
   try {
     if (!e.auth) {
       return e.json(403, { error: "Authentication required" });
@@ -78,6 +68,7 @@ routerAdd("GET", "/api/logo_search", (e) => {
 });
 
 routerAdd("GET", "/api/logo_fetch", (e) => {
+  const { getQueryParam } = require(__hooks + "/lib/pure/request-query.js");
   try {
     if (!e.auth) {
       return e.json(403, { error: "Authentication required" });

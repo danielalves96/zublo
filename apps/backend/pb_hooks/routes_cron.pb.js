@@ -1,46 +1,13 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-function normalizeReminderSlots(raw) {
-  var fallback = [{ days: 3, hour: 8 }];
-  var parsed = raw;
-
-  if (typeof parsed === "string" && parsed) {
-    try {
-      parsed = JSON.parse(parsed);
-    } catch (_) {
-      parsed = raw;
-    }
-  }
-
-  var source = [];
-  if (Array.isArray(parsed)) {
-    source = parsed;
-  } else if (parsed && typeof parsed === "object" && typeof parsed.length === "number") {
-    for (var i = 0; i < parsed.length; i++) {
-      source.push(parsed[i]);
-    }
-  }
-
-  var normalized = [];
-  for (var si = 0; si < source.length; si++) {
-    var slot = source[si] || {};
-    var days = Number(slot.days);
-    var hour = Number(slot.hour);
-
-    if (!isFinite(days) || !isFinite(hour)) {
-      continue;
-    }
-
-    normalized.push({
-      days: Math.trunc(days),
-      hour: Math.trunc(hour),
-    });
-  }
-
-  return normalized.length > 0 ? normalized : fallback;
-}
+// NOTE: In PocketBase JSVM (Goja), file-scope helper bindings are not
+// reliably available inside router callbacks: handlers run on a pooled
+// runtime that never evaluated this file's top level. Require helpers
+// inside each callback so the runtime can always resolve them at
+// request time.
 
 routerAdd("POST", "/api/cron/{job}", function(e) {
+  var reminderSlots = require(__hooks + "/lib/pure/reminder-slots.js");
   if (!e.auth) throw new ForbiddenError("Authentication required");
 
   var allUsers = $app.findRecordsByFilter("users", "1=1", "+created", 1, 0);
@@ -94,7 +61,7 @@ routerAdd("POST", "/api/cron/{job}", function(e) {
 
       var reminders = [{ days: 3, hour: 8 }];
       try {
-        reminders = normalizeReminderSlots(notifConfig.get("reminders"));
+        reminders = reminderSlots.normalizeReminderSlots(notifConfig.get("reminders"));
       } catch (_) {}
 
       var subs = $app.findRecordsByFilter("subscriptions", "user = {:u} && notify = true && inactive = false", "", 0, 0, { u: userId });
