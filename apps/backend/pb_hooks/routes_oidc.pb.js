@@ -94,6 +94,7 @@ routerAdd("GET", "/api/auth/oidc/authorize", (e) => {
 routerAdd("POST", "/api/auth/oidc/callback", (e) => {
   const oidc = require(__hooks + "/lib/pure/oidc-core.js");
   const oidcSettings = require(__hooks + "/lib/oidc-settings.js");
+  const registrationPolicy = require(__hooks + "/lib/pure/registration-policy.js");
 
   const body = e.requestInfo().body;
   const code = String(body.code || "").trim();
@@ -250,11 +251,14 @@ routerAdd("POST", "/api/auth/oidc/callback", (e) => {
   }
 
   if (!user) {
-    // Creating an account here is a self-registration, so it obeys the same
-    // policy the admin set for the signup form.
-    if (!oidc.canProvisionNewAccount(settings, oidcSettings.countUsers)) {
-      return e.json(403, { error: "Registrations are closed on this instance" });
-    }
+    // Creating an account here is a self-registration, so it answers to the
+    // same module the signup form does — the two must never disagree about
+    // who is allowed in.
+    const rejection = registrationPolicy.registrationRejection(
+      settings,
+      oidcSettings.countUsers(),
+    );
+    if (rejection) return e.json(403, { error: rejection });
 
     const col = $app.findCollectionByNameOrId("users");
     user = new Record(col);
