@@ -12,6 +12,10 @@
  * page can ask, and a guard on the create request itself so the answer
  * cannot simply be ignored by posting straight to the collection.
  *
+ * The OIDC callback provisions accounts through $app.save(), which no
+ * request hook can see, so it answers to lib/pure/registration-policy.js
+ * directly. Both paths share that module so they can never disagree.
+ *
  * NOTE: In PocketBase JSVM (Goja), file-scope helper bindings are not
  * reliably available inside hook callbacks: they run on a pooled runtime
  * that never evaluated this file's top level. Require helpers inside each
@@ -31,13 +35,14 @@ routerAdd("GET", "/api/auth/registration-status", (e) => {
   e.response.header().set("Pragma", "no-cache");
   e.response.header().set("Expires", "0");
 
-  let settings = { openRegistrations: false, maxUsers: 0 };
+  let settings = { openRegistrations: false, maxUsers: 0, disableLogin: false };
   try {
     const rows = $app.findRecordsByFilter("admin_settings", "", "", 1, 0);
     if (rows.length > 0) {
       settings = {
         openRegistrations: rows[0].getBool("open_registrations"),
         maxUsers: rows[0].getFloat("max_users"),
+        disableLogin: rows[0].getBool("disable_login"),
       };
     }
   } catch (_) {}
@@ -70,13 +75,14 @@ onRecordCreateRequest((e) => {
     if (admins.length > 0 && admins[0].id === e.auth.id) return e.next();
   }
 
-  let settings = { openRegistrations: false, maxUsers: 0 };
+  let settings = { openRegistrations: false, maxUsers: 0, disableLogin: false };
   try {
     const rows = $app.findRecordsByFilter("admin_settings", "", "", 1, 0);
     if (rows.length > 0) {
       settings = {
         openRegistrations: rows[0].getBool("open_registrations"),
         maxUsers: rows[0].getFloat("max_users"),
+        disableLogin: rows[0].getBool("disable_login"),
       };
     }
   } catch (_) {}

@@ -7,11 +7,16 @@
  * page through a public endpoint. Keeping the rules here means both callers
  * answer identically.
  *
+ * `disable_login` counts too: an instance in lockdown that still accepted
+ * signups would hand out accounts nobody can log into.
+ *
  * The very first account is always allowed regardless of the settings —
  * otherwise a fresh instance whose defaults happen to be off could never be
- * bootstrapped, locking the owner out of their own deployment.
+ * bootstrapped, locking the owner out of their own deployment. That
+ * anti-lockout guarantee outranks every other rule here, lockdown included.
  */
 
+const LOGINS_DISABLED = "Logins are currently disabled on this instance";
 const REGISTRATIONS_CLOSED = "Registrations are closed on this instance";
 const USER_LIMIT_REACHED = "This instance has reached its user limit";
 
@@ -27,7 +32,9 @@ function isBootstrap(userCount) {
 /** Null when a signup may proceed, otherwise the reason it may not. */
 function registrationRejection(policy, userCount) {
   if (isBootstrap(userCount)) return null;
-  if (!policy || !policy.openRegistrations) return REGISTRATIONS_CLOSED;
+  if (!policy) return REGISTRATIONS_CLOSED;
+  if (policy.disableLogin) return LOGINS_DISABLED;
+  if (!policy.openRegistrations) return REGISTRATIONS_CLOSED;
 
   const max = Number(policy.maxUsers);
   if (!isFinite(max) || max <= 0) return null;
@@ -40,6 +47,7 @@ function isRegistrationOpen(policy, userCount) {
 }
 
 module.exports = {
+  LOGINS_DISABLED,
   REGISTRATIONS_CLOSED,
   USER_LIMIT_REACHED,
   isBootstrap,

@@ -1,4 +1,5 @@
 const {
+  LOGINS_DISABLED,
   REGISTRATIONS_CLOSED,
   USER_LIMIT_REACHED,
   isBootstrap,
@@ -67,6 +68,25 @@ describe("pb_hooks/lib/pure/registration-policy.js", () => {
       expect(registrationRejection(limited, 3)).toBe(USER_LIMIT_REACHED);
     });
 
+    it("refuses a signup while the instance is in lockdown", () => {
+      // An account created here could never be logged into, so offering one
+      // would only be confusing.
+      expect(registrationRejection({ openRegistrations: true, disableLogin: true }, 1))
+        .toBe(LOGINS_DISABLED);
+    });
+
+    it("still lets the first account through in lockdown", () => {
+      // The anti-lockout guarantee outranks lockdown, or an instance that
+      // shipped with the toggle on could never be set up at all.
+      expect(registrationRejection({ openRegistrations: false, disableLogin: true }, 0))
+        .toBeNull();
+    });
+
+    it("reports lockdown ahead of a closed signup form", () => {
+      expect(registrationRejection({ openRegistrations: false, disableLogin: true }, 1))
+        .toBe(LOGINS_DISABLED);
+    });
+
     it("checks the closed toggle before the limit", () => {
       const closedButUnderLimit = { openRegistrations: false, maxUsers: 100 };
       expect(registrationRejection(closedButUnderLimit, 1)).toBe(REGISTRATIONS_CLOSED);
@@ -79,6 +99,7 @@ describe("pb_hooks/lib/pure/registration-policy.js", () => {
       expect(isRegistrationOpen(CLOSED, 1)).toBe(false);
       expect(isRegistrationOpen(CLOSED, 0)).toBe(true);
       expect(isRegistrationOpen({ openRegistrations: true, maxUsers: 2 }, 2)).toBe(false);
+      expect(isRegistrationOpen({ openRegistrations: true, disableLogin: true }, 1)).toBe(false);
     });
   });
 });

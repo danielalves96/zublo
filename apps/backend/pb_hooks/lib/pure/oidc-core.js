@@ -148,23 +148,6 @@ function canClaimExistingAccount(profile) {
 }
 
 /**
- * Signing in through a provider still creates a local account, so the admin's
- * signup policy applies: registrations must be open and the user limit, when
- * one is set, must not be reached yet.
- *
- * `countUsers` is a callback rather than a number so the caller only pays for
- * counting when a limit is actually configured.
- */
-function canProvisionNewAccount(policy, countUsers) {
-  if (!policy || !policy.openRegistrations) return false;
-
-  const max = Number(policy.maxUsers);
-  if (!isFinite(max) || max <= 0) return true;
-
-  return Number(countUsers()) < max;
-}
-
-/**
  * Validates the claims of an ID token that was fetched straight from the token
  * endpoint. OIDC Core 3.1.3.7 lets the TLS connection to that endpoint stand in
  * for signature verification, so what is left to check is that the token was
@@ -260,7 +243,6 @@ module.exports = {
   buildAuthorizationUrl: buildAuthorizationUrl,
   extractOidcProfile: extractOidcProfile,
   canClaimExistingAccount: canClaimExistingAccount,
-  canProvisionNewAccount: canProvisionNewAccount,
   validateIdTokenClaims: validateIdTokenClaims,
   createStateToken: createStateToken,
   verifyStateToken: verifyStateToken,
