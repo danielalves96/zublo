@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { z } from "zod";
 
 import { LogoWithName } from "@/components/AppLogo";
+import { OIDCLoginButton } from "@/components/auth/OIDCLoginButton";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -19,6 +20,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { SS_KEYS } from "@/lib/constants";
 import { toast } from "@/lib/toast";
 import { isTotpRequiredError } from "@/services/auth";
+import { oidcService } from "@/services/oidc";
 import { registrationService } from "@/services/registration";
 
 type LoginForm = {
@@ -30,6 +32,7 @@ export function LoginPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { login } = useAuth();
+  const [oidcProviderName, setOidcProviderName] = useState<string | null>(null);
   // null until the server answers, so a closed instance never flashes the link.
   const [registrationOpen, setRegistrationOpen] = useState<boolean | null>(null);
 
@@ -80,6 +83,17 @@ export function LoginPage() {
       .catch(() => setRegistrationOpen(true));
   }, []);
 
+  // The OIDC settings are admin-only, so the login page asks the public
+  // endpoint whether an SSO provider is configured.
+  useEffect(() => {
+    oidcService
+      .getConfig()
+      .then((config) => {
+        if (config.enabled) setOidcProviderName(config.providerName);
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
@@ -127,6 +141,16 @@ export function LoginPage() {
               {isSubmitting ? t("loading") : t("login")}
             </Button>
           </form>
+          {oidcProviderName !== null && (
+            <div className="mt-4 space-y-4">
+              <div className="flex items-center gap-3">
+                <span className="h-px flex-1 bg-border" />
+                <span className="text-xs uppercase text-muted-foreground">{t("or")}</span>
+                <span className="h-px flex-1 bg-border" />
+              </div>
+              <OIDCLoginButton providerName={oidcProviderName} />
+            </div>
+          )}
           {registrationOpen && (
             <p className="mt-4 text-center text-sm text-muted-foreground">
               {t("no_account")}{" "}
