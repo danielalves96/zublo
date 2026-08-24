@@ -8,8 +8,8 @@
 // main currency:  stored_rate[X] = eurRates[X] / eurRates[mainCode]
 // ================================================================
 cronAdd("updateExchange", "0 0,12 * * *", () => {
-  // NOTE: api_key is a hidden field (migration 0017) — PocketBase silently drops hidden
-  // fields from filter expressions. Fetch all fixer_settings and validate the key in JS.
+  // Fetch settings first and validate the persisted secret in JavaScript rather
+  // than filtering on the secret itself.
   const fixerRecords = $app.findRecordsByFilter("fixer_settings", "1=1", "", 0, 0);
 
   for (const fixer of fixerRecords) {

@@ -23,9 +23,8 @@ routerAdd("POST", "/api/fixer/update", (e) => {
   const userId = e.auth.id;
 
   // Load fixer settings for this user.
-  // NOTE: api_key is a hidden field (migration 0017) — PocketBase silently drops hidden
-  // fields from filter expressions, so we must load the record by user and then validate
-  // the key value in JavaScript instead.
+  // Load by owner and validate the persisted secret in JavaScript. This also
+  // avoids filtering on the secret itself.
   const fixerCandidates = $app.findRecordsByFilter(
     "fixer_settings", "user = {:u}", "", 1, 0, { u: userId }
   );
