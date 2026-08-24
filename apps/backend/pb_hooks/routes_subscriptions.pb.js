@@ -303,7 +303,7 @@ routerAdd("POST", "/api/subscription/renew", (e) => {
   }
 
   if (recordTypes.isCredit(sub.get("record_type"))) {
-    return e.json(400, { error: "One-time credits cannot be renewed" });
+    return e.json(400, { error: "Credits cannot be renewed" });
   }
 
   const cycleRecord = $app.findRecordById("cycles", sub.get("cycle"));

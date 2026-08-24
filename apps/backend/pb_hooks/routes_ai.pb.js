@@ -135,7 +135,7 @@ routerAdd("POST", "/api/ai/generate", (e) => {
   }
 
   if (!subsList) {
-    return e.json(400, { error: "No active subscriptions found" });
+    return e.json(400, { error: "No active expense subscriptions found" });
   }
 
   const user = $app.findRecordById("users", userId);

@@ -1306,12 +1306,14 @@ routerAdd("POST", "/api/external/subscriptions/batch", function(e) {
     var recordTypes = require(__hooks + "/lib/pure/record-types.js");
     var recordTypeHelpers = require(__hooks + "/lib/record-type-helpers.js");
     var created = [];
+    var errors = [];
 
     for (var i = 0; i < items.length; i++) {
-        var item = items[i];
+        var item = items[i] || {};
+        var itemName = String(item.name || "Unnamed");
         var record = new Record(col);
         record.set("user", userId);
-        record.set("name", String(item.name || "Unnamed"));
+        record.set("name", itemName);
         var recordType = recordTypes.normalizeRecordType(item.record_type);
         record.set("price", parseFloat(item.price) || 0);
         record.set("currency", String(item.currency_id));
@@ -1319,14 +1321,28 @@ routerAdd("POST", "/api/external/subscriptions/batch", function(e) {
         record.set("next_payment", String(item.next_payment));
 
         var policyError = recordTypeHelpers.applyRecordTypeToRecord($app, record, recordType);
-        if (policyError) return e.json(400, { error: "items[" + i + "]: " + policyError });
+        if (policyError) {
+            errors.push({ index: i, name: itemName, reason: policyError });
+            continue;
+        }
 
         // Add other fields optionally...
-        $app.save(record);
-        created.push({ id: record.id, name: item.name });
+        try {
+            $app.save(record);
+            created.push({ id: record.id, name: itemName });
+        } catch (saveErr) {
+            errors.push({ index: i, name: itemName, reason: String(saveErr) });
+        }
     }
 
-    return e.json(200, { success: true, created: created });
+    // Records are committed one by one. Returning 4xx/5xx after a partial
+    // write would hide persisted rows and encourage a retry that duplicates
+    // them, so clients always receive the complete per-item outcome.
+    return e.json(200, {
+        success: errors.length === 0,
+        created: created,
+        errors: errors,
+    });
   } catch (err) { return e.json(500, { error: String(err) }); }
 });
 
