@@ -20,39 +20,15 @@ routerAdd("POST", "/api/cron/{job}", function(e) {
   // ----------------------------------------------------------------
   if (job === "check_subscriptions") {
     var dateHelpers = require(__hooks + "/lib/date-helpers.js");
-    var subscriptionLimits = require(__hooks + "/lib/pure/subscription-limits.js");
+    var schedule = require(__hooks + "/lib/subscription-schedule.js");
     var today = new Date();
     today.setHours(0, 0, 0, 0);
-    var todayStr = dateHelpers.formatLocalDate(today);
 
-    var subs = $app.findRecordsByFilter(
-      "subscriptions",
-      "inactive = false && auto_renew = true && (next_payment <= {:today} || (end_date != '' && end_date < {:today}))",
-      "", 0, 0,
-      { today: todayStr }
-    );
+    // Same advancement the nightly cron runs — see lib/subscription-schedule.js
+    // for why this must not be reimplemented here.
+    var processed = schedule.advanceDueSubscriptions($app, dateHelpers.formatLocalDate(today));
 
-    for (var i = 0; i < subs.length; i++) {
-      var sub = subs[i];
-      var cycleRecord = $app.findRecordById("cycles", sub.get("cycle"));
-      var result = subscriptionLimits.advanceFiniteSchedule({
-        nextPayment: sub.get("next_payment"),
-        today: todayStr,
-        cycleName: cycleRecord.get("name"),
-        frequency: sub.get("frequency"),
-        endDate: sub.get("end_date"),
-        paymentLimit: sub.get("payment_limit"),
-        paymentsCompleted: sub.get("payments_completed"),
-        inactive: sub.get("inactive"),
-        advanceDate: dateHelpers.advanceDate,
-      });
-      sub.set("next_payment", result.nextPayment);
-      sub.set("payments_completed", result.paymentsCompleted);
-      sub.set("inactive", result.inactive);
-      $app.save(sub);
-    }
-
-    return e.json(200, { message: "check_subscriptions: processed " + subs.length + " subscription(s)" });
+    return e.json(200, { message: "check_subscriptions: processed " + processed + " subscription(s)" });
   }
 
   // ----------------------------------------------------------------

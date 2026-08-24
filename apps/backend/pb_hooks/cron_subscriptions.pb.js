@@ -8,43 +8,13 @@
 // ================================================================
 cronAdd("updateNextPayment", "0 0 * * *", () => {
   const dateHelpers = require(__hooks + "/lib/date-helpers.js");
-  const subscriptionLimits = require(__hooks + "/lib/pure/subscription-limits.js");
+  const schedule = require(__hooks + "/lib/subscription-schedule.js");
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const todayStr = dateHelpers.formatLocalDate(today);
 
-  const subs = $app.findRecordsByFilter(
-    "subscriptions",
-    "inactive = false && auto_renew = true && (next_payment <= {:today} || (end_date != '' && end_date < {:today}))",
-    "",
-    0,
-    0,
-    { today: todayStr }
-  );
+  const processed = schedule.advanceDueSubscriptions($app, dateHelpers.formatLocalDate(today));
 
-  for (const sub of subs) {
-    const cycleRecord = $app.findRecordById("cycles", sub.get("cycle"));
-    const cycleName = cycleRecord.get("name");
-    const frequency = sub.get("frequency");
-    const result = subscriptionLimits.advanceFiniteSchedule({
-      nextPayment: sub.get("next_payment"),
-      today: todayStr,
-      cycleName: cycleName,
-      frequency: frequency,
-      endDate: sub.get("end_date"),
-      paymentLimit: sub.get("payment_limit"),
-      paymentsCompleted: sub.get("payments_completed"),
-      inactive: sub.get("inactive"),
-      advanceDate: dateHelpers.advanceDate,
-    });
-
-    sub.set("next_payment", result.nextPayment);
-    sub.set("payments_completed", result.paymentsCompleted);
-    sub.set("inactive", result.inactive);
-    $app.save(sub);
-  }
-
-  console.log("[Zublo] updateNextPayment: processed " + subs.length + " subscriptions");
+  console.log("[Zublo] updateNextPayment: processed " + processed + " subscriptions");
 });
 
 

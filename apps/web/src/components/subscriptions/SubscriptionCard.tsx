@@ -277,15 +277,20 @@ export function SubscriptionCard({
           >
             <Copy className="h-3.5 w-3.5" />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10"
-            onClick={onRenew}
-            title={t("renew")}
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-          </Button>
+          {/* Renewing an inactive subscription is a no-op on the backend — it
+              refuses to advance a paused or finished schedule — so offering the
+              action here would just be a button that does nothing. */}
+          {!sub.inactive && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10"
+              onClick={onRenew}
+              title={t("renew")}
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"
