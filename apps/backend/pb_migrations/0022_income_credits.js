@@ -3,9 +3,14 @@
 /**
  * Migration 0022 — Income credits and one-time payouts.
  *
- * Existing records are explicitly backfilled as expenses.  The field remains
- * optional at the database level so records created by older clients keep the
- * same behaviour (an empty record_type is treated as "expense" everywhere).
+ * The field stays optional at the database level and existing rows are left
+ * untouched: every read path normalizes an empty record_type to "expense"
+ * (see pb_hooks/lib/pure/record-types.js), so a backfill would rewrite every
+ * subscription row to make an already-implicit default explicit.
+ *
+ * The One-Time cycle it adds is reserved for credits — an expense on that
+ * cycle has no recurring monthly equivalent and would be counted as a
+ * perpetual monthly charge.  That pairing is enforced on every write path.
  */
 migrate(
   (app) => {
@@ -28,19 +33,6 @@ migrate(
         }),
       );
       app.save(subscriptions);
-    }
-
-    const existingSubscriptions = app.findRecordsByFilter(
-      "subscriptions",
-      "",
-      "",
-      0,
-      0,
-    );
-    for (const subscription of existingSubscriptions) {
-      if (subscription.get("record_type") === "credit") continue;
-      subscription.set("record_type", "expense");
-      app.save(subscription);
     }
 
     const existingCycles = app.findRecordsByFilter(

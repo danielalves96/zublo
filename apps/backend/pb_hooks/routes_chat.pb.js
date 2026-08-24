@@ -11,6 +11,8 @@
 routerAdd("POST", "/api/ai/chat", function (e) {
   var aiParsers = require(__hooks + "/lib/pure/ai-parsers.js");
   var chatAi = require(__hooks + "/lib/pure/chat-ai.js");
+  var recordTypes = require(__hooks + "/lib/pure/record-types.js");
+  var recordTypeHelpers = require(__hooks + "/lib/record-type-helpers.js");
   if (!e.auth) throw new ForbiddenError("Authentication required");
   var userId = e.auth.id;
 
@@ -113,7 +115,7 @@ routerAdd("POST", "/api/ai/chat", function (e) {
         result.push({
           id: sub.id,
           name: sub.get("name"),
-          record_type: sub.get("record_type") === "credit" ? "credit" : "expense",
+          record_type: recordTypes.normalizeRecordType(sub.get("record_type")),
           price: sub.get("price"),
           currency: currencyCode || currencySymbol,
           currency_symbol: currencySymbol,
@@ -163,12 +165,7 @@ routerAdd("POST", "/api/ai/chat", function (e) {
       if (args.notify !== undefined) sub.set("notify", !!args.notify);
       if (args.auto_renew !== undefined) sub.set("auto_renew", !!args.auto_renew);
       if (args.record_type !== undefined) {
-        var recordType = args.record_type === "credit" ? "credit" : "expense";
-        sub.set("record_type", recordType);
-        if (recordType === "credit") {
-          sub.set("auto_renew", false);
-          sub.set("notify", false);
-        }
+        sub.set("record_type", recordTypes.normalizeRecordType(args.record_type));
       }
 
       if (args.currency_code !== undefined) {
@@ -225,6 +222,11 @@ routerAdd("POST", "/api/ai/chat", function (e) {
           }
         }
       }
+
+      // Runs last so record_type and cycle cannot be left inconsistent by
+      // whichever subset of fields the model chose to send.
+      var policyError = recordTypeHelpers.applyRecordTypeToRecord($app, sub, sub.get("record_type"));
+      if (policyError) return { error: policyError };
 
       $app.save(sub);
       return { success: true, id: sub.id, name: sub.get("name"), message: "Subscription updated successfully!" };
@@ -492,8 +494,7 @@ routerAdd("POST", "/api/ai/chat", function (e) {
       var record = new Record(col);
       record.set("user", uid);
       record.set("name", args.name);
-      var recordType = args.record_type === "credit" ? "credit" : "expense";
-      record.set("record_type", recordType);
+      var recordType = recordTypes.normalizeRecordType(args.record_type);
       record.set("price", parseFloat(args.price));
       record.set("currency", currencyId);
       record.set("cycle", cycleId);
@@ -504,8 +505,12 @@ routerAdd("POST", "/api/ai/chat", function (e) {
       if (paymentMethodId) record.set("payment_method", paymentMethodId);
       if (args.notes) record.set("notes", args.notes);
       if (args.url) record.set("url", args.url);
-      if (args.notify !== undefined) record.set("notify", recordType === "expense" && !!args.notify);
-      record.set("auto_renew", recordType === "expense" && !!args.auto_renew);
+      if (args.notify !== undefined) record.set("notify", !!args.notify);
+      record.set("auto_renew", !!args.auto_renew);
+
+      var policyError = recordTypeHelpers.applyRecordTypeToRecord($app, record, recordType);
+      if (policyError) return { error: policyError };
+
       $app.save(record);
 
       return { success: true, id: record.id, name: args.name, message: "Subscription '" + args.name + "' created successfully!" };
@@ -718,7 +723,7 @@ routerAdd("POST", "/api/ai/chat", function (e) {
         } catch (_) { }
         exported.push({
           name: sub.get("name"),
-          record_type: sub.get("record_type") === "credit" ? "credit" : "expense",
+          record_type: recordTypes.normalizeRecordType(sub.get("record_type")),
           price: sub.get("price"),
           currency: currencyCode,
           currency_symbol: currencySymbol,
@@ -1485,7 +1490,9 @@ routerAdd("POST", "/api/ai/chat", function (e) {
 
       glossary:
         "**Zublo glossary:**\n\n" +
-        "- **Cycle**: billing period unit — Daily, Weekly, Monthly, Quarterly, Half-Yearly, or Yearly.\n" +
+        "- **Cycle**: billing period unit — Daily, Weekly, Monthly, Quarterly, Half-Yearly, Yearly, or One-Time.\n" +
+        "- **Record type**: `expense` (default) or `credit`. A credit is one-time income (bonus, gift, side job) that raises the month's spending power instead of being a recurring cost.\n" +
+        "- **One-Time**: reserved for credits. A credit is always One-Time, and an expense can never use it.\n" +
         "- **Frequency**: how many cycles between charges (default 1). Frequency=3 + Cycle=Monthly = quarterly billing.\n" +
         "- **Next payment**: date the next charge is expected. Advances automatically when payment is recorded.\n" +
         "- **Start date**: when the subscription began. Used for progress bars and history.\n" +
@@ -1845,10 +1852,10 @@ routerAdd("POST", "/api/ai/chat", function (e) {
           type: "object",
           properties: {
             name: { type: "string", description: "Subscription name" },
-            record_type: { type: "string", enum: ["expense", "credit"], default: "expense", description: "Use credit for one-time income and cycle One-Time" },
+            record_type: { type: "string", enum: ["expense", "credit"], default: "expense", description: "credit = one-time income (bonus, gift, side job). A credit is always forced onto the One-Time cycle" },
             price: { type: "number", description: "Billing price" },
             currency_code: { type: "string", description: "ISO 4217 code e.g. BRL, USD, EUR" },
-            cycle: { type: "string", enum: ["Daily", "Weekly", "Monthly", "Quarterly", "Half-Yearly", "Yearly", "One-Time"] },
+            cycle: { type: "string", enum: ["Daily", "Weekly", "Monthly", "Quarterly", "Half-Yearly", "Yearly", "One-Time"], description: "One-Time is only valid when record_type is credit; expenses must use a recurring cycle" },
             frequency: { type: "integer", description: "Cycles between payments. Default 1.", default: 1 },
             next_payment: { type: "string", description: "Next payment date YYYY-MM-DD" },
             category_name: { type: "string", description: "Category name (created automatically if doesn't exist)" },
@@ -1870,11 +1877,11 @@ routerAdd("POST", "/api/ai/chat", function (e) {
           type: "object",
           properties: {
             name: { type: "string", description: "Current subscription name (partial match)" },
-            record_type: { type: "string", enum: ["expense", "credit"] },
+            record_type: { type: "string", enum: ["expense", "credit"], description: "Switching to credit forces the One-Time cycle" },
             new_name: { type: "string", description: "New name to rename it to" },
             price: { type: "number", description: "New billing price" },
             currency_code: { type: "string", description: "New currency ISO code" },
-            cycle: { type: "string", enum: ["Daily", "Weekly", "Monthly", "Quarterly", "Half-Yearly", "Yearly", "One-Time"] },
+            cycle: { type: "string", enum: ["Daily", "Weekly", "Monthly", "Quarterly", "Half-Yearly", "Yearly", "One-Time"], description: "One-Time is only valid when record_type is credit; expenses must use a recurring cycle" },
             frequency: { type: "integer" },
             next_payment: { type: "string", description: "New next payment date YYYY-MM-DD" },
             category_name: { type: "string", description: "New category name (empty string to clear)" },
@@ -2170,10 +2177,10 @@ routerAdd("POST", "/api/ai/chat", function (e) {
                 type: "object",
                 properties: {
                   name: { type: "string" },
-                  record_type: { type: "string", enum: ["expense", "credit"], default: "expense" },
+                  record_type: { type: "string", enum: ["expense", "credit"], default: "expense", description: "credit = one-time income; always uses the One-Time cycle" },
                   price: { type: "number" },
                   currency_code: { type: "string", description: "ISO 4217 e.g. BRL, USD, EUR" },
-                  cycle: { type: "string", enum: ["Daily", "Weekly", "Monthly", "Quarterly", "Half-Yearly", "Yearly", "One-Time"] },
+                  cycle: { type: "string", enum: ["Daily", "Weekly", "Monthly", "Quarterly", "Half-Yearly", "Yearly", "One-Time"], description: "One-Time is only valid when record_type is credit; expenses must use a recurring cycle" },
                   frequency: { type: "integer", default: 1 },
                   next_payment: { type: "string", description: "YYYY-MM-DD" },
                   category_name: { type: "string" },

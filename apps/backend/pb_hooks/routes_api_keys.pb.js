@@ -184,6 +184,7 @@ routerAdd("PUT", "/api/api-keys/{id}", function(e) {
 routerAdd("GET", "/api/external/subscriptions", function(e) {
   try {
     var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+    var recordTypes = require(__hooks + "/lib/pure/record-types.js");
     var rawKey = authHeaders.extractBearerToken(e.request.header.get("Authorization"));
 
     // inline resolveApiKey
@@ -222,7 +223,7 @@ routerAdd("GET", "/api/external/subscriptions", function(e) {
       items.push({
         id: sub.id,
         name: sub.get("name"),
-        record_type: sub.get("record_type") === "credit" ? "credit" : "expense",
+        record_type: recordTypes.normalizeRecordType(sub.get("record_type")),
         price: sub.get("price"),
         currency_symbol: currencySymbol,
         currency_code: currencyCode,
@@ -249,6 +250,7 @@ routerAdd("GET", "/api/external/subscriptions", function(e) {
 routerAdd("GET", "/api/external/subscriptions/{id}", function(e) {
   try {
     var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+    var recordTypes = require(__hooks + "/lib/pure/record-types.js");
     var rawKey = authHeaders.extractBearerToken(e.request.header.get("Authorization"));
 
     var userId = null;
@@ -284,7 +286,7 @@ routerAdd("GET", "/api/external/subscriptions/{id}", function(e) {
     return e.json(200, {
       id: sub.id,
       name: sub.get("name"),
-      record_type: sub.get("record_type") === "credit" ? "credit" : "expense",
+      record_type: recordTypes.normalizeRecordType(sub.get("record_type")),
       price: sub.get("price"),
       currency_id: sub.get("currency"),
       currency_symbol: currencySymbol,
@@ -372,12 +374,17 @@ routerAdd("POST", "/api/external/subscriptions", function(e) {
     var cycleId = String(body.cycle_id || "").trim();
     var frequency = parseInt(body.frequency) || 1;
     var nextPayment = String(body.next_payment || "").trim();
-    var recordType = body.record_type === "credit" ? "credit" : "expense";
+    var recordTypes = require(__hooks + "/lib/pure/record-types.js");
+    var recordTypeHelpers = require(__hooks + "/lib/record-type-helpers.js");
+    var recordType = recordTypes.normalizeRecordType(body.record_type);
 
     if (!name) return e.json(400, { error: "name is required" });
     if (!currencyId) return e.json(400, { error: "currency_id is required" });
     if (!cycleId) return e.json(400, { error: "cycle_id is required" });
     if (!nextPayment) return e.json(400, { error: "next_payment is required (YYYY-MM-DD)" });
+
+    var resolvedCycle = recordTypeHelpers.resolveCycleForRecordType($app, recordType, cycleId, frequency);
+    if (resolvedCycle.error) return e.json(400, { error: resolvedCycle.error });
 
     try {
       var cur = $app.findRecordById("currencies", currencyId);
@@ -390,8 +397,8 @@ routerAdd("POST", "/api/external/subscriptions", function(e) {
     record.set("record_type", recordType);
     record.set("price", price);
     record.set("currency", currencyId);
-    record.set("cycle", cycleId);
-    record.set("frequency", frequency);
+    record.set("cycle", resolvedCycle.cycleId);
+    record.set("frequency", resolvedCycle.frequency);
     record.set("next_payment", nextPayment);
     record.set("user", userId);
     record.set("auto_renew", recordType === "expense" && body.auto_renew === true);
@@ -448,11 +455,13 @@ routerAdd("GET", "/api/external/statistics", function(e) {
     } catch (_) {}
 
     var totalMonthly = 0;
+    var activeCount = 0;
     var breakdown = [];
 
     for (var i = 0; i < subs.length; i++) {
       var sub = subs[i];
       if (!recordTypes.isExpense(sub.get("record_type"))) continue;
+      activeCount++;
       var cycleMultiplier = 1;
       try {
         var cyc = $app.findRecordById("cycles", sub.get("cycle"));
@@ -460,7 +469,11 @@ routerAdd("GET", "/api/external/statistics", function(e) {
         if (cn === "Daily") cycleMultiplier = 30.44;
         else if (cn === "Weekly") cycleMultiplier = 4.33;
         else if (cn === "Monthly") cycleMultiplier = 1;
+        else if (cn === "Quarterly") cycleMultiplier = 1 / 3;
+        else if (cn === "Half-Yearly") cycleMultiplier = 1 / 6;
         else if (cn === "Yearly") cycleMultiplier = 1 / 12;
+        // A One-Time record has no recurring monthly equivalent.
+        else if (recordTypes.isOneTimeCycle(cn)) cycleMultiplier = 0;
       } catch (_) {}
 
       var freq = sub.get("frequency") || 1;
@@ -471,7 +484,7 @@ routerAdd("GET", "/api/external/statistics", function(e) {
     }
 
     return e.json(200, {
-      active_count: subs.length,
+      active_count: activeCount,
       total_monthly: Math.round(totalMonthly * 100) / 100,
       total_yearly: Math.round(totalMonthly * 12 * 100) / 100,
       currency_symbol: mainCurrencySymbol,
@@ -866,22 +879,18 @@ routerAdd("PUT", "/api/external/subscriptions/{id}", function(e) {
 
     var body = e.requestInfo().body;
 
+    var recordTypes = require(__hooks + "/lib/pure/record-types.js");
+    var recordTypeHelpers = require(__hooks + "/lib/record-type-helpers.js");
+
     if (body.name !== undefined) record.set("name", String(body.name).trim());
-    if (body.record_type !== undefined) {
-      var recordType = body.record_type === "credit" ? "credit" : "expense";
-      record.set("record_type", recordType);
-      if (recordType === "credit") {
-        record.set("auto_renew", false);
-        record.set("notify", false);
-      }
-    }
+    if (body.record_type !== undefined) record.set("record_type", recordTypes.normalizeRecordType(body.record_type));
     if (body.price !== undefined) record.set("price", parseFloat(body.price) || 0);
     if (body.currency_id !== undefined) record.set("currency", String(body.currency_id).trim());
     if (body.cycle_id !== undefined) record.set("cycle", String(body.cycle_id).trim());
     if (body.frequency !== undefined) record.set("frequency", parseInt(body.frequency) || 1);
     if (body.next_payment !== undefined) record.set("next_payment", String(body.next_payment).trim());
-    if (body.auto_renew !== undefined) record.set("auto_renew", record.get("record_type") !== "credit" && body.auto_renew === true);
-    if (body.notify !== undefined) record.set("notify", record.get("record_type") !== "credit" && body.notify === true);
+    if (body.auto_renew !== undefined) record.set("auto_renew", body.auto_renew === true);
+    if (body.notify !== undefined) record.set("notify", body.notify === true);
     if (body.notify_days_before !== undefined) record.set("notify_days_before", parseInt(body.notify_days_before) || 3);
     if (body.inactive !== undefined) record.set("inactive", body.inactive === true);
     if (body.notes !== undefined) record.set("notes", String(body.notes));
@@ -889,6 +898,11 @@ routerAdd("PUT", "/api/external/subscriptions/{id}", function(e) {
     if (body.category_id !== undefined) record.set("category", String(body.category_id));
     if (body.payment_method_id !== undefined) record.set("payment_method", String(body.payment_method_id));
     if (body.payer_id !== undefined) record.set("payer", String(body.payer_id));
+
+    // Runs last so it wins over whatever the body asked for: a credit is
+    // always a One-Time payout that is never renewed or notified about.
+    var policyError = recordTypeHelpers.applyRecordTypeToRecord($app, record, record.get("record_type"));
+    if (policyError) return e.json(400, { error: policyError });
 
     $app.save(record);
     return e.json(200, { success: true, id: record.id });
@@ -1289,6 +1303,8 @@ routerAdd("POST", "/api/external/subscriptions/batch", function(e) {
     if (!items || !Array.isArray(items)) return e.json(400, { error: "items array is required" });
 
     var col = $app.findCollectionByNameOrId("subscriptions");
+    var recordTypes = require(__hooks + "/lib/pure/record-types.js");
+    var recordTypeHelpers = require(__hooks + "/lib/record-type-helpers.js");
     var created = [];
 
     for (var i = 0; i < items.length; i++) {
@@ -1296,16 +1312,15 @@ routerAdd("POST", "/api/external/subscriptions/batch", function(e) {
         var record = new Record(col);
         record.set("user", userId);
         record.set("name", String(item.name || "Unnamed"));
-        var recordType = item.record_type === "credit" ? "credit" : "expense";
-        record.set("record_type", recordType);
+        var recordType = recordTypes.normalizeRecordType(item.record_type);
         record.set("price", parseFloat(item.price) || 0);
         record.set("currency", String(item.currency_id));
         record.set("cycle", String(item.cycle_id));
         record.set("next_payment", String(item.next_payment));
-        if (recordType === "credit") {
-          record.set("auto_renew", false);
-          record.set("notify", false);
-        }
+
+        var policyError = recordTypeHelpers.applyRecordTypeToRecord($app, record, recordType);
+        if (policyError) return e.json(400, { error: "items[" + i + "]: " + policyError });
+
         // Add other fields optionally...
         $app.save(record);
         created.push({ id: record.id, name: item.name });

@@ -9,6 +9,8 @@
 routerAdd("POST", "/api/subscriptions/import", (e) => {
   const dateHelpers = require(__hooks + "/lib/date-helpers.js");
   const importParsers = require(__hooks + "/lib/pure/subscription-import.js");
+  const recordTypes = require(__hooks + "/lib/pure/record-types.js");
+  const recordTypeHelpers = require(__hooks + "/lib/record-type-helpers.js");
   if (!e.auth) throw new ForbiddenError("Authentication required");
   const userId = e.auth.id;
   const data = e.requestInfo().body;
@@ -183,8 +185,8 @@ routerAdd("POST", "/api/subscriptions/import", (e) => {
         cancellationDate = sub.cancellation_date || "";
 
         currencyId = (sub.currency ? findCurrencyByCode(sub.currency) : "") || mainCurrencyId;
-        recordType = sub.record_type === "credit" ? "credit" : "expense";
-        cycleId = findCycleByName(sub.cycle || (recordType === "credit" ? "One-Time" : "Monthly"));
+        recordType = recordTypes.normalizeRecordType(sub.record_type);
+        cycleId = findCycleByName(sub.cycle || (recordType === "credit" ? recordTypes.ONE_TIME_CYCLE : "Monthly"));
         frequency = parseInt(sub.frequency) || 1;
 
         categoryId = findOrCreateCategory(sub.category);
@@ -204,7 +206,6 @@ routerAdd("POST", "/api/subscriptions/import", (e) => {
 
       const rec = new Record(subsCol);
       rec.set("user", userId);
-      rec.set("record_type", recordType);
       rec.set("name", name);
       rec.set("price", price);
       rec.set("frequency", frequency);
@@ -221,6 +222,15 @@ routerAdd("POST", "/api/subscriptions/import", (e) => {
       if (categoryId) rec.set("category", categoryId);
       if (paymentMethodId) rec.set("payment_method", paymentMethodId);
       if (payerId) rec.set("payer", payerId);
+
+      // A payload may pair a credit with a recurring cycle (or an expense with
+      // One-Time); repair or reject before the row reaches the database.
+      const policyError = recordTypeHelpers.applyRecordTypeToRecord($app, rec, recordType);
+      if (policyError) {
+        results.skipped++;
+        results.errors.push({ index: i, name: name, reason: policyError });
+        continue;
+      }
 
       $app.save(rec);
       results.imported++;
@@ -317,6 +327,7 @@ routerAdd("POST", "/api/subscription/renew", (e) => {
 // ROUTE: Subscriptions Export
 // ================================================================
 routerAdd("GET", "/api/subscriptions/export", (e) => {
+  const recordTypes = require(__hooks + "/lib/pure/record-types.js");
   if (!e.auth) throw new ForbiddenError("Authentication required");
   const userId = e.auth.id;
 
@@ -360,7 +371,7 @@ routerAdd("GET", "/api/subscriptions/export", (e) => {
 
     exported.push({
       name: sub.get("name"),
-      record_type: sub.get("record_type") === "credit" ? "credit" : "expense",
+      record_type: recordTypes.normalizeRecordType(sub.get("record_type")),
       price: sub.get("price"),
       currency: currencyCode,
       currency_symbol: currencySymbol,

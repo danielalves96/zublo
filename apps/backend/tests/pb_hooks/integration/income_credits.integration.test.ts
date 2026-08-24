@@ -142,13 +142,83 @@ describe.skipIf(!hasPocketBaseBinary).sequential("income credits", () => {
       headers: { Authorization: `Bearer ${apiKey.json.key}` },
     });
     expect(externalStatistics.response.status).toBe(200);
+    // active_count counts what the totals count: credits are income, not
+    // subscriptions, so they appear in neither.
     expect(externalStatistics.json).toMatchObject({
-      active_count: 2,
+      active_count: 1,
       total_monthly: 100,
       total_yearly: 1200,
     });
     expect(externalStatistics.json.breakdown).toEqual([
       expect.objectContaining({ name: "Legacy expense" }),
     ]);
+  });
+
+  it("keeps record_type and cycle paired on the external write endpoints", async () => {
+    const cycles = await harness.listRecords<CycleRecord>("cycles");
+    const oneTime = cycles.items.find((cycle) => cycle.name === "One-Time")!;
+    const monthly = cycles.items.find((cycle) => cycle.name === "Monthly")!;
+    const currencies = await harness.listRecords<{ id: string }>("currencies");
+    const currencyId = currencies.items[0]!.id;
+
+    const apiKey = await harness.jsonRequest<{ key: string }>("/api/api-keys", {
+      body: { name: "Pairing", permissions: ["subscriptions:read", "subscriptions:write"] },
+      method: "POST",
+      token: harness.admin!.token,
+    });
+    const auth = { Authorization: `Bearer ${apiKey.json.key}` };
+
+    // A credit asked for a recurring cycle is repaired onto One-Time. Left
+    // recurring, the updateNextPayment cron would never advance it and it
+    // would silently stop counting once its month passed.
+    const credit = await harness.jsonRequest<{ id: string }>("/api/external/subscriptions", {
+      body: {
+        name: "Monthly bonus",
+        record_type: "credit",
+        price: 500,
+        currency_id: currencyId,
+        cycle_id: monthly.id,
+        next_payment: "2026-08-15",
+      },
+      headers: auth,
+      method: "POST",
+    });
+    expect(credit.response.status).toBe(200);
+
+    const stored = await harness.jsonRequest<{ cycle_id: string; frequency: number }>(
+      `/api/external/subscriptions/${credit.json.id}`,
+      { headers: auth },
+    );
+    expect(stored.json.cycle_id).toBe(oneTime.id);
+    expect(stored.json.frequency).toBe(1);
+
+    // A One-Time expense has no recurring monthly equivalent, so it is
+    // rejected rather than silently billed every month forever.
+    const oneTimeExpense = await harness.jsonRequest<{ error: string }>(
+      "/api/external/subscriptions",
+      {
+        body: {
+          name: "Laptop",
+          record_type: "expense",
+          price: 2000,
+          currency_id: currencyId,
+          cycle_id: oneTime.id,
+          next_payment: "2026-08-15",
+        },
+        headers: auth,
+        method: "POST",
+      },
+    );
+    expect(oneTimeExpense.response.status).toBe(400);
+    expect(oneTimeExpense.json.error).toBe("The One-Time cycle is reserved for credits");
+
+    // Converting the repaired credit back to an expense cannot leave it on
+    // the One-Time cycle either.
+    const convert = await harness.jsonRequest<{ error: string }>(
+      `/api/external/subscriptions/${credit.json.id}`,
+      { body: { record_type: "expense" }, headers: auth, method: "PUT" },
+    );
+    expect(convert.response.status).toBe(400);
+    expect(convert.json.error).toBe("The One-Time cycle is reserved for credits");
   });
 });

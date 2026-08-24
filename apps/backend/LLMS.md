@@ -49,7 +49,9 @@ Self-hosted subscription tracker. Docker image: `ghcr.io/danielalves96/zublo:lat
 
 ## Key Concepts
 
-- **Cycle**: Daily / Weekly / Monthly / Yearly (billing period unit)
+- **Cycle**: Daily / Weekly / Monthly / Quarterly / Half-Yearly / Yearly / One-Time (billing period unit)
+- **Record type**: `expense` (default, and the fallback for legacy rows with no value) or `credit` — one-time income that raises the month's spending power instead of being a recurring cost
+- **One-Time**: reserved for credits. A credit always uses it; an expense never can (it has no recurring monthly equivalent). Enforced on every write path
 - **Frequency**: number of cycles between charges (default 1; Frequency=3 + Cycle=Monthly = quarterly)
 - **Main currency**: set via ⭐ in Settings → Currencies. Source of truth = `currencies.is_main = true`
 - **Household member**: a person label for cost-splitting — has NO Zublo account
@@ -69,7 +71,12 @@ Self-hosted subscription tracker. Docker image: `ghcr.io/danielalves96/zublo:lat
 | Daily | `price × 365 / 12 / frequency` |
 | Weekly | `price × 52 / 12 / frequency` |
 | Monthly | `price / frequency` |
+| Quarterly | `price / 3 / frequency` |
+| Half-Yearly | `price / 6 / frequency` |
 | Yearly | `price / 12 / frequency` |
+| One-Time | `0` (no recurring equivalent) |
+
+Only `record_type = expense` rows enter these totals. Credits are summed separately and apply solely to the month containing their `next_payment` (the received date): `remaining = budget − expenses + credits`.
 
 With "Convert to main currency" on: multiply each price by `1 / currency.rate` (main rate = 1.0). Never estimate totals — call `get_spending_report`.
 
