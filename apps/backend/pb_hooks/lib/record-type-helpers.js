@@ -77,6 +77,9 @@ function applyRecordTypeToRecord(app, record, recordType) {
     record.set("auto_renew", false);
     record.set("notify", false);
     record.set("auto_mark_paid", false);
+    record.set("end_date", "");
+    record.set("payment_limit", 0);
+    record.set("payments_completed", 0);
   }
 
   return "";

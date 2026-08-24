@@ -157,6 +157,56 @@ describe("SubscriptionCard", () => {
     expect(onDelete).toHaveBeenCalledTimes(1);
   });
 
+  it("shows count and date limits for finite subscriptions", () => {
+    const { rerender } = render(
+      <SubscriptionCard
+        sub={getSubscription({ payment_limit: 6, payments_completed: 2 })}
+        onEdit={vi.fn()}
+        onClone={vi.fn()}
+        onRenew={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("payments_progress")).toBeInTheDocument();
+
+    rerender(
+      <SubscriptionCard
+        sub={getSubscription({ end_date: "2026-07-10" })}
+        onEdit={vi.fn()}
+        onClone={vi.fn()}
+        onRenew={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("ends_on")).toBeInTheDocument();
+
+    rerender(
+      <SubscriptionCard
+        sub={getSubscription({ payment_limit: 6, payments_completed: undefined })}
+        onEdit={vi.fn()}
+        onClone={vi.fn()}
+        onRenew={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("payments_progress")).toBeInTheDocument();
+
+    rerender(
+      <SubscriptionCard
+        sub={getSubscription({ end_date: "2026-07-10", inactive: true })}
+        onEdit={vi.fn()}
+        onClone={vi.fn()}
+        onRenew={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("ended_on")).toBeInTheDocument();
+  });
+
   it("falls back to payment method initials when payment icon image fails to load", () => {
     mocks.paymentIconUrl.mockReturnValue("https://cdn.example.com/my-card.png");
     render(
@@ -232,6 +282,9 @@ describe("SubscriptionCard", () => {
           record_type: "credit",
           price: 500,
           cycle: "one-time",
+          payment_limit: 12,
+          payments_completed: 3,
+          end_date: "2026-12-31",
           expand: {
             currency: getCurrency({ id: "cur-2", symbol: "$", is_main: true }),
             cycle: { id: "one-time", name: "One-Time" },
@@ -252,6 +305,8 @@ describe("SubscriptionCard", () => {
     expect(screen.getByText("one_time")).toBeInTheDocument();
     expect(screen.getByText("received_on")).toBeInTheDocument();
     expect(screen.queryByText("billing_cycle")).not.toBeInTheDocument();
+    expect(screen.queryByText("payments_progress")).not.toBeInTheDocument();
+    expect(screen.queryByText("ends_on")).not.toBeInTheDocument();
     expect(screen.queryByTitle("renew")).not.toBeInTheDocument();
     expect(mocks.toMonthly).not.toHaveBeenCalled();
   });

@@ -122,6 +122,9 @@ routerAdd("POST", "/api/ai/chat", function (e) {
           cycle: cycleName,
           frequency: sub.get("frequency") || 1,
           next_payment: sub.get("next_payment"),
+          end_date: sub.get("end_date") || null,
+          payment_limit: sub.get("payment_limit") || null,
+          payments_completed: sub.get("payments_completed") || 0,
           category: categoryName || "Uncategorized",
           payment_method: paymentMethodName || "",
           notes: sub.get("notes") || "",
@@ -155,18 +158,38 @@ routerAdd("POST", "/api/ai/chat", function (e) {
         return { error: "Multiple subscriptions match '" + args.name + "': " + names.join(", ") + ". Please use the exact name." };
       }
       var sub = subs[0];
+      var proposedRecordType = args.record_type !== undefined
+        ? recordTypes.normalizeRecordType(args.record_type)
+        : recordTypes.normalizeRecordType(sub.get("record_type"));
+      var proposedNextPayment = args.next_payment !== undefined
+        ? String(args.next_payment).slice(0, 10)
+        : String(sub.get("next_payment") || "").slice(0, 10);
+      var proposedEndDate = args.end_date !== undefined
+        ? String(args.end_date || "").slice(0, 10)
+        : String(sub.get("end_date") || "").slice(0, 10);
+      var proposedPaymentLimit = args.payment_limit !== undefined
+        ? Math.max(0, parseInt(args.payment_limit) || 0)
+        : Math.max(0, parseInt(sub.get("payment_limit")) || 0);
+      var proposedCompleted = args.payments_completed !== undefined
+        ? Math.max(0, parseInt(args.payments_completed) || 0)
+        : Math.max(0, parseInt(sub.get("payments_completed")) || 0);
+      if (proposedRecordType === "expense" && proposedEndDate && proposedPaymentLimit) return { error: "Use either end_date or payment_limit, not both." };
+      if (proposedRecordType === "expense" && proposedEndDate && proposedEndDate < proposedNextPayment) return { error: "end_date cannot be before next_payment." };
+      if (proposedRecordType === "expense" && proposedPaymentLimit && (proposedCompleted > proposedPaymentLimit || (proposedCompleted === proposedPaymentLimit && !sub.get("inactive")))) return { error: "payments_completed must be less than payment_limit while active." };
 
       if (args.new_name !== undefined) sub.set("name", args.new_name);
+      sub.set("record_type", proposedRecordType);
       if (args.price !== undefined) sub.set("price", parseFloat(args.price));
       if (args.next_payment !== undefined) sub.set("next_payment", args.next_payment);
       if (args.frequency !== undefined) sub.set("frequency", parseInt(args.frequency) || 1);
       if (args.notes !== undefined) sub.set("notes", args.notes);
       if (args.url !== undefined) sub.set("url", args.url);
       if (args.notify !== undefined) sub.set("notify", !!args.notify);
-      if (args.auto_renew !== undefined) sub.set("auto_renew", !!args.auto_renew);
-      if (args.record_type !== undefined) {
-        sub.set("record_type", recordTypes.normalizeRecordType(args.record_type));
-      }
+      sub.set("end_date", proposedEndDate);
+      sub.set("payment_limit", proposedPaymentLimit);
+      sub.set("payments_completed", proposedCompleted);
+      if (proposedEndDate || proposedPaymentLimit) sub.set("auto_renew", true);
+      else if (args.auto_renew !== undefined) sub.set("auto_renew", !!args.auto_renew);
 
       if (args.currency_code !== undefined) {
         var curs = $app.findRecordsByFilter(
@@ -223,9 +246,7 @@ routerAdd("POST", "/api/ai/chat", function (e) {
         }
       }
 
-      // Runs last so record_type and cycle cannot be left inconsistent by
-      // whichever subset of fields the model chose to send.
-      var policyError = recordTypeHelpers.applyRecordTypeToRecord($app, sub, sub.get("record_type"));
+      var policyError = recordTypeHelpers.applyRecordTypeToRecord($app, sub, proposedRecordType);
       if (policyError) return { error: policyError };
 
       $app.save(sub);
@@ -459,6 +480,15 @@ routerAdd("POST", "/api/ai/chat", function (e) {
         return { error: "Cycle not found: " + args.cycle + ". Use: Daily, Weekly, Monthly, Quarterly, Half-Yearly, Yearly, or One-Time." };
       }
 
+      var recordType = recordTypes.normalizeRecordType(args.record_type);
+      var endDate = String(args.end_date || "").slice(0, 10);
+      var paymentLimit = Math.max(0, parseInt(args.payment_limit) || 0);
+      var paymentsCompleted = Math.max(0, parseInt(args.payments_completed) || 0);
+      var nextPayment = String(args.next_payment || "").slice(0, 10);
+      if (recordType === "expense" && endDate && paymentLimit) return { error: "Use either end_date or payment_limit, not both." };
+      if (recordType === "expense" && endDate && endDate < nextPayment) return { error: "end_date cannot be before next_payment." };
+      if (recordType === "expense" && paymentLimit && paymentsCompleted >= paymentLimit) return { error: "payments_completed must be less than payment_limit for a new active subscription." };
+
       var categoryId = "";
       if (args.category_name) {
         try {
@@ -494,19 +524,22 @@ routerAdd("POST", "/api/ai/chat", function (e) {
       var record = new Record(col);
       record.set("user", uid);
       record.set("name", args.name);
-      var recordType = recordTypes.normalizeRecordType(args.record_type);
+      record.set("record_type", recordType);
       record.set("price", parseFloat(args.price));
       record.set("currency", currencyId);
       record.set("cycle", cycleId);
       record.set("frequency", parseInt(args.frequency) || 1);
       record.set("next_payment", args.next_payment);
+      record.set("end_date", endDate);
+      record.set("payment_limit", paymentLimit);
+      record.set("payments_completed", paymentsCompleted);
+      record.set("auto_renew", endDate || paymentLimit ? true : args.auto_renew !== false);
       record.set("inactive", false);
       if (categoryId) record.set("category", categoryId);
       if (paymentMethodId) record.set("payment_method", paymentMethodId);
       if (args.notes) record.set("notes", args.notes);
       if (args.url) record.set("url", args.url);
       if (args.notify !== undefined) record.set("notify", !!args.notify);
-      record.set("auto_renew", !!args.auto_renew);
 
       var policyError = recordTypeHelpers.applyRecordTypeToRecord($app, record, recordType);
       if (policyError) return { error: policyError };
@@ -740,7 +773,10 @@ routerAdd("POST", "/api/ai/chat", function (e) {
           notify_days_before: sub.get("notify_days_before") || 3,
           notes: sub.get("notes") || "",
           url: sub.get("url") || "",
-          cancellation_date: sub.get("cancellation_date") || ""
+          cancellation_date: sub.get("cancellation_date") || "",
+          end_date: sub.get("end_date") || "",
+          payment_limit: sub.get("payment_limit") || 0,
+          payments_completed: sub.get("payments_completed") || 0
         });
       }
       var filename = "zublo-subscriptions." + (format === "xlsx" ? "xlsx" : "json");
@@ -1491,8 +1527,8 @@ routerAdd("POST", "/api/ai/chat", function (e) {
       glossary:
         "**Zublo glossary:**\n\n" +
         "- **Cycle**: billing period unit — Daily, Weekly, Monthly, Quarterly, Half-Yearly, Yearly, or One-Time.\n" +
-        "- **Record type**: `expense` (default) or `credit`. A credit is one-time income (bonus, gift, side job) that raises the month's spending power instead of being a recurring cost.\n" +
-        "- **One-Time**: reserved for credits. A credit is always One-Time, and an expense can never use it.\n" +
+        "- **Record type**: `expense` (default) or `credit`. A credit is one-time income that raises the month's spending power instead of being a recurring cost.\n" +
+        "- **One-Time**: reserved for credits. Credits cannot use finite schedule limits, renewals, notifications, or automatic payment tracking.\n" +
         "- **Frequency**: how many cycles between charges (default 1). Frequency=3 + Cycle=Monthly = quarterly billing.\n" +
         "- **Next payment**: date the next charge is expected. Advances automatically when payment is recorded.\n" +
         "- **Start date**: when the subscription began. Used for progress bars and history.\n" +
@@ -1847,17 +1883,20 @@ routerAdd("POST", "/api/ai/chat", function (e) {
       type: "function",
       function: {
         name: "create_subscription",
-        description: "Creates an expense or a one-time income credit. IMPORTANT: Collect all required fields, present a summary, and ask for user confirmation BEFORE calling this tool.",
+        description: "Creates an expense or one-time income credit. IMPORTANT: Collect all required fields, present a summary, and ask for user confirmation BEFORE calling this tool.",
         parameters: {
           type: "object",
           properties: {
             name: { type: "string", description: "Subscription name" },
-            record_type: { type: "string", enum: ["expense", "credit"], default: "expense", description: "credit = one-time income (bonus, gift, side job). A credit is always forced onto the One-Time cycle" },
+            record_type: { type: "string", enum: ["expense", "credit"], default: "expense", description: "credit = one-time income; finite schedule fields are ignored for credits" },
             price: { type: "number", description: "Billing price" },
             currency_code: { type: "string", description: "ISO 4217 code e.g. BRL, USD, EUR" },
-            cycle: { type: "string", enum: ["Daily", "Weekly", "Monthly", "Quarterly", "Half-Yearly", "Yearly", "One-Time"], description: "One-Time is only valid when record_type is credit; expenses must use a recurring cycle" },
+            cycle: { type: "string", enum: ["Daily", "Weekly", "Monthly", "Quarterly", "Half-Yearly", "Yearly", "One-Time"] },
             frequency: { type: "integer", description: "Cycles between payments. Default 1.", default: 1 },
             next_payment: { type: "string", description: "Next payment date YYYY-MM-DD" },
+            end_date: { type: "string", description: "Inclusive last payment date YYYY-MM-DD; mutually exclusive with payment_limit" },
+            payment_limit: { type: "integer", description: "Total number of payments; mutually exclusive with end_date" },
+            payments_completed: { type: "integer", description: "Payments already elapsed; must be less than payment_limit", default: 0 },
             category_name: { type: "string", description: "Category name (created automatically if doesn't exist)" },
             payment_method_name: { type: "string", description: "Exact payment method name (must exist)" },
             notes: { type: "string" },
@@ -1877,13 +1916,16 @@ routerAdd("POST", "/api/ai/chat", function (e) {
           type: "object",
           properties: {
             name: { type: "string", description: "Current subscription name (partial match)" },
-            record_type: { type: "string", enum: ["expense", "credit"], description: "Switching to credit forces the One-Time cycle" },
+            record_type: { type: "string", enum: ["expense", "credit"], description: "Switching to credit clears finite schedule fields and forces One-Time" },
             new_name: { type: "string", description: "New name to rename it to" },
             price: { type: "number", description: "New billing price" },
             currency_code: { type: "string", description: "New currency ISO code" },
-            cycle: { type: "string", enum: ["Daily", "Weekly", "Monthly", "Quarterly", "Half-Yearly", "Yearly", "One-Time"], description: "One-Time is only valid when record_type is credit; expenses must use a recurring cycle" },
+            cycle: { type: "string", enum: ["Daily", "Weekly", "Monthly", "Quarterly", "Half-Yearly", "Yearly", "One-Time"] },
             frequency: { type: "integer" },
             next_payment: { type: "string", description: "New next payment date YYYY-MM-DD" },
+            end_date: { type: "string", description: "Inclusive last payment date; empty string clears it" },
+            payment_limit: { type: "integer", description: "Total payments; 0 clears it" },
+            payments_completed: { type: "integer", description: "Payments already elapsed" },
             category_name: { type: "string", description: "New category name (empty string to clear)" },
             payment_method_name: { type: "string", description: "New payment method name (empty string to clear)" },
             notes: { type: "string" },
@@ -2177,12 +2219,15 @@ routerAdd("POST", "/api/ai/chat", function (e) {
                 type: "object",
                 properties: {
                   name: { type: "string" },
-                  record_type: { type: "string", enum: ["expense", "credit"], default: "expense", description: "credit = one-time income; always uses the One-Time cycle" },
+                  record_type: { type: "string", enum: ["expense", "credit"], default: "expense" },
                   price: { type: "number" },
                   currency_code: { type: "string", description: "ISO 4217 e.g. BRL, USD, EUR" },
-                  cycle: { type: "string", enum: ["Daily", "Weekly", "Monthly", "Quarterly", "Half-Yearly", "Yearly", "One-Time"], description: "One-Time is only valid when record_type is credit; expenses must use a recurring cycle" },
+                  cycle: { type: "string", enum: ["Daily", "Weekly", "Monthly", "Quarterly", "Half-Yearly", "Yearly", "One-Time"] },
                   frequency: { type: "integer", default: 1 },
                   next_payment: { type: "string", description: "YYYY-MM-DD" },
+                  end_date: { type: "string", description: "Inclusive last payment date; mutually exclusive with payment_limit" },
+                  payment_limit: { type: "integer", description: "Total number of payments" },
+                  payments_completed: { type: "integer", default: 0 },
                   category_name: { type: "string" },
                   payment_method_name: { type: "string" },
                   notes: { type: "string" },

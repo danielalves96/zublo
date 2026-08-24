@@ -20,30 +20,30 @@ routerAdd("POST", "/api/cron/{job}", function(e) {
   // ----------------------------------------------------------------
   if (job === "check_subscriptions") {
     var dateHelpers = require(__hooks + "/lib/date-helpers.js");
-    var recordTypes = require(__hooks + "/lib/pure/record-types.js");
+    var schedule = require(__hooks + "/lib/subscription-schedule.js");
     var today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    var subs = $app.findRecordsByFilter(
-      "subscriptions",
-      "inactive = false && auto_renew = true && next_payment <= {:today}",
-      "", 0, 0,
-      { today: dateHelpers.formatLocalDate(today) }
+    // Same advancement the nightly cron runs — see lib/subscription-schedule.js
+    // for why this must not be reimplemented here.
+    var processed = schedule.advanceDueSubscriptions($app, dateHelpers.formatLocalDate(today));
+
+    return e.json(200, { message: "check_subscriptions: processed " + processed + " subscription(s)" });
+  }
+
+  // ----------------------------------------------------------------
+  if (job === "auto_mark_paid") {
+    var dateHelpers = require(__hooks + "/lib/date-helpers.js");
+    var paymentTracking = require(__hooks + "/lib/auto-mark-paid.js");
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    var created = paymentTracking.markDuePaymentsPaid(
+      $app,
+      dateHelpers.formatLocalDate(today),
     );
 
-    for (var i = 0; i < subs.length; i++) {
-      var sub = subs[i];
-      if (!recordTypes.isExpense(sub.get("record_type"))) continue;
-      var cycleRecord = $app.findRecordById("cycles", sub.get("cycle"));
-      var nextPayment = new Date(sub.get("next_payment"));
-      while (nextPayment <= today) {
-        nextPayment = dateHelpers.advanceDate(nextPayment, cycleRecord.get("name"), sub.get("frequency"));
-      }
-      sub.set("next_payment", nextPayment.toISOString().split("T")[0]);
-      $app.save(sub);
-    }
-
-    return e.json(200, { message: "check_subscriptions: processed " + subs.length + " subscription(s)" });
+    return e.json(200, { message: "auto_mark_paid: created " + created + " payment record(s)" });
   }
 
   // ----------------------------------------------------------------

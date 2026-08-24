@@ -304,6 +304,9 @@ describe("SubscriptionFormModal", () => {
           auto_renew: true,
           notify: true,
           auto_mark_paid: true,
+          end_date: "2026-12-15",
+          payment_limit: 12,
+          payments_completed: 3,
         })}
         userId="user-1"
         currencies={[getCurrency()]}
@@ -333,6 +336,9 @@ describe("SubscriptionFormModal", () => {
         notify: false,
         auto_mark_paid: false,
         next_payment: "2026-08-15",
+        end_date: "",
+        payment_limit: 0,
+        payments_completed: 0,
       }),
     );
   });
@@ -419,6 +425,143 @@ describe("SubscriptionFormModal", () => {
     expect(mocks.createSubscription).toHaveBeenCalledWith(
       expect.objectContaining({ record_type: "expense" }),
     );
+  });
+
+  it("prefills and persists a payment-count limit with automatic advancement", async () => {
+    render(
+      <SubscriptionFormModal
+        sub={getSubscription({
+          auto_renew: false,
+          payment_limit: 6,
+          payments_completed: 2,
+        })}
+        userId="user-1"
+        currencies={[getCurrency()]}
+        categories={[getCategory()]}
+        paymentMethods={[getPaymentMethod()]}
+        household={[getHousehold()]}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByDisplayValue("6")).toBeInTheDocument();
+    expect(document.querySelector('input[name="payments_completed"]')).toHaveValue(2);
+    expect(screen.getByText("finite_auto_renew_hint")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => {
+      expect(mocks.updateSubscription).toHaveBeenCalledWith(
+        "sub-1",
+        expect.objectContaining({
+          auto_renew: true,
+          end_date: "",
+          payment_limit: 6,
+          payments_completed: 2,
+        }),
+      );
+    });
+  });
+
+  it("validates that a finite end date includes the next payment", async () => {
+    render(
+      <SubscriptionFormModal
+        sub={getSubscription({
+          next_payment: "2026-06-10",
+          end_date: "2026-05-10",
+        })}
+        userId="user-1"
+        currencies={[getCurrency()]}
+        categories={[getCategory()]}
+        paymentMethods={[getPaymentMethod()]}
+        household={[getHousehold()]}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "save" }));
+
+    expect(await screen.findByText("end_date_after_next_payment")).toBeInTheDocument();
+    expect(mocks.updateSubscription).not.toHaveBeenCalled();
+  });
+
+  it("validates missing finite bounds and completed-payment ranges", async () => {
+    render(
+      <SubscriptionFormModal
+        sub={getSubscription()}
+        userId="user-1"
+        currencies={[getCurrency()]}
+        categories={[getCategory()]}
+        paymentMethods={[getPaymentMethod()]}
+        household={[getHousehold()]}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("select-item-date"));
+    fireEvent.click(screen.getByRole("button", { name: "save" }));
+    expect(await screen.findByText("required")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("select-item-payments"));
+    fireEvent.change(document.querySelector('input[name="payment_limit"]') as HTMLInputElement, {
+      target: { value: "0" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "save" }));
+    expect(await screen.findByText("positive_payment_limit")).toBeInTheDocument();
+
+    fireEvent.change(document.querySelector('input[name="payment_limit"]') as HTMLInputElement, {
+      target: { value: "3" },
+    });
+    fireEvent.change(
+      document.querySelector('input[name="payments_completed"]') as HTMLInputElement,
+      { target: { value: "3" } },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "save" }));
+    expect(await screen.findByText("payments_completed_reactivate")).toBeInTheDocument();
+
+    fireEvent.change(
+      document.querySelector('input[name="payments_completed"]') as HTMLInputElement,
+      { target: { value: "4" } },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "save" }));
+    expect(await screen.findByText("payments_completed_range")).toBeInTheDocument();
+    expect(mocks.updateSubscription).not.toHaveBeenCalled();
+  });
+
+  it("persists a valid date-bounded schedule and keeps its elapsed tally", async () => {
+    render(
+      <SubscriptionFormModal
+        sub={getSubscription({
+          next_payment: "2026-06-10",
+          end_date: "2026-08-10",
+          payments_completed: 0,
+        })}
+        userId="user-1"
+        currencies={[getCurrency()]}
+        categories={[getCategory()]}
+        paymentMethods={[getPaymentMethod()]}
+        household={[getHousehold()]}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => {
+      expect(mocks.updateSubscription).toHaveBeenCalledWith(
+        "sub-1",
+        expect.objectContaining({
+          auto_renew: true,
+          end_date: "2026-08-10",
+          payment_limit: 0,
+          payments_completed: 0,
+        }),
+      );
+    });
   });
 
   it("creates a NEW subscription with FormData when logo file is set (line 564 branch)", async () => {

@@ -75,6 +75,16 @@ export class PocketBaseIntegrationHarness {
   private child: ChildProcessWithoutNullStreams | null = null;
   private dataDir: string | null = null;
   private logs: string[] = [];
+  private migrationsDirOverride: string | null = null;
+
+  /**
+   * Run the next `reset()` against a custom migrations directory instead of the
+   * repository's `pb_migrations`. Used by the legacy-upgrade test to simulate
+   * an install whose already-applied migrations wrote a stale schema.
+   */
+  useMigrationsDir(dir: string): void {
+    this.migrationsDirOverride = dir;
+  }
 
   /**
    * Hard-reset the entire PocketBase runtime.
@@ -91,6 +101,7 @@ export class PocketBaseIntegrationHarness {
 
     this.logs = [];
     this.dataDir = await mkdtemp(join(tmpdir(), "zublo-pb-integration-"));
+    const migrations = this.migrationsDirOverride ?? migrationsDir;
 
     await this.runPocketBaseCommand([
       "--dir",
@@ -98,7 +109,7 @@ export class PocketBaseIntegrationHarness {
       "--hooksDir",
       hooksDir,
       "--migrationsDir",
-      migrationsDir,
+      migrations,
       "--publicDir",
       publicDir,
       "superuser",
@@ -120,7 +131,7 @@ export class PocketBaseIntegrationHarness {
       "--hooksDir",
       hooksDir,
       "--migrationsDir",
-      migrationsDir,
+      migrations,
       "--publicDir",
       publicDir,
       "--hooksWatch=false",

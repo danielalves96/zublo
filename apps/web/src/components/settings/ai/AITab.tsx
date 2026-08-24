@@ -96,20 +96,18 @@ export function AITab() {
       // 1. Explicitly requested removal
       if (removeStoredApiKey) {
         data.api_key = "";
-        data.api_key_configured = false;
       }
       // 2. User typed a new key
       else if (trimmedApiKey) {
         data.api_key = trimmedApiKey;
-        data.api_key_configured = true;
       }
       // 3. Updating an existing record where no key is currently saved
       else if (!isKeySavedOnServer) {
         data.api_key = "";
-        data.api_key_configured = false;
       }
       // 4. Otherwise (isKeySavedOnServer === true and trimmedApiKey is empty):
       //    Do NOT include api_key in 'data' so the server keeps the existing value.
+      // api_key_configured is derived server-side (security.pb.js) from api_key.
 
       if (aiSettings?.id) {
         return aiService.updateSettings(aiSettings.id, data);

@@ -145,42 +145,6 @@ describe("calendar types helpers", () => {
     ).toEqual([15]);
   });
 
-  it("repeats quarterly and half-yearly cycles on their own multi-month step", () => {
-    const cycles = [
-      { id: "quarterly", name: "Quarterly" as const },
-      { id: "half", name: "Half-Yearly" as const },
-    ];
-
-    // Anchored in March, a quarterly charge lands in March, June, September…
-    // so it appears in June and is absent from April.
-    const quarterly = getSubscription({
-      cycle: "quarterly",
-      next_payment: "2026-03-10",
-    });
-    expect(getOccurrencesInMonth(quarterly, 2026, 6, cycles).map((d) => d.getDate())).toEqual([10]);
-    expect(getOccurrencesInMonth(quarterly, 2026, 4, cycles)).toEqual([]);
-
-    // Half-yearly from March lands again in September, not in June.
-    const half = getSubscription({ cycle: "half", next_payment: "2026-03-10" });
-    expect(getOccurrencesInMonth(half, 2026, 9, cycles).map((d) => d.getDate())).toEqual([10]);
-    expect(getOccurrencesInMonth(half, 2026, 6, cycles)).toEqual([]);
-  });
-
-  it("emits a one-time credit only in its received month", () => {
-    const cycles = [{ id: "one-time", name: "One-Time" as const }];
-    const credit = getSubscription({
-      record_type: "credit",
-      cycle: "one-time",
-      next_payment: "2026-03-15",
-    });
-
-    expect(getOccurrencesInMonth(credit, 2026, 3, cycles).map((date) => date.getDate())).toEqual([
-      15,
-    ]);
-    expect(getOccurrencesInMonth(credit, 2026, 2, cycles)).toEqual([]);
-    expect(getOccurrencesInMonth(credit, 2026, 4, cycles)).toEqual([]);
-  });
-
   it("never projects occurrences before the subscription start date", () => {
     const cycles = [
       { id: "monthly", name: "Monthly" as const },
@@ -275,6 +239,160 @@ describe("calendar types helpers", () => {
         cycles,
       ).map((date) => date.getDate()),
     ).toEqual([1, 11, 21, 31]);
+  });
+
+  it("stops projections at the inclusive finite end date", () => {
+    const cycles = [{ id: "monthly", name: "Monthly" as const }];
+    const finite = getSubscription({
+      cycle: "monthly",
+      start_date: "2026-01-01",
+      next_payment: "2026-03-15",
+      end_date: "2026-04-20",
+      cancellation_date: "2026-04-30",
+    });
+
+    expect(getOccurrencesInMonth(finite, 2026, 3, cycles).map((date) => date.getDate())).toEqual([
+      15,
+    ]);
+    expect(getOccurrencesInMonth(finite, 2026, 4, cycles).map((date) => date.getDate())).toEqual([
+      15,
+    ]);
+    expect(getOccurrencesInMonth(finite, 2026, 5, cycles)).toEqual([]);
+  });
+
+  it("uses completed and total payments to bound installment projections", () => {
+    const cycles = [{ id: "monthly", name: "Monthly" as const }];
+    const installments = getSubscription({
+      cycle: "monthly",
+      start_date: "2026-01-01",
+      next_payment: "2026-04-15",
+      payment_limit: 3,
+      payments_completed: 1,
+    });
+
+    // The next payment is installment 2/3; one historical and two remaining
+    // occurrences are visible, but there is no fourth installment.
+    expect(
+      getOccurrencesInMonth(installments, 2026, 3, cycles).map((date) => date.getDate()),
+    ).toEqual([15]);
+    expect(
+      getOccurrencesInMonth(installments, 2026, 4, cycles).map((date) => date.getDate()),
+    ).toEqual([15]);
+    expect(
+      getOccurrencesInMonth(installments, 2026, 5, cycles).map((date) => date.getDate()),
+    ).toEqual([15]);
+    expect(getOccurrencesInMonth(installments, 2026, 6, cycles)).toEqual([]);
+  });
+
+  it("keeps history for a completed finite schedule but hides a merely paused one", () => {
+    const cycles = [{ id: "monthly", name: "Monthly" as const }];
+    const base = {
+      cycle: "monthly",
+      start_date: "2026-01-01",
+      inactive: true,
+    };
+
+    // Completed by count: next_payment is the final installment, so March still
+    // shows it and nothing is projected past the limit.
+    const completedByCount = getSubscription({
+      ...base,
+      next_payment: "2026-03-15",
+      payment_limit: 3,
+      payments_completed: 3,
+    });
+    expect(
+      getOccurrencesInMonth(completedByCount, 2026, 3, cycles).map((date) => date.getDate()),
+    ).toEqual([15]);
+    expect(getOccurrencesInMonth(completedByCount, 2026, 4, cycles)).toEqual([]);
+
+    // Completed by date: the occurrence after next_payment would pass end_date.
+    const completedByDate = getSubscription({
+      ...base,
+      next_payment: "2026-03-15",
+      end_date: "2026-03-20",
+    });
+    expect(
+      getOccurrencesInMonth(completedByDate, 2026, 3, cycles).map((date) => date.getDate()),
+    ).toEqual([15]);
+    expect(getOccurrencesInMonth(completedByDate, 2026, 4, cycles)).toEqual([]);
+
+    // Paused mid-schedule: having a bound is not the same as having reached it,
+    // so none of the remaining payments may be projected.
+    const pausedByCount = getSubscription({
+      ...base,
+      next_payment: "2026-04-15",
+      payment_limit: 12,
+      payments_completed: 3,
+    });
+    expect(getOccurrencesInMonth(pausedByCount, 2026, 4, cycles)).toEqual([]);
+    expect(getOccurrencesInMonth(pausedByCount, 2026, 6, cycles)).toEqual([]);
+
+    const pausedByDate = getSubscription({
+      ...base,
+      next_payment: "2026-04-15",
+      end_date: "2027-01-15",
+    });
+    expect(getOccurrencesInMonth(pausedByDate, 2026, 4, cycles)).toEqual([]);
+    expect(getOccurrencesInMonth(pausedByDate, 2026, 6, cycles)).toEqual([]);
+  });
+
+  it("projects quarterly and half-yearly finite schedules", () => {
+    const cycles = [
+      { id: "quarterly", name: "Quarterly" as const },
+      { id: "half-yearly", name: "Half-Yearly" as const },
+    ];
+
+    expect(
+      getOccurrencesInMonth(
+        getSubscription({ cycle: "quarterly", next_payment: "2026-01-31" }),
+        2026,
+        4,
+        cycles,
+      ).map((date) => date.getDate()),
+    ).toEqual([30]);
+    expect(
+      getOccurrencesInMonth(
+        getSubscription({ cycle: "half-yearly", next_payment: "2026-01-31" }),
+        2026,
+        7,
+        cycles,
+      ).map((date) => date.getDate()),
+    ).toEqual([31]);
+
+    expect(
+      getOccurrencesInMonth(
+        getSubscription({ cycle: "quarterly", next_payment: "2026-07-31" }),
+        2026,
+        4,
+        cycles,
+      ).map((date) => date.getDate()),
+    ).toEqual([30]);
+    expect(
+      getOccurrencesInMonth(
+        getSubscription({ cycle: "half-yearly", next_payment: "2026-07-31" }),
+        2026,
+        1,
+        cycles,
+      ).map((date) => date.getDate()),
+    ).toEqual([31]);
+  });
+
+  it("keeps credits one-time even when stale finite-schedule fields are present", () => {
+    const cycles = [{ id: "one-time", name: "One-Time" as const }];
+    const credit = getSubscription({
+      record_type: "credit",
+      cycle: "one-time",
+      next_payment: "2026-03-15",
+      payment_limit: 1,
+      payments_completed: 1,
+      end_date: "2026-02-01",
+    });
+
+    expect(getOccurrencesInMonth(credit, 2026, 3, cycles).map((date) => date.getDate())).toEqual([
+      15,
+    ]);
+    expect(getOccurrencesInMonth(credit, 2026, 2, cycles)).toEqual([]);
+    expect(getOccurrencesInMonth(credit, 2026, 4, cycles)).toEqual([]);
   });
 
   it("returns no occurrences for inactive subscriptions, missing dates, or invalid dates", () => {

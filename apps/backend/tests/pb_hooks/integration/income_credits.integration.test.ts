@@ -11,8 +11,11 @@ interface CycleRecord {
 }
 
 interface SubscriptionRecord {
+  end_date?: string;
   id: string;
   name: string;
+  payment_limit?: number;
+  payments_completed?: number;
   record_type?: "" | "expense" | "credit";
 }
 
@@ -162,7 +165,10 @@ describe.skipIf(!hasPocketBaseBinary).sequential("income credits", () => {
     const currencyId = currencies.items[0]!.id;
 
     const apiKey = await harness.jsonRequest<{ key: string }>("/api/api-keys", {
-      body: { name: "Pairing", permissions: ["subscriptions:read", "subscriptions:write"] },
+      body: {
+        name: "Pairing",
+        permissions: ["subscriptions:read", "subscriptions:write"],
+      },
       method: "POST",
       token: harness.admin!.token,
     });
@@ -171,24 +177,27 @@ describe.skipIf(!hasPocketBaseBinary).sequential("income credits", () => {
     // A credit asked for a recurring cycle is repaired onto One-Time. Left
     // recurring, the updateNextPayment cron would never advance it and it
     // would silently stop counting once its month passed.
-    const credit = await harness.jsonRequest<{ id: string }>("/api/external/subscriptions", {
-      body: {
-        name: "Monthly bonus",
-        record_type: "credit",
-        price: 500,
-        currency_id: currencyId,
-        cycle_id: monthly.id,
-        next_payment: "2026-08-15",
+    const credit = await harness.jsonRequest<{ id: string }>(
+      "/api/external/subscriptions",
+      {
+        body: {
+          name: "Monthly bonus",
+          record_type: "credit",
+          price: 500,
+          currency_id: currencyId,
+          cycle_id: monthly.id,
+          next_payment: "2026-08-15",
+        },
+        headers: auth,
+        method: "POST",
       },
-      headers: auth,
-      method: "POST",
-    });
+    );
     expect(credit.response.status).toBe(200);
 
-    const stored = await harness.jsonRequest<{ cycle_id: string; frequency: number }>(
-      `/api/external/subscriptions/${credit.json.id}`,
-      { headers: auth },
-    );
+    const stored = await harness.jsonRequest<{
+      cycle_id: string;
+      frequency: number;
+    }>(`/api/external/subscriptions/${credit.json.id}`, { headers: auth });
     expect(stored.json.cycle_id).toBe(oneTime.id);
     expect(stored.json.frequency).toBe(1);
 
@@ -210,7 +219,9 @@ describe.skipIf(!hasPocketBaseBinary).sequential("income credits", () => {
       },
     );
     expect(oneTimeExpense.response.status).toBe(400);
-    expect(oneTimeExpense.json.error).toBe("The One-Time cycle is reserved for credits");
+    expect(oneTimeExpense.json.error).toBe(
+      "The One-Time cycle is reserved for credits",
+    );
 
     // Converting the repaired credit back to an expense cannot leave it on
     // the One-Time cycle either.
@@ -219,7 +230,9 @@ describe.skipIf(!hasPocketBaseBinary).sequential("income credits", () => {
       { body: { record_type: "expense" }, headers: auth, method: "PUT" },
     );
     expect(convert.response.status).toBe(400);
-    expect(convert.json.error).toBe("The One-Time cycle is reserved for credits");
+    expect(convert.json.error).toBe(
+      "The One-Time cycle is reserved for credits",
+    );
   });
 
   it("reports every batch result after partial writes", async () => {
@@ -249,6 +262,9 @@ describe.skipIf(!hasPocketBaseBinary).sequential("income credits", () => {
             currency_id: currencyId,
             cycle_id: monthly.id,
             next_payment: "2026-08-15",
+            end_date: "2026-12-15",
+            payment_limit: 12,
+            payments_completed: 3,
           },
           {
             name: "Invalid one-time expense",
@@ -274,7 +290,9 @@ describe.skipIf(!hasPocketBaseBinary).sequential("income credits", () => {
 
     expect(batch.response.status, JSON.stringify(batch.json)).toBe(200);
     expect(batch.json.success).toBe(false);
-    expect(batch.json.created.map((item) => item.name)).toEqual(["Valid bonus"]);
+    expect(batch.json.created.map((item) => item.name)).toEqual([
+      "Valid bonus",
+    ]);
     expect(batch.json.errors).toEqual([
       {
         index: 1,
@@ -287,9 +305,15 @@ describe.skipIf(!hasPocketBaseBinary).sequential("income credits", () => {
       }),
     ]);
 
-    const records = await harness.listRecords<SubscriptionRecord>("subscriptions");
+    const records =
+      await harness.listRecords<SubscriptionRecord>("subscriptions");
     expect(records.items.map((item) => item.name)).toEqual(["Valid bonus"]);
-    expect(records.items[0].record_type).toBe("credit");
+    expect(records.items[0]).toMatchObject({
+      record_type: "credit",
+      end_date: "",
+      payment_limit: 0,
+      payments_completed: 0,
+    });
   });
 
   it("explains that credits are not expense subscriptions for AI analysis", async () => {
@@ -297,15 +321,19 @@ describe.skipIf(!hasPocketBaseBinary).sequential("income credits", () => {
     const oneTime = cycles.items.find((cycle) => cycle.name === "One-Time")!;
     const currencies = await harness.listRecords<{ id: string }>("currencies");
 
-    await harness.createRecord("ai_settings", {
-      api_key: "unused",
-      enabled: true,
-      model: "unused",
-      name: "Income test",
-      type: "custom",
-      url: "http://127.0.0.1:1",
-      user: harness.admin!.record.id,
-    }, harness.superuser!.token);
+    await harness.createRecord(
+      "ai_settings",
+      {
+        api_key: "unused",
+        enabled: true,
+        model: "unused",
+        name: "Income test",
+        type: "custom",
+        url: "http://127.0.0.1:1",
+        user: harness.admin!.record.id,
+      },
+      harness.superuser!.token,
+    );
     await harness.createRecord("subscriptions", {
       name: "Only bonus",
       record_type: "credit",
@@ -318,11 +346,14 @@ describe.skipIf(!hasPocketBaseBinary).sequential("income credits", () => {
       user: harness.admin!.record.id,
     });
 
-    const result = await harness.jsonRequest<{ error: string }>("/api/ai/generate", {
-      body: {},
-      method: "POST",
-      token: harness.admin!.token,
-    });
+    const result = await harness.jsonRequest<{ error: string }>(
+      "/api/ai/generate",
+      {
+        body: {},
+        method: "POST",
+        token: harness.admin!.token,
+      },
+    );
 
     expect(result.response.status).toBe(400);
     expect(result.json.error).toBe("No active expense subscriptions found");

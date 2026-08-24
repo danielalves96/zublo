@@ -100,6 +100,9 @@ describe("applyRecordTypeToRecord", () => {
       auto_renew: true,
       notify: true,
       auto_mark_paid: true,
+      end_date: "2027-01-01",
+      payment_limit: 12,
+      payments_completed: 4,
     });
 
     expect(helpers.applyRecordTypeToRecord(fakeApp(), record, "credit")).toBe("");
@@ -110,6 +113,9 @@ describe("applyRecordTypeToRecord", () => {
       auto_renew: false,
       notify: false,
       auto_mark_paid: false,
+      end_date: "",
+      payment_limit: 0,
+      payments_completed: 0,
     });
   });
 

@@ -23,8 +23,36 @@ jobs:
         working-directory: apps/web
         run: bun install
 
+      - name: Download PocketBase binary (for backend integration tests)
+        run: |
+          # The Dockerfile is the single source of truth for the version we ship,
+          # so the integration tests always run against that same build.
+          PB_VERSION="$(sed -n 's/^ARG PB_VERSION=//p' Dockerfile)"
+          test -n "$PB_VERSION"
+          curl -sSfL \
+            "https://github.com/pocketbase/pocketbase/releases/download/v${PB_VERSION}/pocketbase_${PB_VERSION}_linux_amd64.zip" \
+            -o /tmp/pb.zip
+          unzip -o /tmp/pb.zip pocketbase -d apps/backend
+          chmod +x apps/backend/pocketbase
+          rm /tmp/pb.zip
+
       - name: Frontend — test with coverage
         run: bun run test:front:coverage
+
+      # The binary is gitignored and downloaded per machine, so without this the
+      # integration suites skip themselves and CI reports green on hooks nobody
+      # actually exercised. Keep PB_VERSION in step with the Dockerfile.
+      - name: Backend — fetch PocketBase for integration tests
+        env:
+          PB_VERSION: 0.25.9
+        working-directory: apps/backend
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/pb.zip \
+            "https://github.com/pocketbase/pocketbase/releases/download/v${PB_VERSION}/pocketbase_${PB_VERSION}_linux_amd64.zip"
+          unzip -o -q /tmp/pb.zip pocketbase -d .
+          chmod +x ./pocketbase
+          ./pocketbase --version
 
       - name: Backend — test with coverage
         run: bun run test:back:coverage

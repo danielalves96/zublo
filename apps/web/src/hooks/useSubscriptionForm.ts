@@ -32,6 +32,10 @@ const _schemaShape = z.object({
   inactive: z.boolean(),
   auto_mark_paid: z.boolean(),
   cancellation_date: z.string(),
+  end_mode: z.enum(["never", "date", "payments"]),
+  end_date: z.string(),
+  payment_limit: z.string(),
+  payments_completed: z.string(),
 });
 
 export type SubscriptionFormValues = z.infer<typeof _schemaShape>;
@@ -62,27 +66,76 @@ export function useSubscriptionForm({ sub, currencies, household }: UseSubscript
     queryFn: fetchCycles,
   });
 
-  const schema = z.object({
-    record_type: z.enum(["expense", "credit"]),
-    name: z.string().min(1, t("required")),
-    price: z.number().nonnegative(),
-    currency: z.string().min(1, t("required")),
-    frequency: z.string().min(1, t("required")),
-    cycle: z.string().min(1, t("required")),
-    next_payment: z.string().min(1, t("required")),
-    start_date: z.string().min(1, t("required")),
-    payment_method: z.string(),
-    payer: z.string(),
-    category: z.string(),
-    notes: z.string(),
-    url: z.string(),
-    auto_renew: z.boolean(),
-    notify: z.boolean(),
-    notify_days_before: z.string(),
-    inactive: z.boolean(),
-    auto_mark_paid: z.boolean(),
-    cancellation_date: z.string(),
-  });
+  const schema = z
+    .object({
+      record_type: z.enum(["expense", "credit"]),
+      name: z.string().min(1, t("required")),
+      price: z.number().nonnegative(),
+      currency: z.string().min(1, t("required")),
+      frequency: z.string().min(1, t("required")),
+      cycle: z.string().min(1, t("required")),
+      next_payment: z.string().min(1, t("required")),
+      start_date: z.string().min(1, t("required")),
+      payment_method: z.string(),
+      payer: z.string(),
+      category: z.string(),
+      notes: z.string(),
+      url: z.string(),
+      auto_renew: z.boolean(),
+      notify: z.boolean(),
+      notify_days_before: z.string(),
+      inactive: z.boolean(),
+      auto_mark_paid: z.boolean(),
+      cancellation_date: z.string(),
+      end_mode: z.enum(["never", "date", "payments"]),
+      end_date: z.string(),
+      payment_limit: z.string(),
+      payments_completed: z.string(),
+    })
+    .superRefine((values, context) => {
+      if (values.record_type === "credit") return;
+
+      if (values.end_mode === "date") {
+        if (!values.end_date) {
+          context.addIssue({
+            code: "custom",
+            path: ["end_date"],
+            message: t("required"),
+          });
+        } else if (values.end_date < values.next_payment) {
+          context.addIssue({
+            code: "custom",
+            path: ["end_date"],
+            message: t("end_date_after_next_payment"),
+          });
+        }
+      }
+
+      if (values.end_mode === "payments") {
+        const limit = Number(values.payment_limit);
+        const completed = Number(values.payments_completed);
+        if (!Number.isInteger(limit) || limit < 1) {
+          context.addIssue({
+            code: "custom",
+            path: ["payment_limit"],
+            message: t("positive_payment_limit"),
+          });
+        }
+        if (!Number.isInteger(completed) || completed < 0 || completed > limit) {
+          context.addIssue({
+            code: "custom",
+            path: ["payments_completed"],
+            message: t("payments_completed_range"),
+          });
+        } else if (completed === limit && !values.inactive) {
+          context.addIssue({
+            code: "custom",
+            path: ["payments_completed"],
+            message: t("payments_completed_reactivate"),
+          });
+        }
+      }
+    });
 
   const form = useForm<SubscriptionFormValues>({
     resolver: zodResolver(schema),
@@ -106,6 +159,10 @@ export function useSubscriptionForm({ sub, currencies, household }: UseSubscript
       inactive: false,
       auto_mark_paid: false,
       cancellation_date: "",
+      end_mode: "never",
+      end_date: "",
+      payment_limit: "",
+      payments_completed: "0",
     },
   });
 
@@ -134,6 +191,10 @@ export function useSubscriptionForm({ sub, currencies, household }: UseSubscript
         inactive: sub.inactive,
         auto_mark_paid: !!sub.auto_mark_paid,
         cancellation_date: toDateOnly(sub.cancellation_date),
+        end_mode: (sub.payment_limit ?? 0) > 0 ? "payments" : sub.end_date ? "date" : "never",
+        end_date: toDateOnly(sub.end_date),
+        payment_limit: sub.payment_limit ? String(sub.payment_limit) : "",
+        payments_completed: String(sub.payments_completed ?? 0),
       });
     } else {
       const mainCur = currencies.find((c) => c.is_main);
@@ -158,6 +219,10 @@ export function useSubscriptionForm({ sub, currencies, household }: UseSubscript
         inactive: false,
         auto_mark_paid: false,
         cancellation_date: "",
+        end_mode: "never",
+        end_date: "",
+        payment_limit: "",
+        payments_completed: "0",
       });
     }
   }, [sub, currencies, cycles, household, reset]);

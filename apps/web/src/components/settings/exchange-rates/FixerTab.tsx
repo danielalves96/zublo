@@ -56,20 +56,18 @@ export function FixerTab() {
       // 1. Explicitly requested removal
       if (removeStoredApiKey) {
         payload.api_key = "";
-        payload.api_key_configured = false;
       }
       // 2. User typed a new key
       else if (trimmedApiKey) {
         payload.api_key = trimmedApiKey;
-        payload.api_key_configured = true;
       }
       // 3. Updating an existing record where no key is currently saved
       else if (!isKeySavedOnServer) {
         payload.api_key = "";
-        payload.api_key_configured = false;
       }
       // 4. Otherwise (isKeySavedOnServer === true and trimmedApiKey is empty):
       //    Do NOT include api_key in 'payload' so the server keeps the existing value.
+      // api_key_configured is derived server-side (security.pb.js) from api_key.
 
       return settings?.id
         ? fixerService.updateSettings(settings.id, payload)

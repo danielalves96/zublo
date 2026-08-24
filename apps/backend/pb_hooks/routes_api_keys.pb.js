@@ -230,6 +230,9 @@ routerAdd("GET", "/api/external/subscriptions", function(e) {
         frequency: sub.get("frequency"),
         cycle: cycleName,
         next_payment: sub.get("next_payment"),
+        end_date: sub.get("end_date") || null,
+        payment_limit: sub.get("payment_limit") || null,
+        payments_completed: sub.get("payments_completed") || 0,
         auto_renew: sub.get("auto_renew"),
         inactive: sub.get("inactive"),
         notes: sub.get("notes") || null,
@@ -295,6 +298,9 @@ routerAdd("GET", "/api/external/subscriptions/{id}", function(e) {
       cycle_id: sub.get("cycle"),
       cycle: cycleName,
       next_payment: sub.get("next_payment"),
+      end_date: sub.get("end_date") || null,
+      payment_limit: sub.get("payment_limit") || null,
+      payments_completed: sub.get("payments_completed") || 0,
       auto_renew: sub.get("auto_renew"),
       inactive: sub.get("inactive"),
       notes: sub.get("notes") || null,
@@ -374,6 +380,9 @@ routerAdd("POST", "/api/external/subscriptions", function(e) {
     var cycleId = String(body.cycle_id || "").trim();
     var frequency = parseInt(body.frequency) || 1;
     var nextPayment = String(body.next_payment || "").trim();
+    var endDate = String(body.end_date || "").trim().slice(0, 10);
+    var paymentLimit = Math.max(0, parseInt(body.payment_limit) || 0);
+    var paymentsCompleted = Math.max(0, parseInt(body.payments_completed) || 0);
     var recordTypes = require(__hooks + "/lib/pure/record-types.js");
     var recordTypeHelpers = require(__hooks + "/lib/record-type-helpers.js");
     var recordType = recordTypes.normalizeRecordType(body.record_type);
@@ -382,9 +391,9 @@ routerAdd("POST", "/api/external/subscriptions", function(e) {
     if (!currencyId) return e.json(400, { error: "currency_id is required" });
     if (!cycleId) return e.json(400, { error: "cycle_id is required" });
     if (!nextPayment) return e.json(400, { error: "next_payment is required (YYYY-MM-DD)" });
-
-    var resolvedCycle = recordTypeHelpers.resolveCycleForRecordType($app, recordType, cycleId, frequency);
-    if (resolvedCycle.error) return e.json(400, { error: resolvedCycle.error });
+    if (recordType === "expense" && endDate && paymentLimit) return e.json(400, { error: "Use either end_date or payment_limit, not both" });
+    if (recordType === "expense" && endDate && endDate < nextPayment.slice(0, 10)) return e.json(400, { error: "end_date cannot be before next_payment" });
+    if (recordType === "expense" && paymentLimit && (paymentsCompleted > paymentLimit || (paymentsCompleted === paymentLimit && body.inactive !== true))) return e.json(400, { error: "payments_completed must be less than payment_limit while active" });
 
     try {
       var cur = $app.findRecordById("currencies", currencyId);
@@ -397,12 +406,15 @@ routerAdd("POST", "/api/external/subscriptions", function(e) {
     record.set("record_type", recordType);
     record.set("price", price);
     record.set("currency", currencyId);
-    record.set("cycle", resolvedCycle.cycleId);
-    record.set("frequency", resolvedCycle.frequency);
+    record.set("cycle", cycleId);
+    record.set("frequency", frequency);
     record.set("next_payment", nextPayment);
     record.set("user", userId);
-    record.set("auto_renew", recordType === "expense" && body.auto_renew === true);
-    record.set("notify", recordType === "expense" && body.notify === true);
+    record.set("auto_renew", endDate || paymentLimit ? true : body.auto_renew === true);
+    record.set("end_date", endDate);
+    record.set("payment_limit", paymentLimit);
+    record.set("payments_completed", paymentsCompleted);
+    record.set("notify", body.notify === true);
     record.set("notify_days_before", parseInt(body.notify_days_before) || 3);
     record.set("inactive", body.inactive === true);
     if (body.notes) record.set("notes", String(body.notes));
@@ -410,6 +422,9 @@ routerAdd("POST", "/api/external/subscriptions", function(e) {
     if (body.category_id) record.set("category", String(body.category_id));
     if (body.payment_method_id) record.set("payment_method", String(body.payment_method_id));
     if (body.payer_id) record.set("payer", String(body.payer_id));
+
+    var policyError = recordTypeHelpers.applyRecordTypeToRecord($app, record, recordType);
+    if (policyError) return e.json(400, { error: policyError });
 
     $app.save(record);
     return e.json(200, { id: record.id, name: name, record_type: recordType, price: price, next_payment: nextPayment });
@@ -472,7 +487,6 @@ routerAdd("GET", "/api/external/statistics", function(e) {
         else if (cn === "Quarterly") cycleMultiplier = 1 / 3;
         else if (cn === "Half-Yearly") cycleMultiplier = 1 / 6;
         else if (cn === "Yearly") cycleMultiplier = 1 / 12;
-        // A One-Time record has no recurring monthly equivalent.
         else if (recordTypes.isOneTimeCycle(cn)) cycleMultiplier = 0;
       } catch (_) {}
 
@@ -878,30 +892,51 @@ routerAdd("PUT", "/api/external/subscriptions/{id}", function(e) {
     if (record.get("user") !== userId) return e.json(403, { error: "Forbidden" });
 
     var body = e.requestInfo().body;
-
     var recordTypes = require(__hooks + "/lib/pure/record-types.js");
     var recordTypeHelpers = require(__hooks + "/lib/record-type-helpers.js");
+    var proposedRecordType = body.record_type !== undefined
+      ? recordTypes.normalizeRecordType(body.record_type)
+      : recordTypes.normalizeRecordType(record.get("record_type"));
+    var proposedNextPayment = body.next_payment !== undefined
+      ? String(body.next_payment).trim().slice(0, 10)
+      : String(record.get("next_payment") || "").slice(0, 10);
+    var proposedEndDate = body.end_date !== undefined
+      ? String(body.end_date || "").trim().slice(0, 10)
+      : String(record.get("end_date") || "").slice(0, 10);
+    var proposedPaymentLimit = body.payment_limit !== undefined
+      ? Math.max(0, parseInt(body.payment_limit) || 0)
+      : Math.max(0, parseInt(record.get("payment_limit")) || 0);
+    var proposedCompleted = body.payments_completed !== undefined
+      ? Math.max(0, parseInt(body.payments_completed) || 0)
+      : Math.max(0, parseInt(record.get("payments_completed")) || 0);
+
+    if (proposedRecordType === "expense" && proposedEndDate && proposedPaymentLimit) return e.json(400, { error: "Use either end_date or payment_limit, not both" });
+    if (proposedRecordType === "expense" && proposedEndDate && proposedEndDate < proposedNextPayment) return e.json(400, { error: "end_date cannot be before next_payment" });
+    var proposedInactive = body.inactive !== undefined ? body.inactive === true : record.get("inactive") === true;
+    if (proposedRecordType === "expense" && proposedPaymentLimit && (proposedCompleted > proposedPaymentLimit || (proposedCompleted === proposedPaymentLimit && !proposedInactive))) return e.json(400, { error: "payments_completed must be less than payment_limit while active" });
 
     if (body.name !== undefined) record.set("name", String(body.name).trim());
-    if (body.record_type !== undefined) record.set("record_type", recordTypes.normalizeRecordType(body.record_type));
+    record.set("record_type", proposedRecordType);
     if (body.price !== undefined) record.set("price", parseFloat(body.price) || 0);
     if (body.currency_id !== undefined) record.set("currency", String(body.currency_id).trim());
     if (body.cycle_id !== undefined) record.set("cycle", String(body.cycle_id).trim());
     if (body.frequency !== undefined) record.set("frequency", parseInt(body.frequency) || 1);
     if (body.next_payment !== undefined) record.set("next_payment", String(body.next_payment).trim());
-    if (body.auto_renew !== undefined) record.set("auto_renew", body.auto_renew === true);
     if (body.notify !== undefined) record.set("notify", body.notify === true);
     if (body.notify_days_before !== undefined) record.set("notify_days_before", parseInt(body.notify_days_before) || 3);
     if (body.inactive !== undefined) record.set("inactive", body.inactive === true);
+    record.set("end_date", proposedEndDate);
+    record.set("payment_limit", proposedPaymentLimit);
+    record.set("payments_completed", proposedCompleted);
+    if (proposedEndDate || proposedPaymentLimit) record.set("auto_renew", true);
+    else if (body.auto_renew !== undefined) record.set("auto_renew", body.auto_renew === true);
     if (body.notes !== undefined) record.set("notes", String(body.notes));
     if (body.url !== undefined) record.set("url", String(body.url));
     if (body.category_id !== undefined) record.set("category", String(body.category_id));
     if (body.payment_method_id !== undefined) record.set("payment_method", String(body.payment_method_id));
     if (body.payer_id !== undefined) record.set("payer", String(body.payer_id));
 
-    // Runs last so it wins over whatever the body asked for: a credit is
-    // always a One-Time payout that is never renewed or notified about.
-    var policyError = recordTypeHelpers.applyRecordTypeToRecord($app, record, record.get("record_type"));
+    var policyError = recordTypeHelpers.applyRecordTypeToRecord($app, record, proposedRecordType);
     if (policyError) return e.json(400, { error: policyError });
 
     $app.save(record);
@@ -1255,6 +1290,10 @@ routerAdd("POST", "/api/external/subscriptions/{id}/mark-paid", function(e) {
     var sub;
     try { sub = $app.findRecordById("subscriptions", id); } catch (_) { return e.json(404, { error: "Not found" }); }
     if (sub.get("user") !== userId) return e.json(403, { error: "Forbidden" });
+    var recordTypes = require(__hooks + "/lib/pure/record-types.js");
+    if (recordTypes.isCredit(sub.get("record_type"))) {
+      return e.json(400, { error: "Credits cannot be marked paid" });
+    }
 
     var body = e.requestInfo().body;
     var amount = parseFloat(body.amount) || sub.get("price");
@@ -1311,22 +1350,65 @@ routerAdd("POST", "/api/external/subscriptions/batch", function(e) {
     for (var i = 0; i < items.length; i++) {
         var item = items[i] || {};
         var itemName = String(item.name || "Unnamed");
+        var itemRecordType = recordTypes.normalizeRecordType(item.record_type);
+        var itemNextPayment = String(item.next_payment || "").trim().slice(0, 10);
+        var itemEndDate = String(item.end_date || "").trim().slice(0, 10);
+        var itemPaymentLimit = Math.max(0, parseInt(item.payment_limit) || 0);
+        var itemCompleted = Math.max(0, parseInt(item.payments_completed) || 0);
+
+        if (!item.currency_id) {
+            errors.push({ index: i, name: itemName, reason: "currency_id is required" });
+            continue;
+        }
+        if (!item.cycle_id) {
+            errors.push({ index: i, name: itemName, reason: "cycle_id is required" });
+            continue;
+        }
+        if (!itemNextPayment) {
+            errors.push({ index: i, name: itemName, reason: "next_payment is required (YYYY-MM-DD)" });
+            continue;
+        }
+        if (itemRecordType === "expense" && itemEndDate && itemPaymentLimit) {
+            errors.push({ index: i, name: itemName, reason: "Use either end_date or payment_limit, not both" });
+            continue;
+        }
+        if (itemRecordType === "expense" && itemEndDate && itemEndDate < itemNextPayment) {
+            errors.push({ index: i, name: itemName, reason: "end_date cannot be before next_payment" });
+            continue;
+        }
+        if (itemRecordType === "expense" && itemPaymentLimit && (itemCompleted > itemPaymentLimit || (itemCompleted === itemPaymentLimit && item.inactive !== true))) {
+            errors.push({ index: i, name: itemName, reason: "payments_completed must be less than payment_limit while active" });
+            continue;
+        }
+
         var record = new Record(col);
         record.set("user", userId);
         record.set("name", itemName);
-        var recordType = recordTypes.normalizeRecordType(item.record_type);
         record.set("price", parseFloat(item.price) || 0);
         record.set("currency", String(item.currency_id));
         record.set("cycle", String(item.cycle_id));
-        record.set("next_payment", String(item.next_payment));
+        record.set("next_payment", itemNextPayment);
+        record.set("end_date", itemEndDate);
+        record.set("payment_limit", itemPaymentLimit);
+        record.set("payments_completed", itemCompleted);
+        record.set("auto_renew", itemEndDate || itemPaymentLimit ? true : item.auto_renew === true);
+        record.set("inactive", item.inactive === true);
+        if (item.notes !== undefined) record.set("notes", String(item.notes));
+        if (item.url !== undefined) record.set("url", String(item.url));
+        if (item.category_id) record.set("category", String(item.category_id));
+        if (item.payment_method_id) record.set("payment_method", String(item.payment_method_id));
+        if (item.payer_id) record.set("payer", String(item.payer_id));
 
-        var policyError = recordTypeHelpers.applyRecordTypeToRecord($app, record, recordType);
+        var policyError = recordTypeHelpers.applyRecordTypeToRecord($app, record, itemRecordType);
         if (policyError) {
             errors.push({ index: i, name: itemName, reason: policyError });
             continue;
         }
 
-        // Add other fields optionally...
+        // A save can still fail on rules this handler does not model — a blank
+        // required price, a relation id that does not resolve. Letting it reach
+        // the outer catch would answer 500 and throw away both `created` and
+        // `errors`, stranding the client with rows it cannot see.
         try {
             $app.save(record);
             created.push({ id: record.id, name: itemName });
@@ -1335,9 +1417,10 @@ routerAdd("POST", "/api/external/subscriptions/batch", function(e) {
         }
     }
 
-    // Records are committed one by one. Returning 4xx/5xx after a partial
-    // write would hide persisted rows and encourage a retry that duplicates
-    // them, so clients always receive the complete per-item outcome.
+    // Valid items are already committed by the time an invalid one is found, so
+    // a 4xx here would tell the client nothing was written and invite a retry
+    // that duplicates them. Report partial success instead: 200 always means
+    // "read `created` and `errors`", never "everything worked".
     return e.json(200, {
         success: errors.length === 0,
         created: created,

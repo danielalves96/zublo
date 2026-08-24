@@ -334,7 +334,7 @@ describe("FixerTab", () => {
     fireEvent.change(input, { target: { value: "secretkey" } });
     await latestSaveOpts().mutationFn?.();
     expect(vi.mocked(fixerService.createSettings)).toHaveBeenCalledWith(
-      expect.objectContaining({ api_key: "secretkey", api_key_configured: true }),
+      expect.objectContaining({ api_key: "secretkey" }),
     );
   });
 
@@ -347,7 +347,7 @@ describe("FixerTab", () => {
     await latestSaveOpts().mutationFn?.();
     expect(vi.mocked(fixerService.updateSettings)).toHaveBeenCalledWith(
       "f1",
-      expect.objectContaining({ api_key: "", api_key_configured: false }),
+      expect.objectContaining({ api_key: "" }),
     );
   });
 
@@ -359,7 +359,7 @@ describe("FixerTab", () => {
     // No key entered, no remove clicked → third branch: !settings?.id || !apiKeyConfigured
     await latestSaveOpts().mutationFn?.();
     expect(vi.mocked(fixerService.createSettings)).toHaveBeenCalledWith(
-      expect.objectContaining({ api_key: "", api_key_configured: false }),
+      expect.objectContaining({ api_key: "" }),
     );
   });
 

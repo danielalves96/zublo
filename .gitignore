@@ -29,3 +29,6 @@ apps/backend/pb_public/index.html
 
 # Local build outputs
 zublo.tar
+
+# Agent tool state
+.commandcode/

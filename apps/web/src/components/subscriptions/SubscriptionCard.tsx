@@ -1,4 +1,4 @@
-import { Calendar, Copy, Edit, ExternalLink, RefreshCw, Trash2 } from "lucide-react";
+import { Calendar, Copy, Edit, ExternalLink, Hourglass, RefreshCw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -226,6 +226,18 @@ export function SubscriptionCard({
           </div>
         )}
 
+        {!credit && ((sub.payment_limit ?? 0) > 0 || sub.end_date) && (
+          <div className="flex items-center gap-1.5 px-1 text-xs font-medium text-muted-foreground">
+            <Hourglass className="h-3.5 w-3.5" />
+            {(sub.payment_limit ?? 0) > 0
+              ? t("payments_progress", {
+                  completed: sub.payments_completed ?? 0,
+                  total: sub.payment_limit,
+                })
+              : t(sub.inactive ? "ended_on" : "ends_on", { date: formatDate(sub.end_date!) })}
+          </div>
+        )}
+
         {showProgress && !credit && progress > 0 && !sub.inactive && (
           <div className="space-y-1.5">
             <div className="flex justify-between text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-1">
@@ -280,7 +292,10 @@ export function SubscriptionCard({
           >
             <Copy className="h-3.5 w-3.5" />
           </Button>
-          {!credit && (
+          {/* Renewing an inactive subscription is a no-op on the backend — it
+              refuses to advance a paused or finished schedule — so offering the
+              action here would just be a button that does nothing. */}
+          {!sub.inactive && !credit && (
             <Button
               variant="ghost"
               size="icon"

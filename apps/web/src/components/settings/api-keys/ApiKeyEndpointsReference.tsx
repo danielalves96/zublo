@@ -22,13 +22,15 @@ import type { ApiKeyPermission } from "@/types";
 
 const SUBSCRIPTION_CREATE_BODY = `{
   "name": "Netflix",           // required
-  "record_type": "expense",    // optional - expense (default) or credit
+  "record_type": "expense",    // optional - credits force One-Time and clear finite limits
   "price": 15.99,              // required
   "currency_id": "<id>",       // required
   "cycle_id": "<id>",          // required - from GET api/external/cycles
   "frequency": 1,              // required - e.g. 1 = every 1 cycle
   "next_payment": "2025-02-01",// required - YYYY-MM-DD
-  "auto_renew": true,          // optional
+  "payment_limit": 12,          // optional; use end_date instead to limit by date
+  "payments_completed": 0,      // optional, must be less than payment_limit
+  "auto_renew": true,          // optional; forced true when end_date or payment_limit is set
   "notify": true,              // optional
   "notify_days_before": 3,     // optional
   "notes": "...",              // optional
@@ -59,13 +61,15 @@ const CURRENCY_CREATE_BODY = `{
 
 const SUBSCRIPTION_UPDATE_BODY = `{
   "name": "Netflix",           // optional
-  "record_type": "expense",    // optional - expense or credit
+  "record_type": "expense",    // optional - switching to credit clears finite limits
   "price": 17.99,              // optional
   "currency_id": "<id>",       // optional
   "cycle_id": "<id>",          // optional
   "frequency": 1,              // optional
   "next_payment": "2025-03-01",// optional
-  "auto_renew": true,          // optional
+  "payment_limit": 6,           // optional, 0 removes the limit; use end_date instead to limit by date
+  "payments_completed": 2,      // optional, must be less than payment_limit
+  "auto_renew": true,          // optional; forced true when end_date or payment_limit is set
   "notify": true,              // optional
   "notify_days_before": 5,     // optional
   "inactive": false,           // optional
@@ -104,11 +108,21 @@ const SUBSCRIPTION_MARK_PAID_BODY = `{
 }`;
 
 const SUBSCRIPTION_BATCH_BODY = `{
-  "subscriptions": [           // array of subscription objects (required)
-    { "name": "Netflix", ... },
-    { "name": "Spotify", ... }
+  "items": [                   // array of subscription objects (required)
+    {
+      "name": "Netflix",       // required
+      "record_type": "expense", // optional - credits force One-Time and clear finite limits
+      "currency_id": "<id>",   // required
+      "cycle_id": "<id>",      // required
+      "next_payment": "2025-02-01", // required - YYYY-MM-DD
+      "payment_limit": 12,          // optional; use end_date instead to limit by date
+      "payments_completed": 0       // optional, must be less than payment_limit
+    }
   ]
-}`;
+}
+
+// Always returns 200. Valid items are created even when others fail:
+// { "success": false, "created": [...], "errors": [{ "index": 1, "reason": "..." }] }`;
 
 const CATEGORY_BULK_RENAME_BODY = `{
   "old_name": "Entertainment", // required (current name)
