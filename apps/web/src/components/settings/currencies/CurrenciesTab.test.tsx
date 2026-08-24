@@ -392,10 +392,10 @@ describe("CurrenciesTab", () => {
     expect(toast.error).toHaveBeenCalledWith("error");
   });
 
-  // --- fixerSettings.api_key branch in setMainCurrency ---
+  // --- fixerSettings.api_key_configured branch in setMainCurrency ---
 
-  it("setMainCurrency calls fixerService.updateRates when fixerSettings has api_key", async () => {
-    fixerQueryData = { data: { api_key: "key123" } };
+  it("setMainCurrency calls fixerService.updateRates when fixerSettings has a saved key", async () => {
+    fixerQueryData = { data: { api_key_configured: true } };
     render(<CurrenciesTab />);
     const buttons = screen.getAllByRole("button");
     await act(async () => {
@@ -404,8 +404,8 @@ describe("CurrenciesTab", () => {
     expect(mockFixerUpdateRates).toHaveBeenCalled();
   });
 
-  it("setMainCurrency does NOT call fixerService.updateRates when fixerSettings has no api_key", async () => {
-    fixerQueryData = { data: { api_key: "" } };
+  it("setMainCurrency does NOT call fixerService.updateRates when fixerSettings has no saved key", async () => {
+    fixerQueryData = { data: { api_key_configured: false } };
     render(<CurrenciesTab />);
     const buttons = screen.getAllByRole("button");
     await act(async () => {
@@ -426,7 +426,7 @@ describe("CurrenciesTab", () => {
 
   it("setMainCurrency works with user.id undefined and still runs both invalidate paths", async () => {
     mockAuthUser = { id: undefined };
-    fixerQueryData = { data: { api_key: "key123" } };
+    fixerQueryData = { data: { api_key_configured: true } };
 
     render(<CurrenciesTab />);
     const buttons = screen.getAllByRole("button");
@@ -443,7 +443,7 @@ describe("CurrenciesTab", () => {
   });
 
   it("swallows fixer updateRates rejection after main currency update", async () => {
-    fixerQueryData = { data: { api_key: "key123" } };
+    fixerQueryData = { data: { api_key_configured: true } };
     mockFixerUpdateRates.mockRejectedValueOnce(new Error("fixer fail"));
 
     render(<CurrenciesTab />);
@@ -800,7 +800,7 @@ describe("CurrenciesTab", () => {
 
   it("setMainCurrency fixer updateRates invalidateQueries uses ?? '' fallback when user null", async () => {
     // Start with a valid user so we can click the star button
-    fixerQueryData = { data: { api_key: "key123" } };
+    fixerQueryData = { data: { api_key_configured: true } };
     render(<CurrenciesTab />);
     // Now set user to null before the async updateRates chain fires
     // The star button click triggers setMainCurrency which calls fixerService.updateRates().then(...)
