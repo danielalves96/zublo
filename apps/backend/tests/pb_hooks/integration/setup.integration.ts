@@ -1,4 +1,5 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { existsSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -10,6 +11,17 @@ const pocketbaseBinary = resolve(backendRoot, "pocketbase");
 const hooksDir = resolve(backendRoot, "pb_hooks");
 const migrationsDir = resolve(backendRoot, "pb_migrations");
 const publicDir = resolve(backendRoot, "pb_public");
+
+/**
+ * The PocketBase binary is deliberately gitignored — it is downloaded per
+ * machine rather than committed. A clean checkout therefore has nothing to
+ * run these against, and failing would make a green suite impossible for
+ * anyone who has not fetched it yet. Skipping keeps the signal honest: the
+ * tests still run in full wherever the binary exists.
+ *
+ * See INTEGRATION_TESTING.md for how to fetch it.
+ */
+export const hasPocketBaseBinary = existsSync(pocketbaseBinary);
 
 const DEFAULT_PASSWORD = "Password123!";
 const DEFAULT_ADMIN_EMAIL = "integration-admin@zublo.test";

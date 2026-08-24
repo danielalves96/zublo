@@ -41,6 +41,7 @@ const latestUpdateRatesOpts = () => {
 };
 
 let capturedQueryFn: (() => unknown) | undefined;
+const mockInvalidateQueries = vi.fn();
 
 vi.mock("@tanstack/react-query", () => ({
   useQuery: (opts: { queryFn?: () => unknown }) => {
@@ -53,7 +54,7 @@ vi.mock("@tanstack/react-query", () => ({
     if (idx % 2 === 0) return { mutate: mockSaveMutate, isPending: saveMutIsPending };
     return { mutate: mockUpdateRatesMutate, isPending: updateRatesMutIsPending };
   },
-  useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+  useQueryClient: () => ({ invalidateQueries: mockInvalidateQueries }),
 }));
 
 vi.mock("@/services/fixer", () => ({
@@ -93,6 +94,7 @@ describe("FixerTab", () => {
     mockUpdateRatesMutate.mockClear();
     mockToastSuccess.mockClear();
     mockToastError.mockClear();
+    mockInvalidateQueries.mockClear();
   });
 
   it("renders heading", () => {
@@ -196,28 +198,43 @@ describe("FixerTab", () => {
     expect(mockToastSuccess).toHaveBeenCalledWith("success_update");
   });
 
-  it("saveMut onSuccess sets apiKeyConfigured true when apiKey was entered", () => {
+  // Whether a key is stored is server state, read back through the query —
+  // the component keeps no local copy of it. So onSuccess does not flip a
+  // flag; it drops the local edits and asks the server again.
+  it("saveMut onSuccess clears the typed key and refetches the stored state", () => {
     render(<FixerTab />);
-    // enter an api key — this triggers a re-render, so latestSaveOpts() has the fresh closure
     const input = document.querySelector("input[type='password']") as HTMLInputElement;
     fireEvent.change(input, { target: { value: "newkey" } });
+    expect(input.value).toBe("newkey");
+
     act(() => {
       latestSaveOpts().onSuccess?.();
     });
-    // apiKeyConfigured=true, removeStoredApiKey=false => hint should appear
-    expect(screen.getByText("fixer_configured_hint")).toBeInTheDocument();
+
+    expect(
+      (document.querySelector("input[type='password']") as HTMLInputElement).value,
+    ).toBe("");
+    expect(mockInvalidateQueries).toHaveBeenCalledWith({
+      queryKey: ["fixer_settings", "u1"],
+    });
   });
 
-  it("saveMut onSuccess does not show hint when removeStoredApiKey was set", () => {
+  it("saveMut onSuccess clears a pending removal, so the hint follows the server again", () => {
     settingsData = { id: "f1", api_key_configured: true, provider: "fixer" };
     render(<FixerTab />);
-    // click remove to set removeStoredApiKey=true — triggers re-render with fresh closure
+
+    // Staging a removal hides the hint locally, before anything is saved.
     fireEvent.click(screen.getByText("remove"));
+    expect(screen.queryByText("fixer_configured_hint")).not.toBeInTheDocument();
+
     act(() => {
       latestSaveOpts().onSuccess?.();
     });
-    // after onSuccess with removeStoredApiKey=true, apiKeyConfigured becomes false
-    expect(screen.queryByText("fixer_configured_hint")).not.toBeInTheDocument();
+
+    // The stub query still reports a stored key, so the hint comes back once
+    // the local removal flag is dropped. In the app the refetch would report
+    // the removal and the hint would stay gone.
+    expect(screen.getByText("fixer_configured_hint")).toBeInTheDocument();
   });
 
   it("saveMut onSuccess does not change apiKeyConfigured when neither apiKey nor removeStoredApiKey", () => {

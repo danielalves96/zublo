@@ -204,4 +204,74 @@ describe("pb_hooks/lib/pure/chat-ai.js", () => {
       reasoning_content: null,
     });
   });
+
+  it("sends the OpenRouter identification headers only to OpenRouter", () => {
+    // Without these OpenRouter answers 401 even when the key itself is valid.
+    const openrouter = chatAi.buildChatRequest(
+      "https://openrouter.ai/api/v1",
+      "key",
+      "some/model",
+      [{ role: "user", content: "hi" }],
+      [],
+    );
+
+    expect(openrouter.headers["HTTP-Referer"]).toBe("https://github.com/danielalves96/zublo");
+    expect(openrouter.headers["X-Title"]).toBe("Zublo");
+
+    const other = chatAi.buildChatRequest(
+      "https://api.openai.com/v1",
+      "key",
+      "gpt-4",
+      [{ role: "user", content: "hi" }],
+      [],
+    );
+
+    expect(other.headers["HTTP-Referer"]).toBeUndefined();
+    expect(other.headers["X-Title"]).toBeUndefined();
+  });
+
+  it("omits the Authorization header when no key is configured", () => {
+    // A self-hosted endpoint behind no auth at all is a supported setup.
+    const request = chatAi.buildChatRequest(
+      "https://llm.internal",
+      "",
+      "local-model",
+      [{ role: "user", content: "hi" }],
+      [],
+    );
+
+    expect(request.headers["Authorization"]).toBeUndefined();
+    expect(request.headers["Content-Type"]).toBe("application/json");
+  });
+
+  it("falls back to a bare message payload when the response has no choices", () => {
+    // Some OpenAI-compatible servers answer with the message at the top level.
+    expect(
+      chatAi.parseChatResponse({ message: { content: "top level" } }, false),
+    ).toEqual({ text: "top level" });
+  });
+
+  it("rejects an OpenAI-shaped response that carries nothing usable", () => {
+    // Each guard has to hold on its own: no choices at all, an empty choices
+    // array, a choice without a message, and a top-level message with no
+    // content are four different ways a provider can answer badly.
+    expect(() => chatAi.parseChatResponse({}, false)).toThrow("Unexpected AI response format");
+    expect(() => chatAi.parseChatResponse({ choices: [] }, false))
+      .toThrow("Unexpected AI response format");
+    expect(() => chatAi.parseChatResponse({ choices: [{}] }, false))
+      .toThrow("Unexpected AI response format");
+    expect(() => chatAi.parseChatResponse({ message: {} }, false))
+      .toThrow("Unexpected AI response format");
+  });
+
+  it("rejects a Gemini response that carries nothing usable", () => {
+    expect(() => chatAi.parseChatResponse({}, true))
+      .toThrow("Unexpected Gemini response format");
+    expect(() => chatAi.parseChatResponse({ candidates: [] }, true))
+      .toThrow("Unexpected Gemini response format");
+    expect(() => chatAi.parseChatResponse({ candidates: [{}] }, true))
+      .toThrow("Unexpected Gemini response format");
+    expect(() => chatAi.parseChatResponse({ candidates: [{ content: {} }] }, true))
+      .toThrow("Unexpected Gemini response format");
+  });
 });

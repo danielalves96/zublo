@@ -3,6 +3,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import net from "node:net";
 
 import {
+  hasPocketBaseBinary,
   PocketBaseIntegrationHarness,
   type PocketBaseErrorResponse,
 } from "./setup.integration";
@@ -20,7 +21,7 @@ interface MockProviderRequest {
   url?: string;
 }
 
-describe.sequential("pb_hooks/routes_ai.pb.js", () => {
+describe.sequential.skipIf(!hasPocketBaseBinary)("pb_hooks/routes_ai.pb.js", () => {
   const harness = new PocketBaseIntegrationHarness();
 
   beforeEach(async () => {
