@@ -112,10 +112,9 @@ function buildChatRequest(rawUrl, apiKey, model, messages, tools) {
 
   // Build headers explicitly — object spread (`...`) is not reliably supported in the
   // PocketBase Goja runtime and can silently produce empty header maps, causing 401s.
-  var openAiHeaders = { "Content-Type": "application/json" };
-  if (apiKey) {
-    openAiHeaders["Authorization"] = "Bearer " + apiKey;
-  }
+  var openAiHeaders = apiKey
+    ? { "Content-Type": "application/json", Authorization: "Bearer " + apiKey }
+    : { "Content-Type": "application/json" };
   // OpenRouter requires these headers for all requests, especially on free-tier models.
   // Without them the API responds with 401 even when the key itself is valid.
   if (rawUrl && rawUrl.indexOf("openrouter.ai") !== -1) {
@@ -164,15 +163,15 @@ function parseChatResponse(resData, isGemini) {
   }
 
   var choice = resData.choices && resData.choices[0];
-  if (!choice || !choice.message) {
-    if (resData.message && resData.message.content) {
-      return { text: resData.message.content };
+  var message = choice && choice.message;
+  if (!message) {
+    // Some OpenAI-compatible servers answer with the message at the top level.
+    var fallbackContent = resData.message && resData.message.content;
+    if (fallbackContent) {
+      return { text: fallbackContent };
     }
     throw new Error("Unexpected AI response format");
-  }
-
-  var message = choice.message;
-  if (message.tool_calls && message.tool_calls.length > 0) {
+  } else if (message.tool_calls && message.tool_calls.length > 0) {
     var normalizedToolCalls = [];
     for (var toolIndex = 0; toolIndex < message.tool_calls.length; toolIndex++) {
       var toolCall = message.tool_calls[toolIndex];
