@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { createHash, randomBytes } from "node:crypto";
 
 import { hasPocketBaseBinary, PocketBaseIntegrationHarness } from "./setup.integration";
 
@@ -208,6 +209,141 @@ describe.skipIf(!hasPocketBaseBinary).sequential("pb_hooks finite subscription s
     expect(byId.get(future.id)!.inactive).toBe(false);
   });
 
+  it("batch reports per-item failures without rolling back what it already wrote", async () => {
+    const { currency, monthlyCycle, userId } = await seedBasics(harness);
+    const apiKey = await seedApiKey(harness, ["subscriptions:write"]);
+    const today = formatDate(new Date());
+
+    const before = await harness.listRecords<SubscriptionRecord>("subscriptions", {});
+    expect(before.items).toHaveLength(0);
+
+    const batch = await harness.jsonRequest<{
+      created: Array<{ id: string; name: string }>;
+      errors: Array<{ index: number; name: string; reason: string }>;
+      success: boolean;
+    }>("/api/external/subscriptions/batch", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body: {
+        items: [
+          {
+            name: "Good",
+            price: 10,
+            currency_id: currency.id,
+            cycle_id: monthlyCycle.id,
+            next_payment: today,
+            payment_limit: 6,
+          },
+          {
+            name: "Both bounds",
+            price: 10,
+            currency_id: currency.id,
+            cycle_id: monthlyCycle.id,
+            next_payment: today,
+            end_date: addDays(today, 90),
+            payment_limit: 6,
+          },
+          {
+            name: "Missing cycle",
+            price: 10,
+            currency_id: currency.id,
+            next_payment: today,
+          },
+        ],
+      },
+    });
+
+    // 200, not 4xx: the first item is already committed, so a status that reads
+    // as "nothing was written" would invite a retry that duplicates it.
+    expect(batch.response.status).toBe(200);
+    expect(batch.json.success).toBe(false);
+    expect(batch.json.created.map((item) => item.name)).toEqual(["Good"]);
+    expect(batch.json.errors.map((item) => item.name)).toEqual(["Both bounds", "Missing cycle"]);
+
+    // The valid item really is persisted, and the rejected ones left nothing
+    // behind — no half-built record pointing at a cycle that does not exist.
+    const after = await harness.listRecords<SubscriptionRecord>("subscriptions", {});
+    expect(after.items.map((item) => item.name)).toEqual(["Good"]);
+    expect(after.items[0].payment_limit).toBe(6);
+    expect(userId).toBe(harness.admin!.record.id);
+  });
+
+  it("batch reports a rejected save instead of answering 500", async () => {
+    const { currency, monthlyCycle } = await seedBasics(harness);
+    const apiKey = await seedApiKey(harness, ["subscriptions:write"]);
+    const today = formatDate(new Date());
+
+    const batch = await harness.jsonRequest<{
+      created: Array<{ name: string }>;
+      errors: Array<{ name: string; reason: string }>;
+      success: boolean;
+    }>("/api/external/subscriptions/batch", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body: {
+        items: [
+          {
+            name: "Priced",
+            price: 10,
+            currency_id: currency.id,
+            cycle_id: monthlyCycle.id,
+            next_payment: today,
+          },
+          // price is required in the schema and PocketBase counts 0 as blank, so
+          // this save throws. Before it was caught per item, one such row made
+          // the whole endpoint answer 500 and discard the response body — while
+          // the row above stayed committed and invisible to the caller.
+          {
+            name: "No price",
+            currency_id: currency.id,
+            cycle_id: monthlyCycle.id,
+            next_payment: today,
+          },
+        ],
+      },
+    });
+
+    expect(batch.response.status).toBe(200);
+    expect(batch.json.success).toBe(false);
+    expect(batch.json.created.map((item) => item.name)).toEqual(["Priced"]);
+    expect(batch.json.errors.map((item) => item.name)).toEqual(["No price"]);
+    expect(batch.json.errors[0].reason).toContain("price");
+
+    const after = await harness.listRecords<SubscriptionRecord>("subscriptions", {});
+    expect(after.items.map((item) => item.name)).toEqual(["Priced"]);
+  });
+
+  it("batch returns success with no errors when every item is valid", async () => {
+    const { currency, monthlyCycle } = await seedBasics(harness);
+    const apiKey = await seedApiKey(harness, ["subscriptions:write"]);
+    const today = formatDate(new Date());
+
+    const batch = await harness.jsonRequest<{
+      created: Array<{ id: string }>;
+      errors: unknown[];
+      success: boolean;
+    }>("/api/external/subscriptions/batch", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body: {
+        items: [
+          {
+            name: "Only good",
+            price: 10,
+            currency_id: currency.id,
+            cycle_id: monthlyCycle.id,
+            next_payment: today,
+          },
+        ],
+      },
+    });
+
+    expect(batch.response.status).toBe(200);
+    expect(batch.json.success).toBe(true);
+    expect(batch.json.errors).toEqual([]);
+    expect(batch.json.created).toHaveLength(1);
+  });
+
   it("clone resets schedule progress instead of copying a spent plan", async () => {
     const { currency, monthlyCycle, userId } = await seedBasics(harness);
     const token = harness.admin!.token;
@@ -240,6 +376,26 @@ describe.skipIf(!hasPocketBaseBinary).sequential("pb_hooks finite subscription s
     expect(clone.inactive).toBe(false);
   });
 });
+
+async function seedApiKey(
+  harness: PocketBaseIntegrationHarness,
+  permissions: string[],
+): Promise<string> {
+  const rawKey = "wk_integration_" + randomBytes(8).toString("hex");
+  // api_keys has no collection rules, so only a superuser may write to it.
+  await harness.createRecord(
+    "api_keys",
+    {
+      key_hash: createHash("sha256").update(rawKey).digest("hex"),
+      key_prefix: rawKey.slice(0, 10),
+      name: "integration",
+      permissions: JSON.stringify(permissions),
+      user: harness.admin!.record.id,
+    },
+    harness.superuser!.token,
+  );
+  return rawKey;
+}
 
 async function seedBasics(harness: PocketBaseIntegrationHarness): Promise<{
   currency: CurrencyRecord;

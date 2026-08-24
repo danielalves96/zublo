@@ -26,5 +26,20 @@ jobs:
       - name: Frontend — test with coverage
         run: bun run test:front:coverage
 
+      # The binary is gitignored and downloaded per machine, so without this the
+      # integration suites skip themselves and CI reports green on hooks nobody
+      # actually exercised. Keep PB_VERSION in step with the Dockerfile.
+      - name: Backend — fetch PocketBase for integration tests
+        env:
+          PB_VERSION: 0.25.9
+        working-directory: apps/backend
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/pb.zip \
+            "https://github.com/pocketbase/pocketbase/releases/download/v${PB_VERSION}/pocketbase_${PB_VERSION}_linux_amd64.zip"
+          unzip -o -q /tmp/pb.zip pocketbase -d .
+          chmod +x ./pocketbase
+          ./pocketbase --version
+
       - name: Backend — test with coverage
         run: bun run test:back:coverage

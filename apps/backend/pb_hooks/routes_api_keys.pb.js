@@ -1364,8 +1364,17 @@ routerAdd("POST", "/api/external/subscriptions/batch", function(e) {
         if (item.category_id) record.set("category", String(item.category_id));
         if (item.payment_method_id) record.set("payment_method", String(item.payment_method_id));
         if (item.payer_id) record.set("payer", String(item.payer_id));
-        $app.save(record);
-        created.push({ id: record.id, name: itemName });
+
+        // A save can still fail on rules this handler does not model — a blank
+        // required price, a relation id that does not resolve. Letting it reach
+        // the outer catch would answer 500 and throw away both `created` and
+        // `errors`, stranding the client with rows it cannot see.
+        try {
+            $app.save(record);
+            created.push({ id: record.id, name: itemName });
+        } catch (saveErr) {
+            errors.push({ index: i, name: itemName, reason: String(saveErr) });
+        }
     }
 
     // Valid items are already committed by the time an invalid one is found, so
