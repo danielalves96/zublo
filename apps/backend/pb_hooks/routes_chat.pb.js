@@ -119,6 +119,9 @@ routerAdd("POST", "/api/ai/chat", function (e) {
           cycle: cycleName,
           frequency: sub.get("frequency") || 1,
           next_payment: sub.get("next_payment"),
+          end_date: sub.get("end_date") || null,
+          payment_limit: sub.get("payment_limit") || null,
+          payments_completed: sub.get("payments_completed") || 0,
           category: categoryName || "Uncategorized",
           payment_method: paymentMethodName || "",
           notes: sub.get("notes") || "",
@@ -152,6 +155,21 @@ routerAdd("POST", "/api/ai/chat", function (e) {
         return { error: "Multiple subscriptions match '" + args.name + "': " + names.join(", ") + ". Please use the exact name." };
       }
       var sub = subs[0];
+      var proposedNextPayment = args.next_payment !== undefined
+        ? String(args.next_payment).slice(0, 10)
+        : String(sub.get("next_payment") || "").slice(0, 10);
+      var proposedEndDate = args.end_date !== undefined
+        ? String(args.end_date || "").slice(0, 10)
+        : String(sub.get("end_date") || "").slice(0, 10);
+      var proposedPaymentLimit = args.payment_limit !== undefined
+        ? Math.max(0, parseInt(args.payment_limit) || 0)
+        : Math.max(0, parseInt(sub.get("payment_limit")) || 0);
+      var proposedCompleted = args.payments_completed !== undefined
+        ? Math.max(0, parseInt(args.payments_completed) || 0)
+        : Math.max(0, parseInt(sub.get("payments_completed")) || 0);
+      if (proposedEndDate && proposedPaymentLimit) return { error: "Use either end_date or payment_limit, not both." };
+      if (proposedEndDate && proposedEndDate < proposedNextPayment) return { error: "end_date cannot be before next_payment." };
+      if (proposedPaymentLimit && (proposedCompleted > proposedPaymentLimit || (proposedCompleted === proposedPaymentLimit && !sub.get("inactive")))) return { error: "payments_completed must be less than payment_limit while active." };
 
       if (args.new_name !== undefined) sub.set("name", args.new_name);
       if (args.price !== undefined) sub.set("price", parseFloat(args.price));
@@ -160,7 +178,11 @@ routerAdd("POST", "/api/ai/chat", function (e) {
       if (args.notes !== undefined) sub.set("notes", args.notes);
       if (args.url !== undefined) sub.set("url", args.url);
       if (args.notify !== undefined) sub.set("notify", !!args.notify);
-      if (args.auto_renew !== undefined) sub.set("auto_renew", !!args.auto_renew);
+      sub.set("end_date", proposedEndDate);
+      sub.set("payment_limit", proposedPaymentLimit);
+      sub.set("payments_completed", proposedCompleted);
+      if (proposedEndDate || proposedPaymentLimit) sub.set("auto_renew", true);
+      else if (args.auto_renew !== undefined) sub.set("auto_renew", !!args.auto_renew);
 
       if (args.currency_code !== undefined) {
         var curs = $app.findRecordsByFilter(
@@ -448,6 +470,14 @@ routerAdd("POST", "/api/ai/chat", function (e) {
         return { error: "Cycle not found: " + args.cycle + ". Use: Daily, Weekly, Monthly, Quarterly, Half-Yearly, or Yearly." };
       }
 
+      var endDate = String(args.end_date || "").slice(0, 10);
+      var paymentLimit = Math.max(0, parseInt(args.payment_limit) || 0);
+      var paymentsCompleted = Math.max(0, parseInt(args.payments_completed) || 0);
+      var nextPayment = String(args.next_payment || "").slice(0, 10);
+      if (endDate && paymentLimit) return { error: "Use either end_date or payment_limit, not both." };
+      if (endDate && endDate < nextPayment) return { error: "end_date cannot be before next_payment." };
+      if (paymentLimit && paymentsCompleted >= paymentLimit) return { error: "payments_completed must be less than payment_limit for a new active subscription." };
+
       var categoryId = "";
       if (args.category_name) {
         try {
@@ -488,6 +518,10 @@ routerAdd("POST", "/api/ai/chat", function (e) {
       record.set("cycle", cycleId);
       record.set("frequency", parseInt(args.frequency) || 1);
       record.set("next_payment", args.next_payment);
+      record.set("end_date", endDate);
+      record.set("payment_limit", paymentLimit);
+      record.set("payments_completed", paymentsCompleted);
+      record.set("auto_renew", endDate || paymentLimit ? true : args.auto_renew !== false);
       record.set("inactive", false);
       if (categoryId) record.set("category", categoryId);
       if (paymentMethodId) record.set("payment_method", paymentMethodId);
@@ -722,7 +756,10 @@ routerAdd("POST", "/api/ai/chat", function (e) {
           notify_days_before: sub.get("notify_days_before") || 3,
           notes: sub.get("notes") || "",
           url: sub.get("url") || "",
-          cancellation_date: sub.get("cancellation_date") || ""
+          cancellation_date: sub.get("cancellation_date") || "",
+          end_date: sub.get("end_date") || "",
+          payment_limit: sub.get("payment_limit") || 0,
+          payments_completed: sub.get("payments_completed") || 0
         });
       }
       var filename = "zublo-subscriptions." + (format === "xlsx" ? "xlsx" : "json");
@@ -1834,9 +1871,12 @@ routerAdd("POST", "/api/ai/chat", function (e) {
             name: { type: "string", description: "Subscription name" },
             price: { type: "number", description: "Billing price" },
             currency_code: { type: "string", description: "ISO 4217 code e.g. BRL, USD, EUR" },
-            cycle: { type: "string", enum: ["Daily", "Weekly", "Monthly", "Yearly"] },
+            cycle: { type: "string", enum: ["Daily", "Weekly", "Monthly", "Quarterly", "Half-Yearly", "Yearly"] },
             frequency: { type: "integer", description: "Cycles between payments. Default 1.", default: 1 },
             next_payment: { type: "string", description: "Next payment date YYYY-MM-DD" },
+            end_date: { type: "string", description: "Inclusive last payment date YYYY-MM-DD; mutually exclusive with payment_limit" },
+            payment_limit: { type: "integer", description: "Total number of payments; mutually exclusive with end_date" },
+            payments_completed: { type: "integer", description: "Payments already elapsed; must be less than payment_limit", default: 0 },
             category_name: { type: "string", description: "Category name (created automatically if doesn't exist)" },
             payment_method_name: { type: "string", description: "Exact payment method name (must exist)" },
             notes: { type: "string" },
@@ -1859,9 +1899,12 @@ routerAdd("POST", "/api/ai/chat", function (e) {
             new_name: { type: "string", description: "New name to rename it to" },
             price: { type: "number", description: "New billing price" },
             currency_code: { type: "string", description: "New currency ISO code" },
-            cycle: { type: "string", enum: ["Daily", "Weekly", "Monthly", "Yearly"] },
+            cycle: { type: "string", enum: ["Daily", "Weekly", "Monthly", "Quarterly", "Half-Yearly", "Yearly"] },
             frequency: { type: "integer" },
             next_payment: { type: "string", description: "New next payment date YYYY-MM-DD" },
+            end_date: { type: "string", description: "Inclusive last payment date; empty string clears it" },
+            payment_limit: { type: "integer", description: "Total payments; 0 clears it" },
+            payments_completed: { type: "integer", description: "Payments already elapsed" },
             category_name: { type: "string", description: "New category name (empty string to clear)" },
             payment_method_name: { type: "string", description: "New payment method name (empty string to clear)" },
             notes: { type: "string" },
@@ -2157,9 +2200,12 @@ routerAdd("POST", "/api/ai/chat", function (e) {
                   name: { type: "string" },
                   price: { type: "number" },
                   currency_code: { type: "string", description: "ISO 4217 e.g. BRL, USD, EUR" },
-                  cycle: { type: "string", enum: ["Daily", "Weekly", "Monthly", "Yearly"] },
+                  cycle: { type: "string", enum: ["Daily", "Weekly", "Monthly", "Quarterly", "Half-Yearly", "Yearly"] },
                   frequency: { type: "integer", default: 1 },
                   next_payment: { type: "string", description: "YYYY-MM-DD" },
+                  end_date: { type: "string", description: "Inclusive last payment date; mutually exclusive with payment_limit" },
+                  payment_limit: { type: "integer", description: "Total number of payments" },
+                  payments_completed: { type: "integer", default: 0 },
                   category_name: { type: "string" },
                   payment_method_name: { type: "string" },
                   notes: { type: "string" },

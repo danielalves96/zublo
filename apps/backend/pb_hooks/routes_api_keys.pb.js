@@ -228,6 +228,9 @@ routerAdd("GET", "/api/external/subscriptions", function(e) {
         frequency: sub.get("frequency"),
         cycle: cycleName,
         next_payment: sub.get("next_payment"),
+        end_date: sub.get("end_date") || null,
+        payment_limit: sub.get("payment_limit") || null,
+        payments_completed: sub.get("payments_completed") || 0,
         auto_renew: sub.get("auto_renew"),
         inactive: sub.get("inactive"),
         notes: sub.get("notes") || null,
@@ -291,6 +294,9 @@ routerAdd("GET", "/api/external/subscriptions/{id}", function(e) {
       cycle_id: sub.get("cycle"),
       cycle: cycleName,
       next_payment: sub.get("next_payment"),
+      end_date: sub.get("end_date") || null,
+      payment_limit: sub.get("payment_limit") || null,
+      payments_completed: sub.get("payments_completed") || 0,
       auto_renew: sub.get("auto_renew"),
       inactive: sub.get("inactive"),
       notes: sub.get("notes") || null,
@@ -370,11 +376,17 @@ routerAdd("POST", "/api/external/subscriptions", function(e) {
     var cycleId = String(body.cycle_id || "").trim();
     var frequency = parseInt(body.frequency) || 1;
     var nextPayment = String(body.next_payment || "").trim();
+    var endDate = String(body.end_date || "").trim().slice(0, 10);
+    var paymentLimit = Math.max(0, parseInt(body.payment_limit) || 0);
+    var paymentsCompleted = Math.max(0, parseInt(body.payments_completed) || 0);
 
     if (!name) return e.json(400, { error: "name is required" });
     if (!currencyId) return e.json(400, { error: "currency_id is required" });
     if (!cycleId) return e.json(400, { error: "cycle_id is required" });
     if (!nextPayment) return e.json(400, { error: "next_payment is required (YYYY-MM-DD)" });
+    if (endDate && paymentLimit) return e.json(400, { error: "Use either end_date or payment_limit, not both" });
+    if (endDate && endDate < nextPayment.slice(0, 10)) return e.json(400, { error: "end_date cannot be before next_payment" });
+    if (paymentLimit && (paymentsCompleted > paymentLimit || (paymentsCompleted === paymentLimit && body.inactive !== true))) return e.json(400, { error: "payments_completed must be less than payment_limit while active" });
 
     try {
       var cur = $app.findRecordById("currencies", currencyId);
@@ -390,7 +402,10 @@ routerAdd("POST", "/api/external/subscriptions", function(e) {
     record.set("frequency", frequency);
     record.set("next_payment", nextPayment);
     record.set("user", userId);
-    record.set("auto_renew", body.auto_renew === true);
+    record.set("auto_renew", endDate || paymentLimit ? true : body.auto_renew === true);
+    record.set("end_date", endDate);
+    record.set("payment_limit", paymentLimit);
+    record.set("payments_completed", paymentsCompleted);
     record.set("notify", body.notify === true);
     record.set("notify_days_before", parseInt(body.notify_days_before) || 3);
     record.set("inactive", body.inactive === true);
@@ -859,6 +874,23 @@ routerAdd("PUT", "/api/external/subscriptions/{id}", function(e) {
     if (record.get("user") !== userId) return e.json(403, { error: "Forbidden" });
 
     var body = e.requestInfo().body;
+    var proposedNextPayment = body.next_payment !== undefined
+      ? String(body.next_payment).trim().slice(0, 10)
+      : String(record.get("next_payment") || "").slice(0, 10);
+    var proposedEndDate = body.end_date !== undefined
+      ? String(body.end_date || "").trim().slice(0, 10)
+      : String(record.get("end_date") || "").slice(0, 10);
+    var proposedPaymentLimit = body.payment_limit !== undefined
+      ? Math.max(0, parseInt(body.payment_limit) || 0)
+      : Math.max(0, parseInt(record.get("payment_limit")) || 0);
+    var proposedCompleted = body.payments_completed !== undefined
+      ? Math.max(0, parseInt(body.payments_completed) || 0)
+      : Math.max(0, parseInt(record.get("payments_completed")) || 0);
+
+    if (proposedEndDate && proposedPaymentLimit) return e.json(400, { error: "Use either end_date or payment_limit, not both" });
+    if (proposedEndDate && proposedEndDate < proposedNextPayment) return e.json(400, { error: "end_date cannot be before next_payment" });
+    var proposedInactive = body.inactive !== undefined ? body.inactive === true : record.get("inactive") === true;
+    if (proposedPaymentLimit && (proposedCompleted > proposedPaymentLimit || (proposedCompleted === proposedPaymentLimit && !proposedInactive))) return e.json(400, { error: "payments_completed must be less than payment_limit while active" });
 
     if (body.name !== undefined) record.set("name", String(body.name).trim());
     if (body.price !== undefined) record.set("price", parseFloat(body.price) || 0);
@@ -866,10 +898,14 @@ routerAdd("PUT", "/api/external/subscriptions/{id}", function(e) {
     if (body.cycle_id !== undefined) record.set("cycle", String(body.cycle_id).trim());
     if (body.frequency !== undefined) record.set("frequency", parseInt(body.frequency) || 1);
     if (body.next_payment !== undefined) record.set("next_payment", String(body.next_payment).trim());
-    if (body.auto_renew !== undefined) record.set("auto_renew", body.auto_renew === true);
     if (body.notify !== undefined) record.set("notify", body.notify === true);
     if (body.notify_days_before !== undefined) record.set("notify_days_before", parseInt(body.notify_days_before) || 3);
     if (body.inactive !== undefined) record.set("inactive", body.inactive === true);
+    record.set("end_date", proposedEndDate);
+    record.set("payment_limit", proposedPaymentLimit);
+    record.set("payments_completed", proposedCompleted);
+    if (proposedEndDate || proposedPaymentLimit) record.set("auto_renew", true);
+    else if (body.auto_renew !== undefined) record.set("auto_renew", body.auto_renew === true);
     if (body.notes !== undefined) record.set("notes", String(body.notes));
     if (body.url !== undefined) record.set("url", String(body.url));
     if (body.category_id !== undefined) record.set("category", String(body.category_id));
@@ -1276,22 +1312,80 @@ routerAdd("POST", "/api/external/subscriptions/batch", function(e) {
 
     var col = $app.findCollectionByNameOrId("subscriptions");
     var created = [];
+    var errors = [];
 
     for (var i = 0; i < items.length; i++) {
         var item = items[i];
+        var itemName = String(item.name || "Unnamed");
+        var itemNextPayment = String(item.next_payment || "").trim().slice(0, 10);
+        var itemEndDate = String(item.end_date || "").trim().slice(0, 10);
+        var itemPaymentLimit = Math.max(0, parseInt(item.payment_limit) || 0);
+        var itemCompleted = Math.max(0, parseInt(item.payments_completed) || 0);
+
+        if (!item.currency_id) {
+            errors.push({ index: i, name: itemName, reason: "currency_id is required" });
+            continue;
+        }
+        if (!item.cycle_id) {
+            errors.push({ index: i, name: itemName, reason: "cycle_id is required" });
+            continue;
+        }
+        if (!itemNextPayment) {
+            errors.push({ index: i, name: itemName, reason: "next_payment is required (YYYY-MM-DD)" });
+            continue;
+        }
+        if (itemEndDate && itemPaymentLimit) {
+            errors.push({ index: i, name: itemName, reason: "Use either end_date or payment_limit, not both" });
+            continue;
+        }
+        if (itemEndDate && itemEndDate < itemNextPayment) {
+            errors.push({ index: i, name: itemName, reason: "end_date cannot be before next_payment" });
+            continue;
+        }
+        if (itemPaymentLimit && (itemCompleted > itemPaymentLimit || (itemCompleted === itemPaymentLimit && item.inactive !== true))) {
+            errors.push({ index: i, name: itemName, reason: "payments_completed must be less than payment_limit while active" });
+            continue;
+        }
+
         var record = new Record(col);
         record.set("user", userId);
-        record.set("name", String(item.name || "Unnamed"));
+        record.set("name", itemName);
         record.set("price", parseFloat(item.price) || 0);
         record.set("currency", String(item.currency_id));
         record.set("cycle", String(item.cycle_id));
-        record.set("next_payment", String(item.next_payment));
-        // Add other fields optionally...
-        $app.save(record);
-        created.push({ id: record.id, name: item.name });
+        record.set("next_payment", itemNextPayment);
+        record.set("end_date", itemEndDate);
+        record.set("payment_limit", itemPaymentLimit);
+        record.set("payments_completed", itemCompleted);
+        record.set("auto_renew", itemEndDate || itemPaymentLimit ? true : item.auto_renew === true);
+        record.set("inactive", item.inactive === true);
+        if (item.notes !== undefined) record.set("notes", String(item.notes));
+        if (item.url !== undefined) record.set("url", String(item.url));
+        if (item.category_id) record.set("category", String(item.category_id));
+        if (item.payment_method_id) record.set("payment_method", String(item.payment_method_id));
+        if (item.payer_id) record.set("payer", String(item.payer_id));
+
+        // A save can still fail on rules this handler does not model — a blank
+        // required price, a relation id that does not resolve. Letting it reach
+        // the outer catch would answer 500 and throw away both `created` and
+        // `errors`, stranding the client with rows it cannot see.
+        try {
+            $app.save(record);
+            created.push({ id: record.id, name: itemName });
+        } catch (saveErr) {
+            errors.push({ index: i, name: itemName, reason: String(saveErr) });
+        }
     }
 
-    return e.json(200, { success: true, created: created });
+    // Valid items are already committed by the time an invalid one is found, so
+    // a 4xx here would tell the client nothing was written and invite a retry
+    // that duplicates them. Report partial success instead: 200 always means
+    // "read `created` and `errors`", never "everything worked".
+    return e.json(200, {
+        success: errors.length === 0,
+        created: created,
+        errors: errors,
+    });
   } catch (err) { return e.json(500, { error: String(err) }); }
 });
 

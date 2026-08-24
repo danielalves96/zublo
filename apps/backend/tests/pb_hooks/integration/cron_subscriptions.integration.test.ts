@@ -33,7 +33,7 @@ interface WebhookPayload {
   title: string;
 }
 
-describe.sequential.skipIf(!hasPocketBaseBinary)("pb_hooks/cron_subscriptions.pb.js deduplication", () => {
+describe.skipIf(!hasPocketBaseBinary).sequential("pb_hooks/cron_subscriptions.pb.js deduplication", () => {
   const harness = new PocketBaseIntegrationHarness();
 
   beforeEach(async () => {

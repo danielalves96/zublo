@@ -21,7 +21,7 @@ interface MockProviderRequest {
   url?: string;
 }
 
-describe.sequential.skipIf(!hasPocketBaseBinary)("pb_hooks/routes_ai.pb.js", () => {
+describe.skipIf(!hasPocketBaseBinary).sequential("pb_hooks/routes_ai.pb.js", () => {
   const harness = new PocketBaseIntegrationHarness();
 
   beforeEach(async () => {

@@ -1,5 +1,5 @@
 import { subscriptionsService } from "@/services/subscriptions";
-import type { Currency, Cycle, PaymentRecord,Subscription } from "@/types";
+import type { Currency, Cycle, PaymentRecord, Subscription } from "@/types";
 
 // ─── Sub-types ───────────────────────────────────────────────────────────────
 
@@ -51,8 +51,7 @@ export function getPaymentRecord(
     .filter((r) => !!r.paid_at)
     .sort(
       /* v8 ignore start */
-      (a, b) =>
-        new Date(b.paid_at ?? 0).getTime() - new Date(a.paid_at ?? 0).getTime(),
+      (a, b) => new Date(b.paid_at ?? 0).getTime() - new Date(a.paid_at ?? 0).getTime(),
       /* v8 ignore stop */
     );
 
@@ -79,9 +78,9 @@ export function parseLocalDate(value: string | undefined | null): Date | null {
     // Mar 3), which would move a projection bound without anyone noticing, so
     // only a value that round-trips unchanged is a real date.
     if (
-      parsed.getFullYear() !== year
-      || parsed.getMonth() !== month - 1
-      || parsed.getDate() !== day
+      parsed.getFullYear() !== year ||
+      parsed.getMonth() !== month - 1 ||
+      parsed.getDate() !== day
     ) {
       return null;
     }
@@ -102,8 +101,6 @@ export function getOccurrencesInMonth(
   month: number,
   cycles: Cycle[],
 ): Date[] {
-  if (sub.inactive) return [];
-
   const cycle = sub.expand?.cycle ?? cycles.find((c) => c.id === sub.cycle);
   const cycleName = cycle?.name ?? "Monthly";
 
@@ -118,18 +115,30 @@ export function getOccurrencesInMonth(
   let cursor = anchor;
 
   // Occurrences only exist inside the subscription's own lifetime: never before
-  // its start date and never after a scheduled cancellation date.
+  // its start date and never after a cancellation or finite-schedule bound.
   const startDate = parseLocalDate(sub.start_date);
   const endDate = parseLocalDate(sub.cancellation_date);
+  const scheduleEndDate = parseLocalDate(sub.end_date);
+  const paymentLimit = Math.max(0, Math.floor(sub.payment_limit ?? 0));
+  const paymentsCompleted = Math.max(0, Math.floor(sub.payments_completed ?? 0));
 
-  const rangeStart =
-    startDate && startDate > monthStart ? startDate : monthStart;
+  // Normally next_payment is the *upcoming* occurrence, so its index equals the
+  // number already elapsed. A completed count-bounded schedule is the exception:
+  // advanceFiniteSchedule parks next_payment on the final payment rather than
+  // advancing past it, so there the anchor is the last valid index instead.
+  const countBoundReached = paymentLimit > 0 && paymentsCompleted >= paymentLimit;
+  let occurrenceIndex = countBoundReached ? paymentLimit - 1 : paymentsCompleted;
+
+  const rangeStart = startDate && startDate > monthStart ? startDate : monthStart;
+  const effectiveEndDate = [endDate, scheduleEndDate]
+    .filter((date): date is Date => !!date)
+    .sort((left, right) => left.getTime() - right.getTime())[0];
   const rangeEnd =
-    endDate && endDate < monthEnd
+    effectiveEndDate && effectiveEndDate < monthEnd
       ? new Date(
-          endDate.getFullYear(),
-          endDate.getMonth(),
-          endDate.getDate(),
+          effectiveEndDate.getFullYear(),
+          effectiveEndDate.getMonth(),
+          effectiveEndDate.getDate(),
           23,
           59,
           59,
@@ -152,35 +161,72 @@ export function getOccurrencesInMonth(
   };
 
   const add = (d: Date): Date => {
-    if (cycleName === "Daily") { const r = new Date(d); r.setDate(r.getDate() + freq); return r; }
-    if (cycleName === "Weekly") { const r = new Date(d); r.setDate(r.getDate() + freq * 7); return r; }
+    if (cycleName === "Daily") {
+      const r = new Date(d);
+      r.setDate(r.getDate() + freq);
+      return r;
+    }
+    if (cycleName === "Weekly") {
+      const r = new Date(d);
+      r.setDate(r.getDate() + freq * 7);
+      return r;
+    }
     if (cycleName === "Monthly") return addMonths(d, freq);
+    if (cycleName === "Quarterly") return addMonths(d, freq * 3);
+    if (cycleName === "Half-Yearly") return addMonths(d, freq * 6);
     if (cycleName === "Yearly") return addMonths(d, freq * 12);
     return new Date(d);
   };
 
   const sub1 = (d: Date): Date => {
-    if (cycleName === "Daily") { const r = new Date(d); r.setDate(r.getDate() - freq); return r; }
-    if (cycleName === "Weekly") { const r = new Date(d); r.setDate(r.getDate() - freq * 7); return r; }
+    if (cycleName === "Daily") {
+      const r = new Date(d);
+      r.setDate(r.getDate() - freq);
+      return r;
+    }
+    if (cycleName === "Weekly") {
+      const r = new Date(d);
+      r.setDate(r.getDate() - freq * 7);
+      return r;
+    }
     if (cycleName === "Monthly") return addMonths(d, -freq);
+    if (cycleName === "Quarterly") return addMonths(d, -freq * 3);
+    if (cycleName === "Half-Yearly") return addMonths(d, -freq * 6);
     if (cycleName === "Yearly") return addMonths(d, -freq * 12);
     return new Date(d);
   };
 
+  // An inactive subscription is normally hidden. The exception is one that went
+  // inactive by *finishing* its finite schedule: those payments really happened,
+  // so their history stays on the calendar (the bounds below already stop the
+  // projection at the final occurrence). A merely paused schedule still has
+  // payments ahead of it and must not project them, so "has a bound" is not
+  // enough — the bound has to have been reached. Both checks mirror the backend
+  // completion rules in pb_hooks/lib/pure/subscription-limits.js so the calendar
+  // and the cron agree on when a schedule is done.
+  if (sub.inactive) {
+    const dateBoundReached = !!scheduleEndDate && add(anchor) > scheduleEndDate;
+    if (!countBoundReached && !dateBoundReached) return [];
+  }
+
   let g = 0;
   while (cursor > rangeStart && g++ < 600) {
+    if (paymentLimit && occurrenceIndex === 0) break;
     const prev = sub1(cursor);
     if (prev.getTime() >= cursor.getTime()) break;
     cursor = prev;
+    if (paymentLimit) occurrenceIndex -= 1;
   }
 
   const results: Date[] = [];
   g = 0;
   while (cursor <= rangeEnd && g++ < 600) {
+    if (paymentLimit && occurrenceIndex >= paymentLimit) break;
     if (cursor >= rangeStart) results.push(new Date(cursor));
     const next = add(cursor);
     if (next.getTime() <= cursor.getTime()) break;
     cursor = next;
+    if (paymentLimit) occurrenceIndex += 1;
   }
 
   return results;
