@@ -32,6 +32,21 @@ routerAdd("POST", "/api/cron/{job}", function(e) {
   }
 
   // ----------------------------------------------------------------
+  if (job === "auto_mark_paid") {
+    var dateHelpers = require(__hooks + "/lib/date-helpers.js");
+    var paymentTracking = require(__hooks + "/lib/auto-mark-paid.js");
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    var created = paymentTracking.markDuePaymentsPaid(
+      $app,
+      dateHelpers.formatLocalDate(today),
+    );
+
+    return e.json(200, { message: "auto_mark_paid: created " + created + " payment record(s)" });
+  }
+
+  // ----------------------------------------------------------------
   if (job === "send_notifications") {
     var notifHelpers = require(__hooks + "/lib/notifications.js");
     var dateHelpers = require(__hooks + "/lib/date-helpers.js");

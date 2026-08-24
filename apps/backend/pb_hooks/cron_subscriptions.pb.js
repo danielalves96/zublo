@@ -261,54 +261,17 @@ cronAdd("sendCancellationNotifications", "0 * * * *", () => {
 // ================================================================
 // CRON 7: Auto-mark Payments as Paid
 // ================================================================
-cronAdd("autoMarkPaid", "0 0 * * *", () => {
+// Five minutes after schedule advancement. updateNextPayment records due
+// payments itself before changing the subscription; this job is a fallback
+// and the offset prevents both callbacks from racing to write the same row.
+cronAdd("autoMarkPaid", "5 0 * * *", () => {
   const dateHelpers = require(__hooks + "/lib/date-helpers.js");
+  const paymentTracking = require(__hooks + "/lib/auto-mark-paid.js");
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const todayStr = dateHelpers.formatLocalDate(today);
 
-  // Find all subscriptions due today that have auto_mark_paid enabled
-  const subs = $app.findRecordsByFilter(
-    "subscriptions",
-    "inactive = false && auto_mark_paid = true && next_payment = {:today}",
-    "",
-    0,
-    0,
-    { today: todayStr }
-  );
-
-  let created = 0;
-  for (const sub of subs) {
-    const userId = sub.get("user");
-    try {
-      const user = $app.findRecordById("users", userId);
-      if (!user.get("payment_tracking")) continue;
-
-      // Skip if already has a payment_record for this due_date
-      const existing = $app.findRecordsByFilter(
-        "payment_records",
-        "subscription_id = {:sid} && due_date = {:date}",
-        "",
-        1,
-        0,
-        { sid: sub.id, date: todayStr }
-      );
-      if (existing.length > 0) continue;
-
-      const col = $app.findCollectionByNameOrId("payment_records");
-      const rec = new Record(col);
-      rec.set("subscription_id", sub.id);
-      rec.set("user", userId);
-      rec.set("due_date", todayStr);
-      rec.set("paid_at", new Date().toISOString());
-      rec.set("auto_paid", true);
-      rec.set("amount", sub.get("price"));
-      $app.save(rec);
-      created++;
-    } catch (e) {
-      console.log("[Zublo] autoMarkPaid error for sub " + sub.id + ":", e);
-    }
-  }
+  const created = paymentTracking.markDuePaymentsPaid($app, todayStr);
 
   console.log("[Zublo] autoMarkPaid: created " + created + " payment records");
 });

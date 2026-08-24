@@ -23,6 +23,15 @@ interface SubscriptionRecord {
   payments_completed: number;
 }
 
+interface PaymentRecord {
+  amount: number;
+  auto_paid: boolean;
+  due_date: string;
+  id: string;
+  subscription_id: string;
+  user: string;
+}
+
 /**
  * Live coverage for finite schedules, against a real PocketBase.
  *
@@ -207,6 +216,73 @@ describe.skipIf(!hasPocketBaseBinary).sequential("pb_hooks finite subscription s
     // Untouched.
     expect(byId.get(future.id)!.next_payment.slice(0, 10)).toBe(addDays(today, 30));
     expect(byId.get(future.id)!.inactive).toBe(false);
+  });
+
+  it("records the final automatic payment before schedule advancement deactivates it", async () => {
+    const { currency, monthlyCycle, userId } = await seedBasics(harness);
+    const token = harness.admin!.token;
+    const today = formatDate(new Date());
+
+    const paymentTracking = await harness.jsonRequest(
+      `/api/collections/users/records/${userId}`,
+      {
+        method: "PATCH",
+        body: { payment_tracking: true },
+        token,
+      },
+    );
+    expect(paymentTracking.response.ok).toBe(true);
+
+    const subscription = await harness.createRecord<SubscriptionRecord>("subscriptions", {
+      ...subscriptionDefaults(currency.id, monthlyCycle.id, userId),
+      name: "Last auto-paid installment",
+      next_payment: today,
+      auto_mark_paid: true,
+      auto_renew: true,
+      payment_limit: 1,
+      payments_completed: 0,
+    });
+
+    // Reproduce the problematic order: schedule advancement runs first at
+    // midnight and consumes the final installment, making the row inactive.
+    const advancement = await harness.jsonRequest<{ message: string }>(
+      "/api/cron/check_subscriptions",
+      { method: "POST", token },
+    );
+    expect(advancement.response.ok).toBe(true);
+    expect(advancement.json.message).toContain("processed 1 subscription(s)");
+
+    const afterAdvance = await harness.listRecords<SubscriptionRecord>("subscriptions", {
+      filter: `id = "${subscription.id}"`,
+    });
+    expect(afterAdvance.items[0]).toMatchObject({
+      inactive: true,
+      payment_limit: 1,
+      payments_completed: 1,
+    });
+
+    const paymentsAfterAdvance = await harness.listRecords<PaymentRecord>("payment_records", {});
+    expect(paymentsAfterAdvance.items).toHaveLength(1);
+    expect(paymentsAfterAdvance.items[0]).toMatchObject({
+      amount: 10,
+      auto_paid: true,
+      due_date: today,
+      subscription_id: subscription.id,
+      user: userId,
+    });
+
+    // Then the dedicated autoMarkPaid cron fires. Its shared due-date check
+    // must neither miss the final payment nor write the same occurrence twice.
+    const autoMark = await harness.jsonRequest<{ message: string }>(
+      "/api/cron/auto_mark_paid",
+      { method: "POST", token },
+    );
+    expect(autoMark.response.ok).toBe(true);
+    expect(autoMark.json.message).toContain("created 0 payment record(s)");
+
+    const paymentsAfterBothJobs = await harness.listRecords<PaymentRecord>("payment_records", {});
+    expect(paymentsAfterBothJobs.items).toHaveLength(1);
+    expect(paymentsAfterBothJobs.items[0].id).toBe(paymentsAfterAdvance.items[0].id);
   });
 
   it("batch reports per-item failures without rolling back what it already wrote", async () => {

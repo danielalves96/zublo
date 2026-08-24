@@ -31,6 +31,11 @@ describe("subscription schedule hooks", () => {
 
     const remainder = DUE_FILTER.split("end_date != '' && end_date < {:today}").join("");
     expect(remainder).not.toMatch(/end_date\s*<\s*\{:today\}/);
+    // PocketBase persists date fields with a midnight timestamp. A plain
+    // `<= YYYY-MM-DD` comparison excludes occurrences on the calendar day,
+    // so the upper bound must be the start of tomorrow instead.
+    expect(DUE_FILTER).toContain("next_payment < {:tomorrow}");
+    expect(DUE_FILTER).not.toContain("next_payment <= {:today}");
   });
 
   it.each(SCHEDULE_ADVANCERS)("%s delegates to the shared advancement", (name) => {
@@ -44,6 +49,31 @@ describe("subscription schedule hooks", () => {
     expect(source).not.toContain("advanceFiniteSchedule");
     expect(source).not.toMatch(/end_date\s*<\s*\{:today\}/);
     expect(source).not.toMatch(/while\s*\(\s*nextPayment\s*<=\s*today\s*\)/);
+  });
+
+  it("marks due payments before advancing finite schedules", () => {
+    const source = fs.readFileSync(
+      path.join(HOOKS_DIR, "lib/subscription-schedule.js"),
+      "utf8",
+    );
+    const markPaidAt = source.indexOf("paymentTracking.markDuePaymentsPaid");
+    const findDueAt = source.indexOf('findRecordsByFilter("subscriptions", DUE_FILTER');
+
+    expect(source).toContain("lib/auto-mark-paid.js");
+    expect(markPaidAt).toBeGreaterThan(-1);
+    expect(findDueAt).toBeGreaterThan(markPaidAt);
+  });
+
+  it("keeps cron and manual auto-mark-paid runs on the shared idempotent helper", () => {
+    for (const name of ["cron_subscriptions.pb.js", "routes_cron.pb.js"]) {
+      const source = sourceOf(name);
+      expect(source).toContain("lib/auto-mark-paid.js");
+      expect(source).toContain("markDuePaymentsPaid");
+    }
+
+    const cronSource = sourceOf("cron_subscriptions.pb.js");
+    expect(cronSource).toContain('cronAdd("updateNextPayment", "0 0 * * *"');
+    expect(cronSource).toContain('cronAdd("autoMarkPaid", "5 0 * * *"');
   });
 
   it("is the only place that queries subscriptions for advancement", () => {
@@ -69,5 +99,6 @@ describe("subscription schedule hooks", () => {
     // The hooks build this path at runtime from __hooks, so a rename would only
     // surface as a 500 in production without this check.
     expect(fs.existsSync(path.join(HOOKS_DIR, "lib/subscription-schedule.js"))).toBe(true);
+    expect(fs.existsSync(path.join(HOOKS_DIR, "lib/auto-mark-paid.js"))).toBe(true);
   });
 });

@@ -27,8 +27,7 @@ const SUBSCRIPTION_CREATE_BODY = `{
   "cycle_id": "<id>",          // required - from GET api/external/cycles
   "frequency": 1,              // required - e.g. 1 = every 1 cycle
   "next_payment": "2025-02-01",// required - YYYY-MM-DD
-  "end_date": "2025-12-01",    // optional, inclusive; mutually exclusive with payment_limit
-  "payment_limit": 12,          // optional, mutually exclusive with end_date
+  "payment_limit": 12,          // optional; use end_date instead to limit by date
   "payments_completed": 0,      // optional, must be less than payment_limit
   "auto_renew": true,          // optional; forced true when end_date or payment_limit is set
   "notify": true,              // optional
@@ -66,8 +65,7 @@ const SUBSCRIPTION_UPDATE_BODY = `{
   "cycle_id": "<id>",          // optional
   "frequency": 1,              // optional
   "next_payment": "2025-03-01",// optional
-  "end_date": null,             // optional, inclusive; mutually exclusive with payment_limit
-  "payment_limit": 6,           // optional, 0 removes the limit
+  "payment_limit": 6,           // optional, 0 removes the limit; use end_date instead to limit by date
   "payments_completed": 2,      // optional, must be less than payment_limit
   "auto_renew": true,          // optional; forced true when end_date or payment_limit is set
   "notify": true,              // optional
@@ -114,8 +112,7 @@ const SUBSCRIPTION_BATCH_BODY = `{
       "currency_id": "<id>",   // required
       "cycle_id": "<id>",      // required
       "next_payment": "2025-02-01", // required - YYYY-MM-DD
-      "end_date": "2025-12-01",     // optional, mutually exclusive with payment_limit
-      "payment_limit": 12,          // optional, mutually exclusive with end_date
+      "payment_limit": 12,          // optional; use end_date instead to limit by date
       "payments_completed": 0       // optional, must be less than payment_limit
     }
   ]

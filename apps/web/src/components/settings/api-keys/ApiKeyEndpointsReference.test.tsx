@@ -85,6 +85,25 @@ describe("ApiKeyEndpointsReference", () => {
     expect(screen.getAllByText("api_key_show_body_schema").length).toBeGreaterThan(0);
   });
 
+  it("never documents mutually exclusive finite bounds in the same request body", () => {
+    render(<ApiKeyEndpointsReference />);
+    fireEvent.click(screen.getByText("api_key_endpoints_title"));
+    fireEvent.click(screen.getByText("subscriptions"));
+
+    for (const toggle of screen.getAllByText("api_key_show_body_schema")) {
+      fireEvent.click(toggle);
+    }
+
+    const finiteExamples = Array.from(document.querySelectorAll("pre"))
+      .map((element) => element.textContent || "")
+      .filter((body) => body.includes('"payment_limit":'));
+
+    expect(finiteExamples).toHaveLength(3);
+    for (const body of finiteExamples) {
+      expect(body).not.toContain('"end_date":');
+    }
+  });
+
   it("collapses body schema when toggle is clicked again", () => {
     render(<ApiKeyEndpointsReference />);
     fireEvent.click(screen.getByText("api_key_endpoints_title"));

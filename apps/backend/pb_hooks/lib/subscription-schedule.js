@@ -14,7 +14,7 @@
  */
 var DUE_FILTER =
   "inactive = false && auto_renew = true && " +
-  "(next_payment <= {:today} || (end_date != '' && end_date < {:today}))";
+  "(next_payment < {:tomorrow} || (end_date != '' && end_date < {:today}))";
 
 /**
  * Advances every subscription that is due as of `todayStr`.
@@ -26,10 +26,23 @@ var DUE_FILTER =
  */
 function advanceDueSubscriptions(app, todayStr) {
   var dateHelpers = require(__hooks + "/lib/date-helpers.js");
+  var paymentTracking = require(__hooks + "/lib/auto-mark-paid.js");
   var subscriptionLimits = require(__hooks + "/lib/pure/subscription-limits.js");
+
+  // Record due payments before this helper can advance or deactivate their
+  // subscriptions. The dedicated autoMarkPaid fallback runs five minutes
+  // later and deduplicates by subscription and due date.
+  paymentTracking.markDuePaymentsPaid(app, todayStr);
+
+  var tomorrow = dateHelpers.advanceDate(
+    new Date(todayStr + "T00:00:00.000Z"),
+    "Daily",
+    1,
+  ).toISOString().slice(0, 10);
 
   var subs = app.findRecordsByFilter("subscriptions", DUE_FILTER, "", 0, 0, {
     today: todayStr,
+    tomorrow: tomorrow,
   });
 
   for (var i = 0; i < subs.length; i++) {
