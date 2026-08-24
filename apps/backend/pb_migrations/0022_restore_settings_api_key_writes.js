@@ -37,12 +37,10 @@ migrate(
   (app) => {
     const col = app.findCollectionByNameOrId("fixer_settings");
 
-    for (const field of col.fields) {
-      if (field.name === "api_key") {
-        field.hidden = true;
-      }
-    }
-
+    // Reverting the owner-scoped create rule is safe on every install, but we
+    // deliberately do NOT re-hide api_key. On fresh installs migration 0017
+    // already writes it visible, so re-hiding here would reintroduce the exact
+    // key-discard bug this migration fixes.
     col.createRule = "@request.auth.id != ''";
     app.save(col);
   },

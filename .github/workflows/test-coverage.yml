@@ -23,6 +23,15 @@ jobs:
         working-directory: apps/web
         run: bun install
 
+      - name: Download PocketBase binary (for backend integration tests)
+        run: |
+          wget -q \
+            "https://github.com/pocketbase/pocketbase/releases/download/v0.25.9/pocketbase_0.25.9_linux_amd64.zip" \
+            -O /tmp/pb.zip
+          unzip -o /tmp/pb.zip pocketbase -d apps/backend
+          chmod +x apps/backend/pocketbase
+          rm /tmp/pb.zip
+
       - name: Frontend — test with coverage
         run: bun run test:front:coverage
 

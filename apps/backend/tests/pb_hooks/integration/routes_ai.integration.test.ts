@@ -177,6 +177,29 @@ describe.skipIf(!hasPocketBaseBinary).sequential("pb_hooks/routes_ai.pb.js", () 
       await provider.close();
     }
   });
+
+  it("blocks a user from creating an ai_settings record owned by someone else", async () => {
+    const attacker = await harness.registerAndLoginUser({
+      email: "integration-attacker@zublo.test",
+      name: "Integration Attacker",
+      username: "integration-attacker",
+    });
+
+    const { json, response } = await harness.jsonRequest<PocketBaseErrorResponse>(
+      "/api/collections/ai_settings/records",
+      {
+        body: {
+          enabled: true,
+          url: "https://attacker.example/v1",
+          user: harness.admin!.record.id,
+        },
+        method: "POST",
+        token: attacker.token,
+      },
+    );
+
+    expect(response.status, JSON.stringify(json)).toBe(400);
+  });
 });
 
 async function startJsonServer(

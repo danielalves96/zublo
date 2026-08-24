@@ -31,9 +31,7 @@ routerAdd("POST", "/api/fixer/update", (e) => {
   if (fixerCandidates.length === 0 || !String(fixerCandidates[0].get("api_key") || "").trim()) {
     return e.json(400, { error: "No exchange rate API key configured." });
   }
-  const fixers = fixerCandidates;
-
-  const fixer = fixers[0];
+  const fixer = fixerCandidates[0];
   const apiKey = fixer.get("api_key");
   const provider = fixer.get("provider") || "fixer";
 

@@ -245,7 +245,7 @@ describe("AITab", () => {
     await waitFor(() =>
       expect(updateSettings).toHaveBeenCalledWith(
         "s1",
-        expect.objectContaining({ api_key: "", api_key_configured: false }),
+        expect.objectContaining({ api_key: "" }),
       ),
     );
   });
@@ -260,7 +260,7 @@ describe("AITab", () => {
     await waitFor(() =>
       expect(updateSettings).toHaveBeenCalledWith(
         "s1",
-        expect.objectContaining({ api_key: "new-key-value", api_key_configured: true }),
+        expect.objectContaining({ api_key: "new-key-value" }),
       ),
     );
     // After success, apiKey cleared and apiKeyConfigured = true

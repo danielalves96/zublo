@@ -99,4 +99,27 @@ describe
       expect(cleared.api_key).toBeUndefined();
       expect(cleared.api_key_configured).toBe(false);
     });
+
+    it("blocks a user from creating a fixer_settings record owned by someone else", async () => {
+      const attacker = await harness.registerAndLoginUser({
+        email: "integration-attacker@zublo.test",
+        name: "Integration Attacker",
+        username: "integration-attacker",
+      });
+
+      const result = await harness.jsonRequest<
+        FixerSettingsRecord | PocketBaseErrorResponse
+      >("/api/collections/fixer_settings/records", {
+        body: {
+          api_key: "stolen-key",
+          enabled: true,
+          provider: "fixer",
+          user: harness.admin!.record.id,
+        },
+        method: "POST",
+        token: attacker.token,
+      });
+
+      expect(result.response.status, JSON.stringify(result.json)).toBe(400);
+    });
   });
