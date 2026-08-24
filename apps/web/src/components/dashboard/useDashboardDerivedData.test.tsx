@@ -68,4 +68,19 @@ describe("useDashboardDerivedData", () => {
     expect(result.current.chartData).toEqual([]);
     expect(result.current.isOverBudget).toBe(false);
   });
+
+  it("adds current-month credits to available spending power", () => {
+    const { result } = renderHook(() =>
+      useDashboardDerivedData({
+        user: getUser({ budget: 100 }),
+        summary: { totalMonthly: 120, totalCredits: 50 },
+        yearlyCosts: [],
+      }),
+    );
+
+    expect(result.current.totalCredits).toBe(50);
+    expect(result.current.remaining).toBe(30);
+    expect(result.current.budgetUsed).toBe(80);
+    expect(result.current.isOverBudget).toBe(false);
+  });
 });

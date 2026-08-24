@@ -124,9 +124,7 @@ describe("useStatisticsDerivedData", () => {
     expect(result.current.pieData).toHaveLength(3);
     expect(result.current.pieData[0]).toEqual({ name: "Other", value: 30 });
     expect(
-      result.current.pieData.slice(1).sort((left, right) =>
-        left.name.localeCompare(right.name),
-      ),
+      result.current.pieData.slice(1).sort((left, right) => left.name.localeCompare(right.name)),
     ).toEqual([
       { name: "Pix", value: 10 },
       { name: "Visa", value: 10 },
@@ -136,9 +134,7 @@ describe("useStatisticsDerivedData", () => {
     expect(result.current.pieData).toHaveLength(3);
     expect(result.current.pieData[0]).toEqual({ name: "Other", value: 30 });
     expect(
-      result.current.pieData.slice(1).sort((left, right) =>
-        left.name.localeCompare(right.name),
-      ),
+      result.current.pieData.slice(1).sort((left, right) => left.name.localeCompare(right.name)),
     ).toEqual([
       { name: "Alice", value: 10 },
       { name: "Bob", value: 10 },
@@ -195,5 +191,38 @@ describe("useStatisticsDerivedData", () => {
     expect(result.current.mainSymbol).toBe("$");
     // mainRate defaults to 1 — price is unchanged
     expect(result.current.totalMonthly).toBeCloseTo(10, 5);
+  });
+
+  it("excludes income credits from recurring statistics", () => {
+    const expense = getSubscription({
+      id: "expense",
+      price: 25,
+      expand: {
+        currency: currencies[0],
+        cycle: { id: "monthly", name: "Monthly" },
+      },
+    });
+    const credit = getSubscription({
+      id: "credit",
+      record_type: "credit",
+      price: 500,
+      expand: {
+        currency: currencies[0],
+        cycle: { id: "one-time", name: "One-Time" },
+      },
+    });
+
+    const { result } = renderHook(() =>
+      useStatisticsDerivedData({
+        subscriptions: [expense, credit],
+        currencies,
+        yearlyCosts: [],
+        groupBy: "category",
+      }),
+    );
+
+    expect(result.current.totalMonthly).toBe(25);
+    expect(result.current.totalYearly).toBe(300);
+    expect(result.current.pieData).toEqual([{ name: "Other", value: 25 }]);
   });
 });

@@ -8,6 +8,7 @@
 // ================================================================
 cronAdd("updateNextPayment", "0 0 * * *", () => {
   const dateHelpers = require(__hooks + "/lib/date-helpers.js");
+  const recordTypes = require(__hooks + "/lib/pure/record-types.js");
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -21,6 +22,7 @@ cronAdd("updateNextPayment", "0 0 * * *", () => {
   );
 
   for (const sub of subs) {
+    if (!recordTypes.isExpense(sub.get("record_type"))) continue;
     const cycleRecord = $app.findRecordById("cycles", sub.get("cycle"));
     const cycleName = cycleRecord.get("name");
     const frequency = sub.get("frequency");
@@ -44,6 +46,7 @@ cronAdd("updateNextPayment", "0 0 * * *", () => {
 // ================================================================
 cronAdd("sendNotifications", "0 * * * *", () => {
   const dateHelpers = require(__hooks + "/lib/date-helpers.js");
+  const recordTypes = require(__hooks + "/lib/pure/record-types.js");
   const { normalizeReminderSlots } = require(__hooks + "/lib/pure/reminder-slots.js");
   const notifHelpers = require(__hooks + "/lib/notifications.js");
   const now = new Date();
@@ -106,6 +109,7 @@ cronAdd("sendNotifications", "0 * * * *", () => {
       const grouped = {};
 
       for (const sub of subs) {
+        if (!recordTypes.isExpense(sub.get("record_type"))) continue;
         const nextPayment = sub.getString("next_payment").slice(0, 10);
         if (nextPayment !== targetDateStr) continue;
 
@@ -284,6 +288,7 @@ cronAdd("sendCancellationNotifications", "0 * * * *", () => {
 // ================================================================
 cronAdd("autoMarkPaid", "0 0 * * *", () => {
   const dateHelpers = require(__hooks + "/lib/date-helpers.js");
+  const recordTypes = require(__hooks + "/lib/pure/record-types.js");
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const todayStr = dateHelpers.formatLocalDate(today);
@@ -300,6 +305,7 @@ cronAdd("autoMarkPaid", "0 0 * * *", () => {
 
   let created = 0;
   for (const sub of subs) {
+    if (!recordTypes.isExpense(sub.get("record_type"))) continue;
     const userId = sub.get("user");
     try {
       const user = $app.findRecordById("users", userId);
@@ -340,6 +346,7 @@ cronAdd("autoMarkPaid", "0 0 * * *", () => {
 // ================================================================
 cronAdd("overduePaymentReminders", "0 9 * * *", () => {
   const dateHelpers = require(__hooks + "/lib/date-helpers.js");
+  const recordTypes = require(__hooks + "/lib/pure/record-types.js");
   const notifHelpers = require(__hooks + "/lib/notifications.js");
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -357,6 +364,7 @@ cronAdd("overduePaymentReminders", "0 9 * * *", () => {
 
   let notified = 0;
   for (const sub of subs) {
+    if (!recordTypes.isExpense(sub.get("record_type"))) continue;
     const userId = sub.get("user");
     try {
       const user = $app.findRecordById("users", userId);

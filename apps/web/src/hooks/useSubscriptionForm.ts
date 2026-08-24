@@ -13,6 +13,7 @@ const fetchCycles = () => cyclesService.list();
 
 // Static schema used only for type inference (no i18n needed for the type)
 const _schemaShape = z.object({
+  record_type: z.enum(["expense", "credit"]),
   name: z.string(),
   price: z.number(),
   currency: z.string(),
@@ -53,11 +54,7 @@ const toDateOnly = (value: string | null | undefined): string => {
   return match?.[0] ?? value.slice(0, 10);
 };
 
-export function useSubscriptionForm({
-  sub,
-  currencies,
-  household,
-}: UseSubscriptionFormInput) {
+export function useSubscriptionForm({ sub, currencies, household }: UseSubscriptionFormInput) {
   const { t } = useTranslation();
 
   const { data: cycles = [] } = useQuery({
@@ -66,6 +63,7 @@ export function useSubscriptionForm({
   });
 
   const schema = z.object({
+    record_type: z.enum(["expense", "credit"]),
     name: z.string().min(1, t("required")),
     price: z.number().nonnegative(),
     currency: z.string().min(1, t("required")),
@@ -89,6 +87,7 @@ export function useSubscriptionForm({
   const form = useForm<SubscriptionFormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
+      record_type: "expense",
       name: "",
       price: 0,
       currency: "",
@@ -116,6 +115,7 @@ export function useSubscriptionForm({
   useEffect(() => {
     if (sub) {
       reset({
+        record_type: sub.record_type === "credit" ? "credit" : "expense",
         name: sub.name,
         price: sub.price,
         currency: sub.currency,
@@ -139,6 +139,7 @@ export function useSubscriptionForm({
       const mainCur = currencies.find((c) => c.is_main);
       const monthCycle = cycles.find((c) => c.name === "Monthly");
       reset({
+        record_type: "expense",
         name: "",
         price: 0,
         currency: mainCur?.id || currencies[0]?.id || "",

@@ -106,9 +106,7 @@ describe("calendar types helpers", () => {
         3,
         cycles,
       ).map((date) => date.getDate()),
-    ).toEqual([
-      1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31,
-    ]);
+    ).toEqual([1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31]);
 
     expect(
       getOccurrencesInMonth(
@@ -147,6 +145,21 @@ describe("calendar types helpers", () => {
     ).toEqual([15]);
   });
 
+  it("emits a one-time credit only in its received month", () => {
+    const cycles = [{ id: "one-time", name: "One-Time" as const }];
+    const credit = getSubscription({
+      record_type: "credit",
+      cycle: "one-time",
+      next_payment: "2026-03-15",
+    });
+
+    expect(getOccurrencesInMonth(credit, 2026, 3, cycles).map((date) => date.getDate())).toEqual([
+      15,
+    ]);
+    expect(getOccurrencesInMonth(credit, 2026, 2, cycles)).toEqual([]);
+    expect(getOccurrencesInMonth(credit, 2026, 4, cycles)).toEqual([]);
+  });
+
   it("never projects occurrences before the subscription start date", () => {
     const cycles = [
       { id: "monthly", name: "Monthly" as const },
@@ -163,11 +176,9 @@ describe("calendar types helpers", () => {
     // Regression (#19): months before the start date must stay empty.
     expect(getOccurrencesInMonth(monthly, 2025, 12, cycles)).toEqual([]);
     expect(getOccurrencesInMonth(monthly, 2025, 6, cycles)).toEqual([]);
-    expect(
-      getOccurrencesInMonth(monthly, 2026, 1, cycles).map((date) =>
-        date.getDate(),
-      ),
-    ).toEqual([15]);
+    expect(getOccurrencesInMonth(monthly, 2026, 1, cycles).map((date) => date.getDate())).toEqual([
+      15,
+    ]);
 
     // Non-monthly cycles honour the start date as well.
     expect(
@@ -224,11 +235,9 @@ describe("calendar types helpers", () => {
     });
 
     // March would hold the 1st, 11th, 21st and 31st — the 31st is after the end.
-    expect(
-      getOccurrencesInMonth(cancelled, 2026, 3, cycles).map((date) =>
-        date.getDate(),
-      ),
-    ).toEqual([1, 11, 21]);
+    expect(getOccurrencesInMonth(cancelled, 2026, 3, cycles).map((date) => date.getDate())).toEqual(
+      [1, 11, 21],
+    );
 
     // Months entirely after the cancellation date are empty.
     expect(getOccurrencesInMonth(cancelled, 2026, 4, cycles)).toEqual([]);
@@ -250,38 +259,16 @@ describe("calendar types helpers", () => {
   it("returns no occurrences for inactive subscriptions, missing dates, or invalid dates", () => {
     const cycles = [{ id: "monthly", name: "Monthly" as const }];
 
+    expect(getOccurrencesInMonth(getSubscription({ inactive: true }), 2026, 3, cycles)).toEqual([]);
+    expect(getOccurrencesInMonth(getSubscription({ next_payment: "" }), 2026, 3, cycles)).toEqual(
+      [],
+    );
     expect(
-      getOccurrencesInMonth(
-        getSubscription({ inactive: true }),
-        2026,
-        3,
-        cycles,
-      ),
-    ).toEqual([]);
-    expect(
-      getOccurrencesInMonth(
-        getSubscription({ next_payment: "" }),
-        2026,
-        3,
-        cycles,
-      ),
-    ).toEqual([]);
-    expect(
-      getOccurrencesInMonth(
-        getSubscription({ next_payment: "not-a-date" }),
-        2026,
-        3,
-        cycles,
-      ),
+      getOccurrencesInMonth(getSubscription({ next_payment: "not-a-date" }), 2026, 3, cycles),
     ).toEqual([]);
     // A single-segment value falls through to new Date(value), which is invalid too
     expect(
-      getOccurrencesInMonth(
-        getSubscription({ next_payment: "nonsense" }),
-        2026,
-        3,
-        cycles,
-      ),
+      getOccurrencesInMonth(getSubscription({ next_payment: "nonsense" }), 2026, 3, cycles),
     ).toEqual([]);
 
     // datePart has fewer than 3 dash-segments, so the else branch executes.

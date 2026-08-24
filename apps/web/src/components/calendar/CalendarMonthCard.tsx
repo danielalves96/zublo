@@ -1,10 +1,4 @@
-import {
-  CalendarDays,
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  CircleDot,
-} from "lucide-react";
+import { CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, CircleDot } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { DOW_KEYS, MONTH_KEYS } from "@/components/calendar/constants";
@@ -19,6 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { isCredit, isExpense } from "@/lib/recordTypes";
 import { cn, formatPrice } from "@/lib/utils";
 import type { Currency, PaymentRecord } from "@/types";
 
@@ -79,9 +74,7 @@ export function CalendarMonthCard({
             <span className="text-[10px] font-bold uppercase leading-tight text-primary">
               {t(MONTH_KEYS[month - 1]).slice(0, 3)}
             </span>
-            <span className="text-lg font-bold leading-tight text-primary">
-              {year}
-            </span>
+            <span className="text-lg font-bold leading-tight text-primary">{year}</span>
           </div>
           <div>
             <h2 className="text-lg font-semibold capitalize">{monthLabel}</h2>
@@ -112,12 +105,7 @@ export function CalendarMonthCard({
             </Badge>
           ) : null}
           {!isCurrentMonth ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 text-xs"
-              onClick={onGoToday}
-            >
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={onGoToday}>
               <CalendarDays className="mr-1.5 h-3.5 w-3.5" />
               {t("today")}
             </Button>
@@ -132,9 +120,7 @@ export function CalendarMonthCard({
               key={dayOfWeek}
               className={cn(
                 "py-2.5 text-center text-xs font-semibold uppercase tracking-wider",
-                index === 0 || index === 6
-                  ? "text-muted-foreground/50"
-                  : "text-muted-foreground",
+                index === 0 || index === 6 ? "text-muted-foreground/50" : "text-muted-foreground",
               )}
             >
               {t(dayOfWeek)}
@@ -145,7 +131,7 @@ export function CalendarMonthCard({
         <div className="grid grid-cols-7">
           {allCells.map((cell, index) => {
             const isOtherMonth = cell.type !== "current";
-            const entries = isOtherMonth ? [] : entriesByDay[cell.day] ?? [];
+            const entries = isOtherMonth ? [] : (entriesByDay[cell.day] ?? []);
             const columnIndex = index % 7;
             const isWeekend = columnIndex === 0 || columnIndex === 6;
             const isToday =
@@ -188,8 +174,7 @@ export function CalendarMonthCard({
                   <span
                     className={cn(
                       "inline-flex h-7 w-7 items-center justify-center rounded-full text-sm font-medium transition-colors",
-                      isToday &&
-                        "bg-primary font-bold text-primary-foreground shadow-sm",
+                      isToday && "bg-primary font-bold text-primary-foreground shadow-sm",
                       !isToday && !isOtherMonth && "text-foreground",
                       isOtherMonth && "text-muted-foreground/40",
                     )}
@@ -201,8 +186,8 @@ export function CalendarMonthCard({
                     <span className="mt-1 rounded-full bg-muted/50 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground">
                       {formatPrice(
                         entries.reduce((sum, { sub }) => {
-                          const currency =
-                            sub.expand?.currency ?? currencyById.get(sub.currency);
+                          if (!isExpense(sub)) return sum;
+                          const currency = sub.expand?.currency ?? currencyById.get(sub.currency);
                           return sum + toMain(sub.price, currency);
                         }, 0),
                         mainCurrency.symbol,
@@ -214,22 +199,20 @@ export function CalendarMonthCard({
                 {!loading ? (
                   <div className="space-y-1">
                     {visibleEntries.map(({ sub, date }, entryIndex) => {
+                      const credit = isCredit(sub);
                       const logo = getLogoUrl(sub);
                       const colorClass = getColorForSub(sub, entryIndex);
                       const dateStr = toDateStr(date);
-                      const paymentRecord = paymentTracking
-                        ? getPaymentRecord(paymentRecords, sub.id, dateStr)
-                        : undefined;
+                      const paymentRecord =
+                        paymentTracking && !credit
+                          ? getPaymentRecord(paymentRecords, sub.id, dateStr)
+                          : undefined;
                       const isPaid = !!paymentRecord?.paid_at;
                       const isOverdue =
                         paymentTracking &&
+                        !credit &&
                         !isPaid &&
-                        date <
-                          new Date(
-                            now.getFullYear(),
-                            now.getMonth(),
-                            now.getDate(),
-                          );
+                        date < new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
                       return (
                         <div
@@ -240,7 +223,7 @@ export function CalendarMonthCard({
                             isPaid && "opacity-60",
                           )}
                         >
-                          {paymentTracking ? (
+                          {paymentTracking && !credit ? (
                             isPaid ? (
                               <CheckCircle2 className="h-3 w-3 shrink-0 text-green-500" />
                             ) : isOverdue ? (
@@ -248,7 +231,7 @@ export function CalendarMonthCard({
                             ) : null
                           ) : null}
 
-                          {(!paymentTracking || (!isPaid && !isOverdue)) &&
+                          {(!paymentTracking || credit || (!isPaid && !isOverdue)) &&
                             (logo ? (
                               <img
                                 src={logo}
@@ -270,6 +253,7 @@ export function CalendarMonthCard({
 
                           {mainCurrency ? (
                             <span className="ml-auto shrink-0 text-[10px] tabular-nums opacity-70">
+                              {credit ? "+" : ""}
                               {formatPrice(sub.price, mainCurrency.symbol)}
                             </span>
                           ) : null}

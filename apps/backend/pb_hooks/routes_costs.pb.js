@@ -9,6 +9,7 @@
 // ================================================================
 routerAdd("POST", "/api/costs/snapshot", (e) => {
   const dateHelpers = require(__hooks + "/lib/date-helpers.js");
+  const recordTypes = require(__hooks + "/lib/pure/record-types.js");
   if (!e.auth) return e.json(401, { error: "Authentication required" });
 
   const userId = e.auth.id;
@@ -26,6 +27,7 @@ routerAdd("POST", "/api/costs/snapshot", (e) => {
     );
 
     for (const sub of subs) {
+      if (!recordTypes.isExpense(sub.get("record_type"))) continue;
       const price = sub.get("price") || 0;
       const frequency = sub.get("frequency") || 1;
 

@@ -79,6 +79,7 @@ routerAdd("GET", "/api/calendar/ical", function(e) {
     ical += calendarUtils.buildIcalEvent({
       id: sub.id,
       name: sub.get("name"),
+      record_type: sub.get("record_type") === "credit" ? "credit" : "expense",
       price: sub.get("price"),
       currencySymbol: currencySymbol,
       nextPayment: nextPayment,

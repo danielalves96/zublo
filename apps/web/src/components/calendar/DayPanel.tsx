@@ -1,13 +1,9 @@
-import {
-  CheckCircle2,
-  CircleDot,
-  Info,
-  X,
-} from "lucide-react";
+import { CheckCircle2, CircleDot, Info, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { isCredit } from "@/lib/recordTypes";
 import { formatPrice } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { Currency, PaymentRecord } from "@/types";
@@ -78,27 +74,16 @@ export function DayPanel({
             </p>
             {entries.length > 0 && mainCurrency ? (
               <p className="text-xs text-muted-foreground mt-0.5">
-                {entries.length}{" "}
-                {entries.length === 1
-                  ? t("subscription")
-                  : t("subscriptions")}{" "}
-                ·{" "}
+                {entries.length} {entries.length === 1 ? t("subscription") : t("subscriptions")} ·{" "}
                 <span className="font-medium text-foreground">
                   {formatPrice(total, mainCurrency.symbol)}
                 </span>
               </p>
             ) : (
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {t("no_subscriptions_due")}
-              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">{t("no_subscriptions_due")}</p>
             )}
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={onClose}
-          >
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
         </div>
@@ -108,22 +93,20 @@ export function DayPanel({
           <div className="divide-y">
             {entries.map((entry, idx) => {
               const { sub, date } = entry;
+              const credit = isCredit(sub);
               const logo = getLogoUrl(sub);
-              const cur =
-                sub.expand?.currency ??
-                currencies.find((c) => c.id === sub.currency);
+              const cur = sub.expand?.currency ?? currencies.find((c) => c.id === sub.currency);
               const cycle = sub.expand?.cycle;
               const category = sub.expand?.category;
-              const diffDays = Math.ceil(
-                (thisDay.getTime() - today.getTime()) / 86400000,
-              );
+              const diffDays = Math.ceil((thisDay.getTime() - today.getTime()) / 86400000);
               const colorClass = getColorForSub(sub, idx);
               const dateStr = toDateStr(date);
-              const rec = paymentTracking
-                ? getPaymentRecord(paymentRecords, sub.id, dateStr)
-                : undefined;
+              const rec =
+                paymentTracking && !credit
+                  ? getPaymentRecord(paymentRecords, sub.id, dateStr)
+                  : undefined;
               const isPaid = !!rec?.paid_at;
-              const isOverdue = paymentTracking && !isPaid && thisDay < today;
+              const isOverdue = paymentTracking && !credit && !isPaid && thisDay < today;
 
               return (
                 <button
@@ -139,11 +122,9 @@ export function DayPanel({
                         src={logo}
                         alt={sub.name}
                         className="h-full w-full object-contain"
-                        onError={(e) =>
-                          ((e.target as HTMLElement).style.display = "none")
-                        }
+                        onError={(e) => ((e.target as HTMLElement).style.display = "none")}
                       />
-                      {paymentTracking && isPaid && (
+                      {paymentTracking && !credit && isPaid && (
                         <span className="absolute -bottom-1 -right-1 rounded-full bg-green-500 p-0.5">
                           <CheckCircle2 className="h-3 w-3 text-white" />
                         </span>
@@ -162,7 +143,7 @@ export function DayPanel({
                       )}
                     >
                       {sub.name[0]?.toUpperCase()}
-                      {paymentTracking && isPaid && (
+                      {paymentTracking && !credit && isPaid && (
                         <span className="absolute -bottom-1 -right-1 rounded-full bg-green-500 p-0.5">
                           <CheckCircle2 className="h-3 w-3 text-white" />
                         </span>
@@ -180,11 +161,13 @@ export function DayPanel({
                     <p className="font-semibold text-sm truncate">{sub.name}</p>
                     <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                       {category && (
-                        <Badge
-                          variant="secondary"
-                          className="text-[10px] h-4 px-1.5 rounded-full"
-                        >
+                        <Badge variant="secondary" className="text-[10px] h-4 px-1.5 rounded-full">
                           {category.name}
+                        </Badge>
+                      )}
+                      {credit && (
+                        <Badge className="h-4 rounded-full bg-green-500/15 px-1.5 text-[10px] text-green-700 dark:text-green-400">
+                          {t("credit_income")}
                         </Badge>
                       )}
                       {cycle && (
@@ -212,15 +195,12 @@ export function DayPanel({
                   {/* Price + badge */}
                   <div className="shrink-0 text-right">
                     <p className="font-semibold text-sm">
+                      {credit ? "+" : ""}
                       {formatPrice(sub.price, cur?.symbol ?? "$")}
                     </p>
                     {cur && mainCurrency && cur.id !== mainCurrency.id && (
                       <p className="text-[11px] text-muted-foreground">
-                        ≈{" "}
-                        {formatPrice(
-                          toMain(sub.price, cur),
-                          mainCurrency.symbol,
-                        )}
+                        ≈ {formatPrice(toMain(sub.price, cur), mainCurrency.symbol)}
                       </p>
                     )}
                     {diffDays === 0 && (

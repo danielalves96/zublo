@@ -81,13 +81,7 @@ vi.mock("@/components/ui/switch", () => ({
 }));
 
 vi.mock("@/components/ui/currency-input", () => ({
-  CurrencyInput: ({
-    value,
-    onChange,
-  }: {
-    value: number;
-    onChange: (value: number) => void;
-  }) => (
+  CurrencyInput: ({ value, onChange }: { value: number; onChange: (value: number) => void }) => (
     <input
       aria-label="currency-input"
       value={value}
@@ -171,6 +165,7 @@ describe("SubscriptionFormModal", () => {
       data: [
         { id: "monthly", name: "Monthly" },
         { id: "yearly", name: "Yearly" },
+        { id: "one-time", name: "One-Time" },
       ],
     });
     mocks.compressImage.mockImplementation(async (file: File) => file);
@@ -202,12 +197,9 @@ describe("SubscriptionFormModal", () => {
       />,
     );
 
-    fireEvent.change(
-      document.querySelector('input[name="name"]') as HTMLInputElement,
-      {
+    fireEvent.change(document.querySelector('input[name="name"]') as HTMLInputElement, {
       target: { value: "Spotify" },
-      },
-    );
+    });
     fireEvent.change(screen.getByLabelText("currency-input"), {
       target: { value: "20" },
     });
@@ -268,9 +260,50 @@ describe("SubscriptionFormModal", () => {
     await waitFor(() => {
       expect(mocks.compressImage).toHaveBeenCalledWith(file, { maxSize: 256 });
     });
+    expect(mocks.updateSubscription).toHaveBeenCalledWith("sub-1", expect.any(FormData));
+  });
+
+  it("saves income as a one-time credit without recurring payment behavior", async () => {
+    render(
+      <SubscriptionFormModal
+        sub={getSubscription({
+          name: "Performance bonus",
+          record_type: "credit",
+          cycle: "one-time",
+          next_payment: "2026-08-15",
+          auto_renew: true,
+          notify: true,
+          auto_mark_paid: true,
+        })}
+        userId="user-1"
+        currencies={[getCurrency()]}
+        categories={[getCategory()]}
+        paymentMethods={[getPaymentMethod()]}
+        household={[getHousehold()]}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("one_time_payout")).toBeInTheDocument();
+    expect(screen.getByText("received_on")).toBeInTheDocument();
+    expect(screen.queryByText("auto_renew")).not.toBeInTheDocument();
+    expect(screen.queryByText("auto_mark_paid")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => expect(mocks.updateSubscription).toHaveBeenCalled());
     expect(mocks.updateSubscription).toHaveBeenCalledWith(
       "sub-1",
-      expect.any(FormData),
+      expect.objectContaining({
+        record_type: "credit",
+        cycle: "one-time",
+        frequency: 1,
+        auto_renew: false,
+        notify: false,
+        auto_mark_paid: false,
+        next_payment: "2026-08-15",
+      }),
     );
   });
 
@@ -291,10 +324,9 @@ describe("SubscriptionFormModal", () => {
     );
 
     // Fill required name field
-    fireEvent.change(
-      document.querySelector('input[name="name"]') as HTMLInputElement,
-      { target: { value: "Spotify" } },
-    );
+    fireEvent.change(document.querySelector('input[name="name"]') as HTMLInputElement, {
+      target: { value: "Spotify" },
+    });
 
     // Upload a logo file
     const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
@@ -356,10 +388,9 @@ describe("SubscriptionFormModal", () => {
       />,
     );
 
-    fireEvent.change(
-      document.querySelector('input[name="name"]') as HTMLInputElement,
-      { target: { value: "Spotify" } },
-    );
+    fireEvent.change(document.querySelector('input[name="name"]') as HTMLInputElement, {
+      target: { value: "Spotify" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "save" }));
 
     await waitFor(() => {
@@ -398,7 +429,10 @@ describe("SubscriptionFormModal", () => {
       blob: () => Promise.resolve(new Blob(["img"], { type: "image/png" })),
     });
     vi.stubGlobal("fetch", fetchMock);
-    vi.stubGlobal("createImageBitmap", vi.fn().mockResolvedValue({ width: 100, height: 100, close: vi.fn() }));
+    vi.stubGlobal(
+      "createImageBitmap",
+      vi.fn().mockResolvedValue({ width: 100, height: 100, close: vi.fn() }),
+    );
 
     render(
       <SubscriptionFormModal
@@ -804,7 +838,8 @@ describe("SubscriptionFormModal", () => {
       if (typeof url === "string" && url.includes("clearbit.com/v1/companies")) {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve([{ domain: "spotify.com" }, { domain: "" }, { domain: null }]),
+          json: () =>
+            Promise.resolve([{ domain: "spotify.com" }, { domain: "" }, { domain: null }]),
         });
       }
       return Promise.resolve({ ok: false });
@@ -839,9 +874,12 @@ describe("SubscriptionFormModal", () => {
     });
 
     // Search completes (searching=false) showing no_logos_found since probeImage returns ok:false
-    await waitFor(() => {
-      expect(screen.getByText("no_logos_found")).toBeInTheDocument();
-    }, { timeout: 5000 });
+    await waitFor(
+      () => {
+        expect(screen.getByText("no_logos_found")).toBeInTheDocument();
+      },
+      { timeout: 5000 },
+    );
 
     vi.useRealTimers();
     vi.unstubAllGlobals();
@@ -880,13 +918,16 @@ describe("SubscriptionFormModal", () => {
     });
 
     // Despite all fetches failing, the fallback domain code ran before they failed
-    await waitFor(() => {
-      expect(screen.getByText("no_logos_found")).toBeInTheDocument();
-    }, { timeout: 5000 });
+    await waitFor(
+      () => {
+        expect(screen.getByText("no_logos_found")).toBeInTheDocument();
+      },
+      { timeout: 5000 },
+    );
 
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("logo.clearbit.com/xyzfoo.com"),
-      expect.anything()
+      expect.anything(),
     );
 
     vi.useRealTimers();
@@ -936,10 +977,13 @@ describe("SubscriptionFormModal", () => {
     await vi.advanceTimersByTimeAsync(400);
     await vi.runAllTimersAsync();
 
-    await waitFor(() => {
-      const resultButtons = document.querySelectorAll(".h-20.rounded.border");
-      expect(resultButtons.length).toBeGreaterThan(0);
-    }, { timeout: 5000 });
+    await waitFor(
+      () => {
+        const resultButtons = document.querySelectorAll(".h-20.rounded.border");
+        expect(resultButtons.length).toBeGreaterThan(0);
+      },
+      { timeout: 5000 },
+    );
 
     vi.useRealTimers();
     vi.unstubAllGlobals();
@@ -1045,10 +1089,13 @@ describe("SubscriptionFormModal", () => {
     await vi.advanceTimersByTimeAsync(400);
     await vi.runAllTimersAsync();
 
-    await waitFor(() => {
-      const resultButtons = document.querySelectorAll(".h-20.rounded.border");
-      expect(resultButtons.length).toBeGreaterThan(1);
-    }, { timeout: 5000 });
+    await waitFor(
+      () => {
+        const resultButtons = document.querySelectorAll(".h-20.rounded.border");
+        expect(resultButtons.length).toBeGreaterThan(1);
+      },
+      { timeout: 5000 },
+    );
 
     const resultButtons = document.querySelectorAll(".h-20.rounded.border");
 
@@ -1060,10 +1107,13 @@ describe("SubscriptionFormModal", () => {
     await vi.advanceTimersByTimeAsync(400);
     await vi.runAllTimersAsync();
 
-    await waitFor(() => {
-      const btns = document.querySelectorAll(".h-20.rounded.border");
-      expect(btns.length).toBeGreaterThan(0);
-    }, { timeout: 5000 });
+    await waitFor(
+      () => {
+        const btns = document.querySelectorAll(".h-20.rounded.border");
+        expect(btns.length).toBeGreaterThan(0);
+      },
+      { timeout: 5000 },
+    );
 
     // Select a second logo — this should revoke the first preview
     const btns2 = document.querySelectorAll(".h-20.rounded.border");
@@ -1081,17 +1131,17 @@ describe("SubscriptionFormModal", () => {
 
     // Spy on Promise.allSettled to return a LogoResult with file: null
     // This perfectly mocks the unreachable branch !logoToUpload && logoUrl
-    const allSettledSpy = vi.spyOn(Promise, 'allSettled').mockImplementation(async () => {
+    const allSettledSpy = vi.spyOn(Promise, "allSettled").mockImplementation(async () => {
       return [
         {
-          status: 'fulfilled',
+          status: "fulfilled",
           value: {
-            previewUrl: 'http://fake-preview-url',
-            source: 'http://logo.url/logo.png',
-            contentType: 'image/png',
+            previewUrl: "http://fake-preview-url",
+            source: "http://logo.url/logo.png",
+            contentType: "image/png",
             file: null, // Magic: sets logoFile to null while setting logoUrl
-          }
-        }
+          },
+        },
       ] as any;
     });
 
@@ -1114,10 +1164,9 @@ describe("SubscriptionFormModal", () => {
     );
 
     // Fill name
-    fireEvent.change(
-      document.querySelector('input[name="name"]') as HTMLInputElement,
-      { target: { value: "Spotify" } },
-    );
+    fireEvent.change(document.querySelector('input[name="name"]') as HTMLInputElement, {
+      target: { value: "Spotify" },
+    });
 
     // Trigger logo search
     const logoInput = screen.getByPlaceholderText("search_logo...");
@@ -1126,10 +1175,13 @@ describe("SubscriptionFormModal", () => {
     await vi.advanceTimersByTimeAsync(400);
     await vi.runAllTimersAsync();
 
-    await waitFor(() => {
-      const resultButtons = document.querySelectorAll(".h-20.rounded.border");
-      expect(resultButtons.length).toBeGreaterThan(0);
-    }, { timeout: 5000 });
+    await waitFor(
+      () => {
+        const resultButtons = document.querySelectorAll(".h-20.rounded.border");
+        expect(resultButtons.length).toBeGreaterThan(0);
+      },
+      { timeout: 5000 },
+    );
 
     // Select the mocked logo result (sets logoUrl="...", logoFile=null)
     const resultButtons = document.querySelectorAll(".h-20.rounded.border");
@@ -1141,9 +1193,12 @@ describe("SubscriptionFormModal", () => {
     // Advance timers so fetch finishes
     await vi.runAllTimersAsync();
 
-    await waitFor(() => {
-      expect(mocks.toastError).toHaveBeenCalledWith("error_fetching_image_results");
-    }, { timeout: 5000 });
+    await waitFor(
+      () => {
+        expect(mocks.toastError).toHaveBeenCalledWith("error_fetching_image_results");
+      },
+      { timeout: 5000 },
+    );
 
     // createSubscription must NOT have been called
     expect(mocks.createSubscription).not.toHaveBeenCalled();
@@ -1167,31 +1222,58 @@ describe("SubscriptionFormModal", () => {
     const imageBlob = new Blob(["x".repeat(600)], { type: "image/webp" });
     const fetchMock = vi.fn().mockImplementation((url: string) => {
       // Return empty array for clearbit to trigger fallback (Lines 367-368) without error masking
-      if (typeof url === 'string' && url.includes('clearbit')) {
-         return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+      if (typeof url === "string" && url.includes("clearbit")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
       }
       return Promise.resolve({
         ok: true,
         headers: { get: () => "image/webp" },
-        blob: () => Promise.resolve(imageBlob)
+        blob: () => Promise.resolve(imageBlob),
       });
     });
     vi.stubGlobal("fetch", fetchMock);
 
     let bitmapCount = 0;
-    vi.stubGlobal("createImageBitmap", vi.fn().mockImplementation(() => {
-      bitmapCount++;
-      return Promise.resolve({ width: 100 + bitmapCount, height: 100, close: vi.fn() });
-    }));
+    vi.stubGlobal(
+      "createImageBitmap",
+      vi.fn().mockImplementation(() => {
+        bitmapCount++;
+        return Promise.resolve({ width: 100 + bitmapCount, height: 100, close: vi.fn() });
+      }),
+    );
 
     // Mock Promise.allSettled to hit content type (Line 447)
     // We add a delay to allow us to cancel the promise mid-flight (Lines 453-454)
-    const allSettledSpy = vi.spyOn(Promise, 'allSettled').mockImplementation(async () => {
-      await new Promise(r => setTimeout(r, 500)); // Simulating slow fetch
+    const allSettledSpy = vi.spyOn(Promise, "allSettled").mockImplementation(async () => {
+      await new Promise((r) => setTimeout(r, 500)); // Simulating slow fetch
       return [
-        { status: 'fulfilled', value: { previewUrl: 'blob:webp', source: 'http://custom/logo.webp', contentType: 'image/webp', file: null } },
-        { status: 'fulfilled', value: { previewUrl: 'blob:gif', source: 'http://custom/logo.gif', contentType: 'image/gif', file: null } },
-        { status: 'fulfilled', value: { previewUrl: 'blob:png', source: 'http://custom/logo.png', contentType: 'image/png', file: null } }
+        {
+          status: "fulfilled",
+          value: {
+            previewUrl: "blob:webp",
+            source: "http://custom/logo.webp",
+            contentType: "image/webp",
+            file: null,
+          },
+        },
+        {
+          status: "fulfilled",
+          value: {
+            previewUrl: "blob:gif",
+            source: "http://custom/logo.gif",
+            contentType: "image/gif",
+            file: null,
+          },
+        },
+        {
+          status: "fulfilled",
+          value: {
+            previewUrl: "blob:png",
+            source: "http://custom/logo.png",
+            contentType: "image/png",
+            file: null,
+          },
+        },
       ] as any;
     });
 
@@ -1236,25 +1318,30 @@ describe("SubscriptionFormModal", () => {
       await vi.runAllTimersAsync();
     });
 
-    await waitFor(() => {
-      expect(document.querySelectorAll(".h-20.rounded.border").length).toBeGreaterThan(0);
-    }, { timeout: 5000 });
+    await waitFor(
+      () => {
+        expect(document.querySelectorAll(".h-20.rounded.border").length).toBeGreaterThan(0);
+      },
+      { timeout: 5000 },
+    );
 
     // 3. Select the mocked logo and submit
     const resultButtons = document.querySelectorAll(".h-20.rounded.border");
     fireEvent.click(resultButtons[0] as HTMLElement);
 
-    fireEvent.change(
-      document.querySelector('input[name="name"]') as HTMLInputElement,
-      { target: { value: "Test" } },
-    );
+    fireEvent.change(document.querySelector('input[name="name"]') as HTMLInputElement, {
+      target: { value: "Test" },
+    });
 
     fireEvent.click(screen.getByRole("button", { name: "save" }));
     await vi.runAllTimersAsync();
 
-    await waitFor(() => {
-      expect(mocks.createSubscription).toHaveBeenCalled();
-    }, { timeout: 5000 });
+    await waitFor(
+      () => {
+        expect(mocks.createSubscription).toHaveBeenCalled();
+      },
+      { timeout: 5000 },
+    );
 
     unmount();
     allSettledSpy.mockRestore();
@@ -1280,17 +1367,17 @@ describe("SubscriptionFormModal", () => {
     // We can achieve it via: upload a file (sets logoPreview), then clear file (logoPreview=null)
     // while logoUrl stays set from a prior search selection.
     // Use the allSettled mock to get a result with source set:
-    const allSettledSpy = vi.spyOn(Promise, 'allSettled').mockImplementation(async () => {
+    const allSettledSpy = vi.spyOn(Promise, "allSettled").mockImplementation(async () => {
       return [
         {
-          status: 'fulfilled',
+          status: "fulfilled",
           value: {
-            previewUrl: 'blob:preview-1',
-            source: 'http://logo.example.com/logo.png',
-            contentType: 'image/png',
+            previewUrl: "blob:preview-1",
+            source: "http://logo.example.com/logo.png",
+            contentType: "image/png",
             file: new File(["x"], "logo.png", { type: "image/png" }),
-          }
-        }
+          },
+        },
       ] as any;
     });
 
@@ -1317,10 +1404,13 @@ describe("SubscriptionFormModal", () => {
     await vi.runAllTimersAsync();
 
     // Wait for the logo result button to appear
-    await waitFor(() => {
-      const resultButtons = document.querySelectorAll(".h-20.rounded.border");
-      expect(resultButtons.length).toBeGreaterThan(0);
-    }, { timeout: 5000 });
+    await waitFor(
+      () => {
+        const resultButtons = document.querySelectorAll(".h-20.rounded.border");
+        expect(resultButtons.length).toBeGreaterThan(0);
+      },
+      { timeout: 5000 },
+    );
 
     // Select the logo — sets logoPreview='blob:preview-1', logoUrl='http://logo.example.com/logo.png'
     const resultButtons = document.querySelectorAll(".h-20.rounded.border");
@@ -1402,9 +1492,11 @@ describe("SubscriptionFormModal", () => {
     );
 
     // Find the useQuery call that was made with cycles queryKey and invoke the queryFn
-    const allCalls = mocks.useQuery.mock.calls as Array<[{ queryKey: unknown[]; queryFn?: () => unknown }]>;
+    const allCalls = mocks.useQuery.mock.calls as Array<
+      [{ queryKey: unknown[]; queryFn?: () => unknown }]
+    >;
     const cycleCall = allCalls.find(
-      ([opts]) => Array.isArray(opts.queryKey) && opts.queryKey[0] === "cycles"
+      ([opts]) => Array.isArray(opts.queryKey) && opts.queryKey[0] === "cycles",
     );
 
     // The queryFn is the `fetchCycles` function — calling it exercises the branch
@@ -1489,10 +1581,9 @@ describe("SubscriptionFormModal", () => {
       />,
     );
 
-    fireEvent.change(
-      document.querySelector('input[name="name"]') as HTMLInputElement,
-      { target: { value: "Spotify" } },
-    );
+    fireEvent.change(document.querySelector('input[name="name"]') as HTMLInputElement, {
+      target: { value: "Spotify" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "save" }));
 
     await waitFor(() => {
@@ -1518,10 +1609,9 @@ describe("SubscriptionFormModal", () => {
       />,
     );
 
-    fireEvent.change(
-      document.querySelector('input[name="name"]') as HTMLInputElement,
-      { target: { value: "Spotify" } },
-    );
+    fireEvent.change(document.querySelector('input[name="name"]') as HTMLInputElement, {
+      target: { value: "Spotify" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "save" }));
 
     await waitFor(() => {
@@ -1543,10 +1633,9 @@ describe("SubscriptionFormModal", () => {
       />,
     );
 
-    fireEvent.change(
-      document.querySelector('input[name="name"]') as HTMLInputElement,
-      { target: { value: "Test" } },
-    );
+    fireEvent.change(document.querySelector('input[name="name"]') as HTMLInputElement, {
+      target: { value: "Test" },
+    });
     fireEvent.change(screen.getByLabelText("currency-input"), {
       target: { value: "-5" },
     });
@@ -1573,15 +1662,13 @@ describe("SubscriptionFormModal", () => {
       />,
     );
 
-    fireEvent.change(
-      document.querySelector('input[name="name"]') as HTMLInputElement,
-      { target: { value: "Test" } },
-    );
+    fireEvent.change(document.querySelector('input[name="name"]') as HTMLInputElement, {
+      target: { value: "Test" },
+    });
     // Clear frequency to trigger min(1) validation failure
-    fireEvent.change(
-      document.querySelector('input[name="frequency"]') as HTMLInputElement,
-      { target: { value: "" } },
-    );
+    fireEvent.change(document.querySelector('input[name="frequency"]') as HTMLInputElement, {
+      target: { value: "" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "save" }));
 
     await waitFor(() => {
@@ -1604,14 +1691,12 @@ describe("SubscriptionFormModal", () => {
       />,
     );
 
-    fireEvent.change(
-      document.querySelector('input[name="name"]') as HTMLInputElement,
-      { target: { value: "Test" } },
-    );
-    fireEvent.change(
-      document.querySelector('input[name="next_payment"]') as HTMLInputElement,
-      { target: { value: "" } },
-    );
+    fireEvent.change(document.querySelector('input[name="name"]') as HTMLInputElement, {
+      target: { value: "Test" },
+    });
+    fireEvent.change(document.querySelector('input[name="next_payment"]') as HTMLInputElement, {
+      target: { value: "" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "save" }));
 
     await waitFor(() => {
@@ -1630,17 +1715,17 @@ describe("SubscriptionFormModal", () => {
   it("shows logo preview with logoPreview from search result selection (line 694 left branch)", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
 
-    const allSettledSpy = vi.spyOn(Promise, 'allSettled').mockImplementation(async () => {
+    const allSettledSpy = vi.spyOn(Promise, "allSettled").mockImplementation(async () => {
       return [
         {
-          status: 'fulfilled',
+          status: "fulfilled",
           value: {
-            previewUrl: 'blob:the-preview',
-            source: 'https://some.source/logo.png',
-            contentType: 'image/png',
+            previewUrl: "blob:the-preview",
+            source: "https://some.source/logo.png",
+            contentType: "image/png",
             file: new File(["x"], "logo.png", { type: "image/png" }),
-          }
-        }
+          },
+        },
       ] as any;
     });
 
@@ -1664,9 +1749,12 @@ describe("SubscriptionFormModal", () => {
     await vi.advanceTimersByTimeAsync(400);
     await vi.runAllTimersAsync();
 
-    await waitFor(() => {
-      expect(document.querySelectorAll(".h-20.rounded.border").length).toBeGreaterThan(0);
-    }, { timeout: 5000 });
+    await waitFor(
+      () => {
+        expect(document.querySelectorAll(".h-20.rounded.border").length).toBeGreaterThan(0);
+      },
+      { timeout: 5000 },
+    );
 
     // Select logo — logoPreview='blob:the-preview', logoUrl='https://some.source/logo.png'
     fireEvent.click(document.querySelectorAll(".h-20.rounded.border")[0] as HTMLElement);

@@ -138,7 +138,7 @@ routerAdd("POST", "/api/subscriptions/import", (e) => {
   for (let i = 0; i < data.subscriptions.length; i++) {
     const sub = data.subscriptions[i];
     try {
-      let name, price, currencyId, cycleId, frequency, nextPayment;
+      let name, price, currencyId, cycleId, frequency, nextPayment, recordType;
       let autoRenew, inactive, notes, url, notify, notifyDaysBefore, cancellationDate;
       let categoryId, paymentMethodId, payerId;
 
@@ -167,6 +167,7 @@ routerAdd("POST", "/api/subscriptions/import", (e) => {
         categoryId = findOrCreateCategory(sub["Category"]);
         paymentMethodId = findOrCreatePaymentMethod(sub["Payment Method"]);
         payerId = findOrCreatePayer(sub["Paid By"]);
+        recordType = "expense";
 
       } else {
         // ── Own export format ──
@@ -182,7 +183,8 @@ routerAdd("POST", "/api/subscriptions/import", (e) => {
         cancellationDate = sub.cancellation_date || "";
 
         currencyId = (sub.currency ? findCurrencyByCode(sub.currency) : "") || mainCurrencyId;
-        cycleId = findCycleByName(sub.cycle || "Monthly");
+        recordType = sub.record_type === "credit" ? "credit" : "expense";
+        cycleId = findCycleByName(sub.cycle || (recordType === "credit" ? "One-Time" : "Monthly"));
         frequency = parseInt(sub.frequency) || 1;
 
         categoryId = findOrCreateCategory(sub.category);
@@ -202,6 +204,7 @@ routerAdd("POST", "/api/subscriptions/import", (e) => {
 
       const rec = new Record(subsCol);
       rec.set("user", userId);
+      rec.set("record_type", recordType);
       rec.set("name", name);
       rec.set("price", price);
       rec.set("frequency", frequency);
@@ -253,7 +256,7 @@ routerAdd("POST", "/api/subscription/clone", (e) => {
 
   // Copy all fields except id
   const fieldsToCopy = [
-    "name", "price", "frequency", "next_payment", "auto_renew",
+    "name", "price", "record_type", "frequency", "next_payment", "auto_renew",
     "start_date", "notes", "url", "notify", "notify_days_before",
     "inactive", "cancellation_date", "currency", "cycle",
     "payment_method", "payer", "category", "user",
@@ -274,6 +277,7 @@ routerAdd("POST", "/api/subscription/clone", (e) => {
 // ================================================================
 routerAdd("POST", "/api/subscription/renew", (e) => {
   const dateHelpers = require(__hooks + "/lib/date-helpers.js");
+  const recordTypes = require(__hooks + "/lib/pure/record-types.js");
   if (!e.auth) throw new ForbiddenError("Authentication required");
   const data = e.requestInfo().body;
   const subId = data.id;
@@ -286,6 +290,10 @@ routerAdd("POST", "/api/subscription/renew", (e) => {
 
   if (sub.get("user") !== e.auth.id) {
     throw new ForbiddenError("Not your subscription");
+  }
+
+  if (recordTypes.isCredit(sub.get("record_type"))) {
+    return e.json(400, { error: "One-time credits cannot be renewed" });
   }
 
   const cycleRecord = $app.findRecordById("cycles", sub.get("cycle"));
@@ -352,6 +360,7 @@ routerAdd("GET", "/api/subscriptions/export", (e) => {
 
     exported.push({
       name: sub.get("name"),
+      record_type: sub.get("record_type") === "credit" ? "credit" : "expense",
       price: sub.get("price"),
       currency: currencyCode,
       currency_symbol: currencySymbol,

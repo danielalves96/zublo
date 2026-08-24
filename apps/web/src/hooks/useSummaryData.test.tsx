@@ -35,9 +35,7 @@ function getMockCurrency(overrides: Partial<Currency> = {}): Currency {
   };
 }
 
-function getMockSubscription(
-  overrides: Partial<Subscription> = {},
-): Subscription {
+function getMockSubscription(overrides: Partial<Subscription> = {}): Subscription {
   return {
     id: "sub-1",
     name: "Netflix",
@@ -55,6 +53,11 @@ function getMockSubscription(
     ...overrides,
   };
 }
+
+const dateInCurrentMonth = (day: number) => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+};
 
 describe("useSummaryData", () => {
   beforeEach(() => {
@@ -125,6 +128,48 @@ describe("useSummaryData", () => {
     expect(result.current.data?.mostExpensive?.record).toBe(gym);
   });
 
+  it("excludes credits from recurring totals and adds only current-month credits", async () => {
+    const usd = getMockCurrency({ is_main: true });
+    const expense = getMockSubscription({
+      id: "expense",
+      price: 40,
+      expand: { currency: usd, cycle: { id: "monthly", name: "Monthly" } },
+    });
+    const currentCredit = getMockSubscription({
+      id: "credit-current",
+      name: "Bonus",
+      record_type: "credit",
+      price: 250,
+      next_payment: dateInCurrentMonth(15),
+      expand: { currency: usd, cycle: { id: "one-time", name: "One-Time" } },
+    });
+    const otherMonthCredit = getMockSubscription({
+      id: "credit-other-month",
+      record_type: "credit",
+      price: 999,
+      next_payment: "1999-01-01",
+      expand: { currency: usd, cycle: { id: "one-time", name: "One-Time" } },
+    });
+
+    listActive.mockResolvedValue([expense, currentCredit, otherMonthCredit]);
+    listCurrencies.mockResolvedValue([usd]);
+
+    const { Wrapper } = createQueryClientWrapper();
+    const { result } = renderHook(() => useSummaryData("user-credits"), {
+      wrapper: Wrapper,
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(result.current.data).toMatchObject({
+      totalMonthly: 40,
+      totalYearly: 480,
+      totalCredits: 250,
+      count: 3,
+      mostExpensive: { id: "expense" },
+    });
+  });
+
   it("falls back to default currency values and handles empty subscriptions", async () => {
     listActive.mockResolvedValue([]);
     listCurrencies.mockResolvedValue([]);
@@ -143,6 +188,7 @@ describe("useSummaryData", () => {
       totalYearly: 0,
       totalWeekly: 0,
       totalDaily: 0,
+      totalCredits: 0,
       mainSymbol: "$",
       count: 0,
       mostExpensive: null,

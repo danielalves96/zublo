@@ -20,6 +20,7 @@ routerAdd("POST", "/api/cron/{job}", function(e) {
   // ----------------------------------------------------------------
   if (job === "check_subscriptions") {
     var dateHelpers = require(__hooks + "/lib/date-helpers.js");
+    var recordTypes = require(__hooks + "/lib/pure/record-types.js");
     var today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -32,6 +33,7 @@ routerAdd("POST", "/api/cron/{job}", function(e) {
 
     for (var i = 0; i < subs.length; i++) {
       var sub = subs[i];
+      if (!recordTypes.isExpense(sub.get("record_type"))) continue;
       var cycleRecord = $app.findRecordById("cycles", sub.get("cycle"));
       var nextPayment = new Date(sub.get("next_payment"));
       while (nextPayment <= today) {
@@ -48,6 +50,7 @@ routerAdd("POST", "/api/cron/{job}", function(e) {
   if (job === "send_notifications") {
     var notifHelpers = require(__hooks + "/lib/notifications.js");
     var dateHelpers = require(__hooks + "/lib/date-helpers.js");
+    var recordTypes = require(__hooks + "/lib/pure/record-types.js");
     var now = new Date();
     var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     var todayStr = dateHelpers.formatLocalDate(today);
@@ -80,6 +83,7 @@ routerAdd("POST", "/api/cron/{job}", function(e) {
 
         for (var si = 0; si < subs.length; si++) {
           var sub = subs[si];
+          if (!recordTypes.isExpense(sub.get("record_type"))) continue;
           if (sub.getString("next_payment").slice(0, 10) !== targetStr) continue;
           try {
             var dup = $app.findRecordsByFilter("notification_log",
@@ -178,6 +182,7 @@ routerAdd("POST", "/api/cron/{job}", function(e) {
   // ----------------------------------------------------------------
   if (job === "save_monthly_costs") {
     var dateHelpers = require(__hooks + "/lib/date-helpers.js");
+    var recordTypes = require(__hooks + "/lib/pure/record-types.js");
     var now = new Date();
     var year = now.getFullYear();
     var month = now.getMonth() + 1;
@@ -190,6 +195,7 @@ routerAdd("POST", "/api/cron/{job}", function(e) {
       var subs = $app.findRecordsByFilter("subscriptions", "user = {:u} && inactive = false", "", 0, 0, { u: userId });
       for (var si = 0; si < subs.length; si++) {
         var sub = subs[si];
+        if (!recordTypes.isExpense(sub.get("record_type"))) continue;
         var price = sub.get("price") || 0;
         var freq = sub.get("frequency") || 1;
         var cname = "Monthly"; try { cname = $app.findRecordById("cycles", sub.get("cycle")).get("name"); } catch(_) {}

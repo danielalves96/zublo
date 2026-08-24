@@ -30,12 +30,12 @@ export interface PaymentRecord {
   id: string;
   subscription_id: string;
   user: string;
-  due_date: string;       // YYYY-MM-DD
-  paid_at?: string;       // ISO datetime
+  due_date: string; // YYYY-MM-DD
+  paid_at?: string; // ISO datetime
   auto_paid?: boolean;
   amount?: number;
   notes?: string;
-  proof?: string;         // filename
+  proof?: string; // filename
 }
 
 export interface Subscription {
@@ -61,6 +61,8 @@ export interface Subscription {
   cancellation_date?: string;
   replacement_subscription?: string;
   user: string;
+  /** Missing on legacy records; an absent value is always treated as expense. */
+  record_type?: "expense" | "credit";
   // Expanded relations
   expand?: {
     currency?: Currency;
@@ -103,7 +105,7 @@ export interface Household {
 
 export interface Cycle {
   id: string;
-  name: "Daily" | "Weekly" | "Monthly" | "Quarterly" | "Half-Yearly" | "Yearly";
+  name: "Daily" | "Weekly" | "Monthly" | "Quarterly" | "Half-Yearly" | "Yearly" | "One-Time";
 }
 
 export interface Frequency {

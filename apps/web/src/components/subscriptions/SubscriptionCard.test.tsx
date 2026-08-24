@@ -60,9 +60,7 @@ function getCurrency(overrides: Partial<Currency> = {}): Currency {
   };
 }
 
-function getPaymentMethod(
-  overrides: Partial<PaymentMethod> = {},
-): PaymentMethod {
+function getPaymentMethod(overrides: Partial<PaymentMethod> = {}): PaymentMethod {
   return {
     id: "pm-1",
     name: "Visa",
@@ -144,10 +142,7 @@ describe("SubscriptionCard", () => {
       "src",
       "https://cdn.example.com/netflix.png",
     );
-    expect(screen.getByAltText("Visa")).toHaveAttribute(
-      "src",
-      "https://cdn.example.com/visa.png",
-    );
+    expect(screen.getByAltText("Visa")).toHaveAttribute("src", "https://cdn.example.com/visa.png");
 
     fireEvent.click(screen.getByTitle("open_url"));
     fireEvent.click(screen.getByTitle("edit"));
@@ -155,10 +150,7 @@ describe("SubscriptionCard", () => {
     fireEvent.click(screen.getByTitle("renew"));
     fireEvent.click(screen.getByTitle("delete"));
 
-    expect(mocks.windowOpen).toHaveBeenCalledWith(
-      "https://example.com/netflix",
-      "_blank",
-    );
+    expect(mocks.windowOpen).toHaveBeenCalledWith("https://example.com/netflix", "_blank");
     expect(onEdit).toHaveBeenCalledTimes(1);
     expect(onClone).toHaveBeenCalledTimes(1);
     expect(onRenew).toHaveBeenCalledTimes(1);
@@ -229,6 +221,39 @@ describe("SubscriptionCard", () => {
     expect(mocks.toMonthly).not.toHaveBeenCalled();
     // formatPrice called with raw price 99
     expect(mocks.formatPrice).toHaveBeenCalledWith(99, expect.any(String));
+  });
+
+  it("keeps one-time credits visible and distinct without recurring actions", () => {
+    const onRenew = vi.fn();
+    render(
+      <SubscriptionCard
+        sub={getSubscription({
+          name: "Bonus",
+          record_type: "credit",
+          price: 500,
+          cycle: "one-time",
+          expand: {
+            currency: getCurrency({ id: "cur-2", symbol: "$", is_main: true }),
+            cycle: { id: "one-time", name: "One-Time" },
+          },
+        })}
+        showMonthly
+        showProgress
+        onEdit={vi.fn()}
+        onClone={vi.fn()}
+        onRenew={onRenew}
+        onDelete={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Bonus")).toBeInTheDocument();
+    expect(screen.getByText("credit_income")).toBeInTheDocument();
+    expect(screen.getByText("+500.00 $")).toBeInTheDocument();
+    expect(screen.getByText("one_time")).toBeInTheDocument();
+    expect(screen.getByText("received_on")).toBeInTheDocument();
+    expect(screen.queryByText("billing_cycle")).not.toBeInTheDocument();
+    expect(screen.queryByTitle("renew")).not.toBeInTheDocument();
+    expect(mocks.toMonthly).not.toHaveBeenCalled();
   });
 
   it("uses rawPrice directly when shouldConvert is false (line 102 false branch)", () => {

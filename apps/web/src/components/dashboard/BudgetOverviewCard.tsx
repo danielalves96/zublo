@@ -19,6 +19,8 @@ interface BudgetOverviewCardProps {
   budgetUsed: number;
   isOverBudget: boolean;
   totalMonthly?: number;
+  totalCredits?: number;
+  remaining?: number;
   subscriptionsCount?: number;
   mostExpensive?: MostExpensiveSubscription | null;
   formatValue: (value: number) => string;
@@ -29,6 +31,8 @@ export function BudgetOverviewCard({
   budgetUsed,
   isOverBudget,
   totalMonthly,
+  totalCredits = 0,
+  remaining,
   subscriptionsCount,
   mostExpensive,
   formatValue,
@@ -41,7 +45,7 @@ export function BudgetOverviewCard({
         <CardTitle className="text-lg">{t("budget_overview")}</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-5 pt-6">
-        {budget > 0 ? (
+        {budget > 0 || totalCredits > 0 ? (
           <>
             <div className="flex items-end justify-between">
               <div className="space-y-1">
@@ -56,42 +60,46 @@ export function BudgetOverviewCard({
                 </p>
               </div>
               <div className="space-y-1 text-right">
-                <p className="text-sm text-muted-foreground">
-                  {t("monthly_budget")}
-                </p>
+                <p className="text-sm text-muted-foreground">{t("monthly_budget")}</p>
                 <p className="text-xl font-medium">{formatValue(budget)}</p>
               </div>
             </div>
 
+            {totalCredits > 0 ? (
+              <div className="flex items-center justify-between rounded-xl border border-green-500/20 bg-green-500/10 px-3 py-2 text-sm">
+                <span className="font-medium text-green-700 dark:text-green-400">
+                  {t("credits_this_month")}
+                </span>
+                <span className="font-bold text-green-700 dark:text-green-400">
+                  +{formatValue(totalCredits)}
+                </span>
+              </div>
+            ) : null}
+
             <div className="space-y-2">
               <Progress
                 value={budgetUsed}
-                className={cn(
-                  "h-3 rounded-full",
-                  isOverBudget && "[&>div]:bg-destructive",
-                )}
+                className={cn("h-3 rounded-full", isOverBudget && "[&>div]:bg-destructive")}
               />
               <div className="flex justify-between text-xs font-medium">
                 <span
                   className={cn(
-                    isOverBudget
-                      ? "font-bold text-destructive"
-                      : "text-muted-foreground",
+                    isOverBudget ? "font-bold text-destructive" : "text-muted-foreground",
                   )}
                 >
                   {budgetUsed.toFixed(1)}% {t("budget_used").toLowerCase()}
                 </span>
                 {isOverBudget ? (
-                  <span className="font-bold text-destructive">
-                    {t("budget_over")}
-                  </span>
+                  <span className="font-bold text-destructive">{t("budget_over")}</span>
                 ) : (
                   <span className="text-muted-foreground">
                     {t("budget_remaining")}:{" "}
                     <span className="font-semibold text-foreground">
-                      {typeof totalMonthly === "number"
-                        ? formatValue(budget - totalMonthly)
-                        : "—"}
+                      {typeof remaining === "number"
+                        ? formatValue(remaining)
+                        : typeof totalMonthly === "number"
+                          ? formatValue(budget + totalCredits - totalMonthly)
+                          : "—"}
                     </span>
                   </span>
                 )}
@@ -129,9 +137,7 @@ export function BudgetOverviewCard({
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 {t("most_expensive_sub")}
               </p>
-              <p className="truncate text-sm font-semibold text-foreground">
-                {mostExpensive.name}
-              </p>
+              <p className="truncate text-sm font-semibold text-foreground">{mostExpensive.name}</p>
             </div>
             <span className="shrink-0 text-base font-bold text-primary">
               {formatValue(mostExpensive.monthly)}
@@ -142,9 +148,7 @@ export function BudgetOverviewCard({
         <div className="mt-auto border-t pt-4">
           <div className="flex items-center justify-between rounded-xl bg-muted/40 px-2 py-3">
             <span className="text-sm font-medium">{t("subscriptions")}</span>
-            <span className="text-lg font-bold text-primary">
-              {subscriptionsCount ?? "—"}
-            </span>
+            <span className="text-lg font-bold text-primary">{subscriptionsCount ?? "—"}</span>
           </div>
         </div>
       </CardContent>

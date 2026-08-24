@@ -21,4 +21,26 @@ describe("i18n", () => {
     );
     expect(SUPPORTED_LANGUAGES).toHaveLength(16);
   });
+
+  it("translates the income-credit workflow in every supported language", () => {
+    const creditKeys = [
+      "record_type",
+      "expense",
+      "credit_income",
+      "credit_income_hint",
+      "expense_hint",
+      "one_time_payout",
+      "one_time_payout_hint",
+      "received_on",
+      "one_time",
+      "credits_this_month",
+    ];
+
+    for (const { code } of SUPPORTED_LANGUAGES) {
+      const resources = i18n.getResourceBundle(code, "translation");
+      for (const key of creditKeys) {
+        expect(resources[key], `${code}.${key}`).toBeTruthy();
+      }
+    }
+  });
 });

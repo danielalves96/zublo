@@ -1,10 +1,7 @@
 import { useMemo } from "react";
 
-import {
-  type DayEntry,
-  getOccurrencesInMonth,
-  toMain,
-} from "@/components/calendar/types";
+import { type DayEntry, getOccurrencesInMonth, toMain } from "@/components/calendar/types";
+import { isExpense } from "@/lib/recordTypes";
 import type { Currency, Cycle, Subscription } from "@/types";
 
 interface UseCalendarMonthDataParams {
@@ -60,6 +57,7 @@ export function useCalendarMonthData({
         const currency = sub.expand?.currency ?? currencyById.get(sub.currency);
         const amount = toMain(sub.price, currency);
         count += 1;
+        if (!isExpense(sub)) continue;
         total += amount;
 
         if (date >= today) {
@@ -100,13 +98,14 @@ export function useCalendarMonthData({
   }, [year, month]);
 
   const selectedEntries = useMemo(
-    () => (selectedDay ? entriesByDay[selectedDay] ?? [] : []),
+    () => (selectedDay ? (entriesByDay[selectedDay] ?? []) : []),
     [selectedDay, entriesByDay],
   );
 
   const selectedDayTotal = useMemo(
     () =>
       selectedEntries.reduce((sum, { sub }) => {
+        if (!isExpense(sub)) return sum;
         const currency = sub.expand?.currency ?? currencyById.get(sub.currency);
         return sum + toMain(sub.price, currency);
       }, 0),

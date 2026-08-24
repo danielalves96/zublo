@@ -51,6 +51,8 @@ describe("BudgetOverviewCard", () => {
         budgetUsed={45}
         isOverBudget={false}
         totalMonthly={45}
+        totalCredits={25}
+        remaining={80}
         subscriptionsCount={4}
         mostExpensive={{
           name: "Netflix",
@@ -65,6 +67,9 @@ describe("BudgetOverviewCard", () => {
     expect(screen.getByText("budget_overview")).toBeInTheDocument();
     expect(screen.getByText("$45.00")).toBeInTheDocument();
     expect(screen.getByText("$100.00")).toBeInTheDocument();
+    expect(screen.getByText("credits_this_month")).toBeInTheDocument();
+    expect(screen.getByText("+$25.00")).toBeInTheDocument();
+    expect(screen.getByText("$80.00")).toBeInTheDocument();
     expect(screen.getByText("45.0% budget_used")).toBeInTheDocument();
     expect(screen.getByText("budget_remaining:")).toBeInTheDocument();
     expect(screen.getByText("most_expensive_sub")).toBeInTheDocument();

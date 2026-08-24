@@ -37,16 +37,14 @@ export function DashboardPage() {
       }),
   });
 
-  const { mutate: takeSnapshot, isPending: snapshotPending, isSuccess: snapshotDone } =
-    snapshotMutation;
+  const {
+    mutate: takeSnapshot,
+    isPending: snapshotPending,
+    isSuccess: snapshotDone,
+  } = snapshotMutation;
 
   useEffect(() => {
-    if (
-      yearlyCosts.data &&
-      yearlyCosts.data.length === 0 &&
-      !snapshotPending &&
-      !snapshotDone
-    ) {
+    if (yearlyCosts.data && yearlyCosts.data.length === 0 && !snapshotPending && !snapshotDone) {
       takeSnapshot();
     }
   }, [yearlyCosts.data, snapshotPending, snapshotDone, takeSnapshot]);
@@ -71,10 +69,9 @@ export function DashboardPage() {
   });
 
   const summaryData = summary.data;
-  const formatValue = (value: number) =>
-    formatPrice(value, summaryData?.mainSymbol ?? "$");
+  const formatValue = (value: number) => formatPrice(value, summaryData?.mainSymbol ?? "$");
 
-  const { budget, budgetUsed, chartData, isOverBudget } =
+  const { budget, budgetUsed, chartData, isOverBudget, remaining, totalCredits } =
     useDashboardDerivedData({
       user,
       summary: summaryData,
@@ -85,10 +82,7 @@ export function DashboardPage() {
 
   return (
     <div className="animate-in slide-in-from-bottom-4 space-y-8 fade-in duration-500">
-      <DashboardHeader
-        userName={userName}
-        activeSubscriptions={summaryData?.count ?? 0}
-      />
+      <DashboardHeader userName={userName} activeSubscriptions={summaryData?.count ?? 0} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <SummaryCard
@@ -129,6 +123,8 @@ export function DashboardPage() {
           budgetUsed={budgetUsed}
           isOverBudget={isOverBudget}
           totalMonthly={summaryData?.totalMonthly}
+          totalCredits={totalCredits}
+          remaining={remaining}
           subscriptionsCount={summaryData?.count}
           mostExpensive={summaryData?.mostExpensive}
           formatValue={formatValue}

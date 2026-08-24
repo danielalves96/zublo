@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/queryKeys";
+import { isCredit, isDateInMonth } from "@/lib/recordTypes";
 import { toMonthly } from "@/lib/utils";
 import { currenciesService } from "@/services/currencies";
 import { subscriptionsService } from "@/services/subscriptions";
@@ -20,6 +21,7 @@ export function useSummaryData(userId: string) {
       const mainSymbol = mainCurrency?.symbol ?? "$";
 
       let totalMonthly = 0;
+      let totalCredits = 0;
       let mostExpensive: {
         id: string;
         name: string;
@@ -30,9 +32,18 @@ export function useSummaryData(userId: string) {
 
       for (const sub of subs) {
         const currency = sub.expand?.currency;
+        const rate = currency?.rate ?? 1;
+        const priceMain = (sub.price / rate) * mainRate;
+
+        if (isCredit(sub)) {
+          if (isDateInMonth(sub.next_payment, new Date())) {
+            totalCredits += priceMain;
+          }
+          continue;
+        }
+
         const cycleName = sub.expand?.cycle?.name ?? "Monthly";
         const monthly = toMonthly(sub.price, cycleName, sub.frequency || 1);
-        const rate = currency?.rate ?? 1;
         const monthlyMain = (monthly / rate) * mainRate;
         totalMonthly += monthlyMain;
 
@@ -52,6 +63,7 @@ export function useSummaryData(userId: string) {
         totalYearly: totalMonthly * 12,
         totalWeekly: (totalMonthly * 12) / 52,
         totalDaily: (totalMonthly * 12) / 365,
+        totalCredits,
         mainSymbol,
         count: subs.length,
         mostExpensive,
