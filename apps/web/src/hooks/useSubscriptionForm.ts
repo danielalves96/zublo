@@ -117,16 +117,17 @@ export function useSubscriptionForm({ sub, currencies, household }: UseSubscript
             message: t("positive_payment_limit"),
           });
         }
-        if (
-          !Number.isInteger(completed) ||
-          completed < 0 ||
-          completed > limit ||
-          (completed === limit && !values.inactive)
-        ) {
+        if (!Number.isInteger(completed) || completed < 0 || completed > limit) {
           context.addIssue({
             code: "custom",
             path: ["payments_completed"],
             message: t("payments_completed_range"),
+          });
+        } else if (completed === limit && !values.inactive) {
+          context.addIssue({
+            code: "custom",
+            path: ["payments_completed"],
+            message: t("payments_completed_reactivate"),
           });
         }
       }

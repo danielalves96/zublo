@@ -210,6 +210,11 @@ routerAdd("POST", "/api/subscriptions/import", (e) => {
         results.errors.push({ index: i, reason: "Missing name" });
         continue;
       }
+      if (endDate && nextPayment && endDate < String(nextPayment).slice(0, 10)) {
+        results.skipped++;
+        results.errors.push({ index: i, name: name, reason: "end_date cannot be before next_payment" });
+        continue;
+      }
       if (!cycleId) {
         results.errors.push({ index: i, name: name, warning: "Unknown cycle, defaulting to Monthly" });
         cycleId = findCycleByName("Monthly");
@@ -269,18 +274,25 @@ routerAdd("POST", "/api/subscription/clone", (e) => {
   const col = $app.findCollectionByNameOrId("subscriptions");
   const clone = new Record(col);
 
-  // Copy all fields except id
+  // Copy all fields except id and the finite-schedule progress. A clone starts a
+  // fresh schedule: payment_limit and end_date are structural bounds worth
+  // keeping, but payments_completed must reset to 0 and an inactive source must
+  // not produce a dead clone.
   const fieldsToCopy = [
     "name", "price", "frequency", "next_payment", "auto_renew",
     "start_date", "notes", "url", "notify", "notify_days_before",
-    "inactive", "cancellation_date", "currency", "cycle",
-    "end_date", "payment_limit", "payments_completed", "auto_mark_paid",
+    "cancellation_date", "currency", "cycle",
+    "end_date", "payment_limit", "auto_mark_paid",
     "payment_method", "payer", "category", "user",
   ];
 
   for (const field of fieldsToCopy) {
     clone.set(field, original.get(field));
   }
+
+  // A clone always starts active with a clean installment count.
+  clone.set("inactive", false);
+  clone.set("payments_completed", 0);
 
   // Logo needs special handling (file copy)
   $app.save(clone);
@@ -321,7 +333,7 @@ routerAdd("POST", "/api/subscription/renew", (e) => {
     endDate: sub.get("end_date"),
     paymentLimit: sub.get("payment_limit"),
     paymentsCompleted: sub.get("payments_completed"),
-    inactive: false,
+    inactive: sub.get("inactive"),
     advanceDate: dateHelpers.advanceDate,
   });
 

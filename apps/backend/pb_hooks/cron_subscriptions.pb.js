@@ -15,7 +15,7 @@ cronAdd("updateNextPayment", "0 0 * * *", () => {
 
   const subs = $app.findRecordsByFilter(
     "subscriptions",
-    "inactive = false && auto_renew = true && (next_payment <= {:today} || end_date < {:today})",
+    "inactive = false && auto_renew = true && (next_payment <= {:today} || (end_date != '' && end_date < {:today}))",
     "",
     0,
     0,

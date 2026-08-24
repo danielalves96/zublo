@@ -169,7 +169,7 @@ routerAdd("POST", "/api/ai/chat", function (e) {
         : Math.max(0, parseInt(sub.get("payments_completed")) || 0);
       if (proposedEndDate && proposedPaymentLimit) return { error: "Use either end_date or payment_limit, not both." };
       if (proposedEndDate && proposedEndDate < proposedNextPayment) return { error: "end_date cannot be before next_payment." };
-      if (proposedPaymentLimit && proposedCompleted > proposedPaymentLimit) return { error: "payments_completed cannot exceed payment_limit." };
+      if (proposedPaymentLimit && (proposedCompleted > proposedPaymentLimit || (proposedCompleted === proposedPaymentLimit && !sub.get("inactive")))) return { error: "payments_completed must be less than payment_limit while active." };
 
       if (args.new_name !== undefined) sub.set("name", args.new_name);
       if (args.price !== undefined) sub.set("price", parseFloat(args.price));
@@ -178,11 +178,11 @@ routerAdd("POST", "/api/ai/chat", function (e) {
       if (args.notes !== undefined) sub.set("notes", args.notes);
       if (args.url !== undefined) sub.set("url", args.url);
       if (args.notify !== undefined) sub.set("notify", !!args.notify);
-      if (args.auto_renew !== undefined) sub.set("auto_renew", !!args.auto_renew);
       sub.set("end_date", proposedEndDate);
       sub.set("payment_limit", proposedPaymentLimit);
       sub.set("payments_completed", proposedCompleted);
       if (proposedEndDate || proposedPaymentLimit) sub.set("auto_renew", true);
+      else if (args.auto_renew !== undefined) sub.set("auto_renew", !!args.auto_renew);
 
       if (args.currency_code !== undefined) {
         var curs = $app.findRecordsByFilter(

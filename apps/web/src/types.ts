@@ -63,7 +63,7 @@ export interface Subscription {
   end_date?: string;
   /** Total number of scheduled payments; zero/absent means unlimited. */
   payment_limit?: number;
-  /** Scheduled payments elapsed for a count-limited subscription. */
+  /** Scheduled payments elapsed for a finite (count- or date-limited) subscription. */
   payments_completed?: number;
   replacement_subscription?: string;
   user: string;

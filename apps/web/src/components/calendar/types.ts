@@ -101,8 +101,6 @@ export function getOccurrencesInMonth(
   month: number,
   cycles: Cycle[],
 ): Date[] {
-  if (sub.inactive) return [];
-
   const cycle = sub.expand?.cycle ?? cycles.find((c) => c.id === sub.cycle);
   const cycleName = cycle?.name ?? "Monthly";
 
@@ -122,7 +120,14 @@ export function getOccurrencesInMonth(
   const endDate = parseLocalDate(sub.cancellation_date);
   const scheduleEndDate = parseLocalDate(sub.end_date);
   const paymentLimit = Math.max(0, Math.floor(sub.payment_limit ?? 0));
-  let occurrenceIndex = Math.max(0, Math.floor(sub.payments_completed ?? 0));
+  const paymentsCompleted = Math.max(0, Math.floor(sub.payments_completed ?? 0));
+
+  // Normally next_payment is the *upcoming* occurrence, so its index equals the
+  // number already elapsed. A completed count-bounded schedule is the exception:
+  // advanceFiniteSchedule parks next_payment on the final payment rather than
+  // advancing past it, so there the anchor is the last valid index instead.
+  const countBoundReached = paymentLimit > 0 && paymentsCompleted >= paymentLimit;
+  let occurrenceIndex = countBoundReached ? paymentLimit - 1 : paymentsCompleted;
 
   const rangeStart = startDate && startDate > monthStart ? startDate : monthStart;
   const effectiveEndDate = [endDate, scheduleEndDate]
@@ -190,6 +195,19 @@ export function getOccurrencesInMonth(
     if (cycleName === "Yearly") return addMonths(d, -freq * 12);
     return new Date(d);
   };
+
+  // An inactive subscription is normally hidden. The exception is one that went
+  // inactive by *finishing* its finite schedule: those payments really happened,
+  // so their history stays on the calendar (the bounds below already stop the
+  // projection at the final occurrence). A merely paused schedule still has
+  // payments ahead of it and must not project them, so "has a bound" is not
+  // enough — the bound has to have been reached. Both checks mirror the backend
+  // completion rules in pb_hooks/lib/pure/subscription-limits.js so the calendar
+  // and the cron agree on when a schedule is done.
+  if (sub.inactive) {
+    const dateBoundReached = !!scheduleEndDate && add(anchor) > scheduleEndDate;
+    if (!countBoundReached && !dateBoundReached) return [];
+  }
 
   let g = 0;
   while (cursor > rangeStart && g++ < 600) {

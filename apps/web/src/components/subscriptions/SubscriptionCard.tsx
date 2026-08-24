@@ -211,7 +211,7 @@ export function SubscriptionCard({
           </div>
         )}
 
-        {!sub.inactive && ((sub.payment_limit ?? 0) > 0 || sub.end_date) && (
+        {((sub.payment_limit ?? 0) > 0 || sub.end_date) && (
           <div className="flex items-center gap-1.5 px-1 text-xs font-medium text-muted-foreground">
             <Hourglass className="h-3.5 w-3.5" />
             {(sub.payment_limit ?? 0) > 0
@@ -219,7 +219,7 @@ export function SubscriptionCard({
                   completed: sub.payments_completed ?? 0,
                   total: sub.payment_limit,
                 })
-              : t("ends_on", { date: formatDate(sub.end_date ?? "") })}
+              : t(sub.inactive ? "ended_on" : "ends_on", { date: formatDate(sub.end_date ?? "") })}
           </div>
         )}
 

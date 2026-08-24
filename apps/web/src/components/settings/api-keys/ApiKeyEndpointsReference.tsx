@@ -30,7 +30,7 @@ const SUBSCRIPTION_CREATE_BODY = `{
   "end_date": "2025-12-01",    // optional, inclusive; mutually exclusive with payment_limit
   "payment_limit": 12,          // optional, mutually exclusive with end_date
   "payments_completed": 0,      // optional, must be less than payment_limit
-  "auto_renew": true,          // optional
+  "auto_renew": true,          // optional; forced true when end_date or payment_limit is set
   "notify": true,              // optional
   "notify_days_before": 3,     // optional
   "notes": "...",              // optional
@@ -69,7 +69,7 @@ const SUBSCRIPTION_UPDATE_BODY = `{
   "end_date": null,             // optional, inclusive; mutually exclusive with payment_limit
   "payment_limit": 6,           // optional, 0 removes the limit
   "payments_completed": 2,      // optional, must be less than payment_limit
-  "auto_renew": true,          // optional
+  "auto_renew": true,          // optional; forced true when end_date or payment_limit is set
   "notify": true,              // optional
   "notify_days_before": 5,     // optional
   "inactive": false,           // optional
@@ -108,11 +108,21 @@ const SUBSCRIPTION_MARK_PAID_BODY = `{
 }`;
 
 const SUBSCRIPTION_BATCH_BODY = `{
-  "subscriptions": [           // array of subscription objects (required)
-    { "name": "Netflix", ... },
-    { "name": "Spotify", ... }
+  "items": [                   // array of subscription objects (required)
+    {
+      "name": "Netflix",       // required
+      "currency_id": "<id>",   // required
+      "cycle_id": "<id>",      // required
+      "next_payment": "2025-02-01", // required - YYYY-MM-DD
+      "end_date": "2025-12-01",     // optional, mutually exclusive with payment_limit
+      "payment_limit": 12,          // optional, mutually exclusive with end_date
+      "payments_completed": 0       // optional, must be less than payment_limit
+    }
   ]
-}`;
+}
+
+// Always returns 200. Valid items are created even when others fail:
+// { "success": false, "created": [...], "errors": [{ "index": 1, "reason": "..." }] }`;
 
 const CATEGORY_BULK_RENAME_BODY = `{
   "old_name": "Entertainment", // required (current name)

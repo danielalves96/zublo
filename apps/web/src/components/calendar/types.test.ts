@@ -283,6 +283,58 @@ describe("calendar types helpers", () => {
     expect(getOccurrencesInMonth(installments, 2026, 6, cycles)).toEqual([]);
   });
 
+  it("keeps history for a completed finite schedule but hides a merely paused one", () => {
+    const cycles = [{ id: "monthly", name: "Monthly" as const }];
+    const base = {
+      cycle: "monthly",
+      start_date: "2026-01-01",
+      inactive: true,
+    };
+
+    // Completed by count: next_payment is the final installment, so March still
+    // shows it and nothing is projected past the limit.
+    const completedByCount = getSubscription({
+      ...base,
+      next_payment: "2026-03-15",
+      payment_limit: 3,
+      payments_completed: 3,
+    });
+    expect(
+      getOccurrencesInMonth(completedByCount, 2026, 3, cycles).map((date) => date.getDate()),
+    ).toEqual([15]);
+    expect(getOccurrencesInMonth(completedByCount, 2026, 4, cycles)).toEqual([]);
+
+    // Completed by date: the occurrence after next_payment would pass end_date.
+    const completedByDate = getSubscription({
+      ...base,
+      next_payment: "2026-03-15",
+      end_date: "2026-03-20",
+    });
+    expect(
+      getOccurrencesInMonth(completedByDate, 2026, 3, cycles).map((date) => date.getDate()),
+    ).toEqual([15]);
+    expect(getOccurrencesInMonth(completedByDate, 2026, 4, cycles)).toEqual([]);
+
+    // Paused mid-schedule: having a bound is not the same as having reached it,
+    // so none of the remaining payments may be projected.
+    const pausedByCount = getSubscription({
+      ...base,
+      next_payment: "2026-04-15",
+      payment_limit: 12,
+      payments_completed: 3,
+    });
+    expect(getOccurrencesInMonth(pausedByCount, 2026, 4, cycles)).toEqual([]);
+    expect(getOccurrencesInMonth(pausedByCount, 2026, 6, cycles)).toEqual([]);
+
+    const pausedByDate = getSubscription({
+      ...base,
+      next_payment: "2026-04-15",
+      end_date: "2027-01-15",
+    });
+    expect(getOccurrencesInMonth(pausedByDate, 2026, 4, cycles)).toEqual([]);
+    expect(getOccurrencesInMonth(pausedByDate, 2026, 6, cycles)).toEqual([]);
+  });
+
   it("projects quarterly and half-yearly finite schedules", () => {
     const cycles = [
       { id: "quarterly", name: "Quarterly" as const },

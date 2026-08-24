@@ -52,7 +52,7 @@ function advanceFiniteSchedule(options) {
       break;
     }
 
-    if (paymentLimit) paymentsCompleted += 1;
+    if (paymentLimit || endDate) paymentsCompleted += 1;
     processed += 1;
 
     if (paymentLimit && paymentsCompleted >= paymentLimit) {

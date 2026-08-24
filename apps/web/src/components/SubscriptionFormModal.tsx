@@ -98,8 +98,11 @@ export function SubscriptionFormModal({
         // with it, including multipart edits where null values are omitted.
         end_date: data.end_mode === "date" ? data.end_date : "",
         payment_limit: data.end_mode === "payments" ? parseInt(data.payment_limit) : 0,
+        // The cron counts elapsed payments for date-bounded schedules too, so an
+        // unrelated edit must not reset that tally — only dropping the schedule
+        // entirely does.
         payments_completed:
-          data.end_mode === "payments" ? parseInt(data.payments_completed) || 0 : 0,
+          data.end_mode === "never" ? 0 : parseInt(data.payments_completed) || 0,
         user: userId,
       };
 

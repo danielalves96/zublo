@@ -20,24 +20,35 @@ routerAdd("POST", "/api/cron/{job}", function(e) {
   // ----------------------------------------------------------------
   if (job === "check_subscriptions") {
     var dateHelpers = require(__hooks + "/lib/date-helpers.js");
+    var subscriptionLimits = require(__hooks + "/lib/pure/subscription-limits.js");
     var today = new Date();
     today.setHours(0, 0, 0, 0);
+    var todayStr = dateHelpers.formatLocalDate(today);
 
     var subs = $app.findRecordsByFilter(
       "subscriptions",
-      "inactive = false && auto_renew = true && next_payment <= {:today}",
+      "inactive = false && auto_renew = true && (next_payment <= {:today} || (end_date != '' && end_date < {:today}))",
       "", 0, 0,
-      { today: dateHelpers.formatLocalDate(today) }
+      { today: todayStr }
     );
 
     for (var i = 0; i < subs.length; i++) {
       var sub = subs[i];
       var cycleRecord = $app.findRecordById("cycles", sub.get("cycle"));
-      var nextPayment = new Date(sub.get("next_payment"));
-      while (nextPayment <= today) {
-        nextPayment = dateHelpers.advanceDate(nextPayment, cycleRecord.get("name"), sub.get("frequency"));
-      }
-      sub.set("next_payment", nextPayment.toISOString().split("T")[0]);
+      var result = subscriptionLimits.advanceFiniteSchedule({
+        nextPayment: sub.get("next_payment"),
+        today: todayStr,
+        cycleName: cycleRecord.get("name"),
+        frequency: sub.get("frequency"),
+        endDate: sub.get("end_date"),
+        paymentLimit: sub.get("payment_limit"),
+        paymentsCompleted: sub.get("payments_completed"),
+        inactive: sub.get("inactive"),
+        advanceDate: dateHelpers.advanceDate,
+      });
+      sub.set("next_payment", result.nextPayment);
+      sub.set("payments_completed", result.paymentsCompleted);
+      sub.set("inactive", result.inactive);
       $app.save(sub);
     }
 

@@ -898,7 +898,6 @@ routerAdd("PUT", "/api/external/subscriptions/{id}", function(e) {
     if (body.cycle_id !== undefined) record.set("cycle", String(body.cycle_id).trim());
     if (body.frequency !== undefined) record.set("frequency", parseInt(body.frequency) || 1);
     if (body.next_payment !== undefined) record.set("next_payment", String(body.next_payment).trim());
-    if (body.auto_renew !== undefined) record.set("auto_renew", body.auto_renew === true);
     if (body.notify !== undefined) record.set("notify", body.notify === true);
     if (body.notify_days_before !== undefined) record.set("notify_days_before", parseInt(body.notify_days_before) || 3);
     if (body.inactive !== undefined) record.set("inactive", body.inactive === true);
@@ -906,6 +905,7 @@ routerAdd("PUT", "/api/external/subscriptions/{id}", function(e) {
     record.set("payment_limit", proposedPaymentLimit);
     record.set("payments_completed", proposedCompleted);
     if (proposedEndDate || proposedPaymentLimit) record.set("auto_renew", true);
+    else if (body.auto_renew !== undefined) record.set("auto_renew", body.auto_renew === true);
     if (body.notes !== undefined) record.set("notes", String(body.notes));
     if (body.url !== undefined) record.set("url", String(body.url));
     if (body.category_id !== undefined) record.set("category", String(body.category_id));
@@ -1312,33 +1312,71 @@ routerAdd("POST", "/api/external/subscriptions/batch", function(e) {
 
     var col = $app.findCollectionByNameOrId("subscriptions");
     var created = [];
+    var errors = [];
 
     for (var i = 0; i < items.length; i++) {
         var item = items[i];
-        var record = new Record(col);
-        record.set("user", userId);
-        record.set("name", String(item.name || "Unnamed"));
-        record.set("price", parseFloat(item.price) || 0);
-        record.set("currency", String(item.currency_id));
-        record.set("cycle", String(item.cycle_id));
-        record.set("next_payment", String(item.next_payment));
+        var itemName = String(item.name || "Unnamed");
+        var itemNextPayment = String(item.next_payment || "").trim().slice(0, 10);
         var itemEndDate = String(item.end_date || "").trim().slice(0, 10);
         var itemPaymentLimit = Math.max(0, parseInt(item.payment_limit) || 0);
         var itemCompleted = Math.max(0, parseInt(item.payments_completed) || 0);
-        if (itemEndDate && itemPaymentLimit) continue;
-        if (itemEndDate && itemEndDate < String(item.next_payment).slice(0, 10)) continue;
-        if (itemPaymentLimit && (itemCompleted > itemPaymentLimit || (itemCompleted === itemPaymentLimit && item.inactive !== true))) continue;
+
+        if (!item.currency_id) {
+            errors.push({ index: i, name: itemName, reason: "currency_id is required" });
+            continue;
+        }
+        if (!item.cycle_id) {
+            errors.push({ index: i, name: itemName, reason: "cycle_id is required" });
+            continue;
+        }
+        if (!itemNextPayment) {
+            errors.push({ index: i, name: itemName, reason: "next_payment is required (YYYY-MM-DD)" });
+            continue;
+        }
+        if (itemEndDate && itemPaymentLimit) {
+            errors.push({ index: i, name: itemName, reason: "Use either end_date or payment_limit, not both" });
+            continue;
+        }
+        if (itemEndDate && itemEndDate < itemNextPayment) {
+            errors.push({ index: i, name: itemName, reason: "end_date cannot be before next_payment" });
+            continue;
+        }
+        if (itemPaymentLimit && (itemCompleted > itemPaymentLimit || (itemCompleted === itemPaymentLimit && item.inactive !== true))) {
+            errors.push({ index: i, name: itemName, reason: "payments_completed must be less than payment_limit while active" });
+            continue;
+        }
+
+        var record = new Record(col);
+        record.set("user", userId);
+        record.set("name", itemName);
+        record.set("price", parseFloat(item.price) || 0);
+        record.set("currency", String(item.currency_id));
+        record.set("cycle", String(item.cycle_id));
+        record.set("next_payment", itemNextPayment);
         record.set("end_date", itemEndDate);
         record.set("payment_limit", itemPaymentLimit);
         record.set("payments_completed", itemCompleted);
         record.set("auto_renew", itemEndDate || itemPaymentLimit ? true : item.auto_renew === true);
         record.set("inactive", item.inactive === true);
-        // Add other fields optionally...
+        if (item.notes !== undefined) record.set("notes", String(item.notes));
+        if (item.url !== undefined) record.set("url", String(item.url));
+        if (item.category_id) record.set("category", String(item.category_id));
+        if (item.payment_method_id) record.set("payment_method", String(item.payment_method_id));
+        if (item.payer_id) record.set("payer", String(item.payer_id));
         $app.save(record);
-        created.push({ id: record.id, name: item.name });
+        created.push({ id: record.id, name: itemName });
     }
 
-    return e.json(200, { success: true, created: created });
+    // Valid items are already committed by the time an invalid one is found, so
+    // a 4xx here would tell the client nothing was written and invite a retry
+    // that duplicates them. Report partial success instead: 200 always means
+    // "read `created` and `errors`", never "everything worked".
+    return e.json(200, {
+        success: errors.length === 0,
+        created: created,
+        errors: errors,
+    });
   } catch (err) { return e.json(500, { error: String(err) }); }
 });
 
