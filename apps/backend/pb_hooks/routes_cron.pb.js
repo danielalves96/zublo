@@ -27,7 +27,7 @@ routerAdd("POST", "/api/cron/{job}", function(e) {
       "subscriptions",
       "inactive = false && auto_renew = true && next_payment <= {:today}",
       "", 0, 0,
-      { today: today.toISOString().split("T")[0] }
+      { today: dateHelpers.formatLocalDate(today) }
     );
 
     for (var i = 0; i < subs.length; i++) {
@@ -47,9 +47,10 @@ routerAdd("POST", "/api/cron/{job}", function(e) {
   // ----------------------------------------------------------------
   if (job === "send_notifications") {
     var notifHelpers = require(__hooks + "/lib/notifications.js");
+    var dateHelpers = require(__hooks + "/lib/date-helpers.js");
     var now = new Date();
     var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    var todayStr = today.toISOString().split("T")[0];
+    var todayStr = dateHelpers.formatLocalDate(today);
     var users = $app.findRecordsByFilter("users", "1=1", "", 0, 0);
     var sent = 0;
 
@@ -73,7 +74,7 @@ routerAdd("POST", "/api/cron/{job}", function(e) {
         if (!isFinite(days) || !isFinite(hour)) continue;
         var targetDate = new Date(today.getTime());
         targetDate.setDate(targetDate.getDate() + days);
-        var targetStr = targetDate.toISOString().split("T")[0];
+        var targetStr = dateHelpers.formatLocalDate(targetDate);
         var rKey = days + "d_" + hour + "h";
         var grouped = {};
 

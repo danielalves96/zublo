@@ -487,10 +487,16 @@ describe("AITab", () => {
 
     fireEvent.click(screen.getByText("save"));
 
-    await waitFor(() =>
-      expect(invalidateQueries).toHaveBeenCalledWith({
-        queryKey: ["ai_settings", ""],
-      }),
+    // This is the only test in the suite that re-imports the component through
+    // vi.resetModules(), and it intermittently timed out when the full suite
+    // put every worker under load. Nothing here is asserting timing, so the
+    // default one-second budget was an arbitrary way to fail.
+    await waitFor(
+      () =>
+        expect(invalidateQueries).toHaveBeenCalledWith({
+          queryKey: ["ai_settings", ""],
+        }),
+      { timeout: 10_000 },
     );
 
     vi.doUnmock("@tanstack/react-query");

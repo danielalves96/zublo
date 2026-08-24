@@ -17,7 +17,7 @@ cronAdd("updateNextPayment", "0 0 * * *", () => {
     "",
     0,
     0,
-    { today: today.toISOString().split("T")[0] }
+    { today: dateHelpers.formatLocalDate(today) }
   );
 
   for (const sub of subs) {
@@ -43,19 +43,20 @@ cronAdd("updateNextPayment", "0 0 * * *", () => {
 // CRON 4: Send Payment Notifications (hourly, granular reminders)
 // ================================================================
 cronAdd("sendNotifications", "0 * * * *", () => {
+  const dateHelpers = require(__hooks + "/lib/date-helpers.js");
   const { normalizeReminderSlots } = require(__hooks + "/lib/pure/reminder-slots.js");
   const notifHelpers = require(__hooks + "/lib/notifications.js");
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const currentHour = now.getHours();
-  const todayStr = today.toISOString().split("T")[0];
+  const todayStr = dateHelpers.formatLocalDate(today);
 
   // Cleanup old notification_log entries once a day at midnight
   if (currentHour === 0) {
     try {
       const cutoff = new Date(today.getTime());
       cutoff.setDate(cutoff.getDate() - 31);
-      const cutoffStr = cutoff.toISOString().split("T")[0];
+      const cutoffStr = dateHelpers.formatLocalDate(cutoff);
       const oldLogs = $app.findRecordsByFilter(
         "notification_log", "sent_date < {:cutoff}", "", 0, 0, { cutoff: cutoffStr }
       );
@@ -99,7 +100,7 @@ cronAdd("sendNotifications", "0 * * * *", () => {
       // target: subscriptions whose next_payment is exactly `days` days from now
       const targetDate = new Date(today.getTime());
       targetDate.setDate(targetDate.getDate() + days);
-      const targetDateStr = targetDate.toISOString().split("T")[0];
+      const targetDateStr = dateHelpers.formatLocalDate(targetDate);
       const reminderKey = days + "d_" + currentHour + "h";
 
       const grouped = {};
@@ -185,12 +186,13 @@ cronAdd("sendNotifications", "0 * * * *", () => {
 // CRON 5: Send Cancellation Notifications (hourly, granular reminders)
 // ================================================================
 cronAdd("sendCancellationNotifications", "0 * * * *", () => {
+  const dateHelpers = require(__hooks + "/lib/date-helpers.js");
   const { normalizeReminderSlots } = require(__hooks + "/lib/pure/reminder-slots.js");
   const notifHelpers = require(__hooks + "/lib/notifications.js");
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const currentHour = now.getHours();
-  const todayStr = today.toISOString().split("T")[0];
+  const todayStr = dateHelpers.formatLocalDate(today);
 
   const allSubs = $app.findRecordsByFilter(
     "subscriptions",
@@ -226,7 +228,7 @@ cronAdd("sendCancellationNotifications", "0 * * * *", () => {
       if (!isFinite(days)) continue;
       const targetDate = new Date(today.getTime());
       targetDate.setDate(targetDate.getDate() + days);
-      const targetDateStr = targetDate.toISOString().split("T")[0];
+      const targetDateStr = dateHelpers.formatLocalDate(targetDate);
       const reminderKey = "cancel_" + days + "d_" + currentHour + "h";
 
       const dueSubs = [];
@@ -281,9 +283,10 @@ cronAdd("sendCancellationNotifications", "0 * * * *", () => {
 // CRON 7: Auto-mark Payments as Paid
 // ================================================================
 cronAdd("autoMarkPaid", "0 0 * * *", () => {
+  const dateHelpers = require(__hooks + "/lib/date-helpers.js");
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const todayStr = today.toISOString().split("T")[0];
+  const todayStr = dateHelpers.formatLocalDate(today);
 
   // Find all subscriptions due today that have auto_mark_paid enabled
   const subs = $app.findRecordsByFilter(
@@ -336,10 +339,11 @@ cronAdd("autoMarkPaid", "0 0 * * *", () => {
 // CRON 8: Overdue Payment Reminders
 // ================================================================
 cronAdd("overduePaymentReminders", "0 9 * * *", () => {
+  const dateHelpers = require(__hooks + "/lib/date-helpers.js");
   const notifHelpers = require(__hooks + "/lib/notifications.js");
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const todayStr = today.toISOString().split("T")[0];
+  const todayStr = dateHelpers.formatLocalDate(today);
 
   // Find active subscriptions whose next_payment is in the past
   const subs = $app.findRecordsByFilter(

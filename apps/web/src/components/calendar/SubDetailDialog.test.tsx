@@ -118,10 +118,21 @@ function getSubscription(overrides: Partial<Subscription> = {}): Subscription {
 }
 
 describe("SubDetailDialog", () => {
+  // The component derives isOverdue from the real clock, so every date in
+  // this file is only meaningful relative to a fixed "today". Without this
+  // the suite quietly rotted: the dates were chosen when today was
+  // 2026-03-24, and once real time passed them the future-dated cases
+  // started reading as overdue.
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-24T12:00:00Z"));
     vi.clearAllMocks();
     mocks.getLogoUrl.mockReturnValue("https://cdn.example.com/netflix.png");
     mocks.proofUrl.mockReturnValue("https://cdn.example.com/proof.png");
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("renders paid details, proof, and forwards close/edit/view-payment actions", () => {
@@ -317,7 +328,7 @@ describe("SubDetailDialog", () => {
   // Lines 176-206: pending_payment status when not paid and not overdue
   it("shows pending_payment when paymentTracking=true, not paid, not overdue (line 176+)", () => {
     mocks.daysUntil.mockReturnValue(3);
-    // Use a date in the future (after today 2026-03-24) so isOverdue is false
+    // After the pinned today, so isOverdue is false.
     const futureDate = new Date("2026-04-01T00:00:00Z");
     render(
       <SubDetailDialog

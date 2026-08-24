@@ -129,4 +129,30 @@ describe("pb_hooks/lib/pure/ai-parsers.js", () => {
       "Unexpected AI response format",
     );
   });
+
+  it("sends the OpenRouter identification headers only to OpenRouter", () => {
+    // OpenRouter answers 401 for a perfectly valid key when these are absent,
+    // so their presence is the difference between working and not.
+    const openrouter = aiParsers.buildRecommendationRequest(
+      "https://openrouter.ai/api/v1",
+      "key",
+      "some/model",
+      "system",
+      "user",
+    );
+
+    expect(openrouter.aiHeaders["HTTP-Referer"]).toBe("https://github.com/danielalves96/zublo");
+    expect(openrouter.aiHeaders["X-Title"]).toBe("Zublo");
+
+    const other = aiParsers.buildRecommendationRequest(
+      "https://api.openai.com/v1",
+      "key",
+      "gpt-4",
+      "system",
+      "user",
+    );
+
+    expect(other.aiHeaders["HTTP-Referer"]).toBeUndefined();
+    expect(other.aiHeaders["X-Title"]).toBeUndefined();
+  });
 });

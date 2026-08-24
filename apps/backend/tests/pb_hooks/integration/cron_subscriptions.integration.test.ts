@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import net from "node:net";
 
-import { PocketBaseIntegrationHarness } from "./setup.integration";
+import { hasPocketBaseBinary, PocketBaseIntegrationHarness } from "./setup.integration";
 
 interface CycleRecord {
   id: string;
@@ -33,7 +33,7 @@ interface WebhookPayload {
   title: string;
 }
 
-describe.sequential("pb_hooks/cron_subscriptions.pb.js deduplication", () => {
+describe.sequential.skipIf(!hasPocketBaseBinary)("pb_hooks/cron_subscriptions.pb.js deduplication", () => {
   const harness = new PocketBaseIntegrationHarness();
 
   beforeEach(async () => {
@@ -252,13 +252,21 @@ async function readRequestBody(req: IncomingMessage): Promise<string> {
   return Buffer.concat(chunks).toString("utf8");
 }
 
+// next_payment and sent_date are plain calendar dates, and the hook reads
+// "today" from the server's local clock. Formatting these in UTC made the
+// test disagree with the hook for part of every day — after 21:00 in UTC-3
+// the two were a day apart and nothing matched.
 function formatDate(date: Date): string {
-  return date.toISOString().slice(0, 10);
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${date.getFullYear()}-${month}-${day}`;
 }
 
 function addDays(dateString: string, days: number): string {
-  const date = new Date(`${dateString}T00:00:00.000Z`);
-  date.setUTCDate(date.getUTCDate() + days);
+  const [year, month, day] = dateString.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() + days);
   return formatDate(date);
 }
 

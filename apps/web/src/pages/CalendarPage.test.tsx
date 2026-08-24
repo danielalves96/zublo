@@ -247,6 +247,21 @@ vi.mock("@/components/SubscriptionFormModal", () => ({
 
 import { CalendarPage } from "./CalendarPage";
 
+function isoDay(date: Date): string {
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+const visibleMonth = new Date();
+const dayInVisibleMonth = isoDay(
+  new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), 15),
+);
+const dayAfterVisibleMonth = isoDay(
+  new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 2),
+);
+
 describe("CalendarPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -265,6 +280,14 @@ describe("CalendarPage", () => {
         due_date: "2026-03-10",
         paid_at: "2026-03-10T10:00:00Z",
       },
+      // The query asks the server for every record and narrows to the visible
+      // month on the client, so both ends of that window need something to
+      // reject. The page reads the visible month from the real clock, so
+      // these have to be relative to it or the filter never gets past its
+      // first comparison.
+      { id: "pr-in-month", subscription_id: "sub-1", due_date: dayInVisibleMonth },
+      { id: "pr-after", subscription_id: "sub-1", due_date: dayAfterVisibleMonth },
+      { id: "pr-before", subscription_id: "sub-1", due_date: "2020-01-01" },
     ]);
     mocks.useCalendarMonthData.mockReturnValue({
       allCells: [{ day: 10, type: "current" }],
