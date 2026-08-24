@@ -137,8 +137,21 @@ describe("toMonthly", () => {
     expect(toMonthly(10, "Monthly", 0)).toBe(10);
   });
 
+  it("spreads multi-month cycles over their months", () => {
+    // $90 every quarter (3 months) → $30/month
+    expect(toMonthly(90, "Quarterly", 1)).toBe(30);
+    // $90 every 2 quarters (6 months) → $15/month
+    expect(toMonthly(90, "Quarterly", 2)).toBe(15);
+    // $60 every half-year (6 months) → $10/month
+    expect(toMonthly(60, "Half-Yearly", 1)).toBe(10);
+  });
+
+  it("gives a One-Time payout no recurring monthly equivalent", () => {
+    expect(toMonthly(2000, "One-Time", 1)).toBe(0);
+  });
+
   it("returns price unchanged for unknown cycle", () => {
-    expect(toMonthly(50, "Quarterly", 1)).toBe(50);
+    expect(toMonthly(50, "Fortnightly", 1)).toBe(50);
   });
 });
 

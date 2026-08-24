@@ -23,6 +23,7 @@ cronAdd("updateNextPayment", "0 0 * * *", () => {
 // ================================================================
 cronAdd("sendNotifications", "0 * * * *", () => {
   const dateHelpers = require(__hooks + "/lib/date-helpers.js");
+  const recordTypes = require(__hooks + "/lib/pure/record-types.js");
   const { normalizeReminderSlots } = require(__hooks + "/lib/pure/reminder-slots.js");
   const notifHelpers = require(__hooks + "/lib/notifications.js");
   const now = new Date();
@@ -85,6 +86,7 @@ cronAdd("sendNotifications", "0 * * * *", () => {
       const grouped = {};
 
       for (const sub of subs) {
+        if (!recordTypes.isExpense(sub.get("record_type"))) continue;
         const nextPayment = sub.getString("next_payment").slice(0, 10);
         if (nextPayment !== targetDateStr) continue;
 
@@ -166,6 +168,7 @@ cronAdd("sendNotifications", "0 * * * *", () => {
 // ================================================================
 cronAdd("sendCancellationNotifications", "0 * * * *", () => {
   const dateHelpers = require(__hooks + "/lib/date-helpers.js");
+  const recordTypes = require(__hooks + "/lib/pure/record-types.js");
   const { normalizeReminderSlots } = require(__hooks + "/lib/pure/reminder-slots.js");
   const notifHelpers = require(__hooks + "/lib/notifications.js");
   const now = new Date();
@@ -182,6 +185,7 @@ cronAdd("sendCancellationNotifications", "0 * * * *", () => {
   // Group by user
   const byUser = {};
   for (const sub of allSubs) {
+    if (!recordTypes.isExpense(sub.get("record_type"))) continue;
     const uid = sub.getString("user");
     if (!byUser[uid]) byUser[uid] = [];
     byUser[uid].push(sub);
@@ -282,6 +286,7 @@ cronAdd("autoMarkPaid", "5 0 * * *", () => {
 // ================================================================
 cronAdd("overduePaymentReminders", "0 9 * * *", () => {
   const dateHelpers = require(__hooks + "/lib/date-helpers.js");
+  const recordTypes = require(__hooks + "/lib/pure/record-types.js");
   const notifHelpers = require(__hooks + "/lib/notifications.js");
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -299,6 +304,7 @@ cronAdd("overduePaymentReminders", "0 9 * * *", () => {
 
   let notified = 0;
   for (const sub of subs) {
+    if (!recordTypes.isExpense(sub.get("record_type"))) continue;
     const userId = sub.get("user");
     try {
       const user = $app.findRecordById("users", userId);

@@ -22,6 +22,7 @@ import type { ApiKeyPermission } from "@/types";
 
 const SUBSCRIPTION_CREATE_BODY = `{
   "name": "Netflix",           // required
+  "record_type": "expense",    // optional - credits force One-Time and clear finite limits
   "price": 15.99,              // required
   "currency_id": "<id>",       // required
   "cycle_id": "<id>",          // required - from GET api/external/cycles
@@ -60,6 +61,7 @@ const CURRENCY_CREATE_BODY = `{
 
 const SUBSCRIPTION_UPDATE_BODY = `{
   "name": "Netflix",           // optional
+  "record_type": "expense",    // optional - switching to credit clears finite limits
   "price": 17.99,              // optional
   "currency_id": "<id>",       // optional
   "cycle_id": "<id>",          // optional
@@ -109,6 +111,7 @@ const SUBSCRIPTION_BATCH_BODY = `{
   "items": [                   // array of subscription objects (required)
     {
       "name": "Netflix",       // required
+      "record_type": "expense", // optional - credits force One-Time and clear finite limits
       "currency_id": "<id>",   // required
       "cycle_id": "<id>",      // required
       "next_payment": "2025-02-01", // required - YYYY-MM-DD

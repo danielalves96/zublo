@@ -90,6 +90,11 @@ function getPricePerMonth(price, cycleName, frequency, exchangeRate) {
       return converted / (frequency * 6);
     case "Yearly":
       return converted / (frequency * 12);
+    case "One-Time":
+      // A single dated payout has no recurring monthly equivalent. Without
+      // this case it would fall through to `converted` and be billed as a
+      // monthly charge forever.
+      return 0;
     default:
       return converted;
   }

@@ -10,6 +10,7 @@
 routerAdd("GET", "/api/calendar/ical", function(e) {
   var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
   var calendarUtils = require(__hooks + "/lib/pure/calendar-utils.js");
+  var recordTypes = require(__hooks + "/lib/pure/record-types.js");
   var userId = e.auth ? e.auth.id : null;
   var rawKey = e.request.url.query().get("key")
     || authHeaders.extractBearerToken(e.request.header.get("Authorization"));
@@ -79,6 +80,7 @@ routerAdd("GET", "/api/calendar/ical", function(e) {
     ical += calendarUtils.buildIcalEvent({
       id: sub.id,
       name: sub.get("name"),
+      record_type: recordTypes.normalizeRecordType(sub.get("record_type")),
       price: sub.get("price"),
       currencySymbol: currencySymbol,
       nextPayment: nextPayment,

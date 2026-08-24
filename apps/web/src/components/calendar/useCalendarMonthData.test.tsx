@@ -126,6 +126,40 @@ describe("useCalendarMonthData", () => {
     expect(result.current.stats).toEqual({ count: 0, total: 0, due: 0 });
   });
 
+  it("shows one-time credits on the calendar without adding them to expense totals", () => {
+    const expense = getSubscription({
+      id: "expense",
+      price: 40,
+      next_payment: "2026-04-15",
+    });
+    const credit = getSubscription({
+      id: "credit",
+      record_type: "credit",
+      price: 200,
+      cycle: "one-time",
+      next_payment: "2026-04-15",
+    });
+
+    const { result } = renderHook(() =>
+      useCalendarMonthData({
+        subscriptions: [expense, credit],
+        cycles: [
+          { id: "cycle-monthly", name: "Monthly" },
+          { id: "one-time", name: "One-Time" },
+        ],
+        currencies: [getCurrency({ is_main: true })],
+        year: 2026,
+        month: 4,
+        selectedDay: 15,
+      }),
+    );
+
+    expect(result.current.entriesByDay[15]).toHaveLength(2);
+    expect(result.current.stats.count).toBe(2);
+    expect(result.current.stats.total).toBe(40);
+    expect(result.current.selectedDayTotal).toBe(40);
+  });
+
   it("falls back to the first currency and returns empty selected data when no day is selected", () => {
     const firstCurrency = getCurrency({ id: "cur-a", is_main: false });
 

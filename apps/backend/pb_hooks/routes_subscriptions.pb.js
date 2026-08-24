@@ -9,6 +9,8 @@
 routerAdd("POST", "/api/subscriptions/import", (e) => {
   const dateHelpers = require(__hooks + "/lib/date-helpers.js");
   const importParsers = require(__hooks + "/lib/pure/subscription-import.js");
+  const recordTypes = require(__hooks + "/lib/pure/record-types.js");
+  const recordTypeHelpers = require(__hooks + "/lib/record-type-helpers.js");
   if (!e.auth) throw new ForbiddenError("Authentication required");
   const userId = e.auth.id;
   const data = e.requestInfo().body;
@@ -138,7 +140,7 @@ routerAdd("POST", "/api/subscriptions/import", (e) => {
   for (let i = 0; i < data.subscriptions.length; i++) {
     const sub = data.subscriptions[i];
     try {
-      let name, price, currencyId, cycleId, frequency, nextPayment;
+      let name, price, currencyId, cycleId, frequency, nextPayment, recordType;
       let autoRenew, inactive, notes, url, notify, notifyDaysBefore, cancellationDate;
       let endDate, paymentLimit, paymentsCompleted;
       let categoryId, paymentMethodId, payerId;
@@ -157,6 +159,7 @@ routerAdd("POST", "/api/subscriptions/import", (e) => {
         endDate = "";
         paymentLimit = 0;
         paymentsCompleted = 0;
+        recordType = "expense";
 
         // "€9.99" → symbol="€", price=9.99
         const priceInfo = importParsers.parseWallosPrice(sub["Price"]);
@@ -187,17 +190,20 @@ routerAdd("POST", "/api/subscriptions/import", (e) => {
         endDate = sub.end_date || "";
         paymentLimit = Math.max(0, parseInt(sub.payment_limit) || 0);
         paymentsCompleted = Math.max(0, parseInt(sub.payments_completed) || 0);
-        if (paymentLimit > 0) {
+        recordType = recordTypes.normalizeRecordType(sub.record_type);
+        if (recordType === "expense" && paymentLimit > 0) {
           endDate = "";
           paymentsCompleted = Math.min(paymentsCompleted, paymentLimit);
           if (paymentsCompleted >= paymentLimit) inactive = true;
           autoRenew = true;
-        } else if (endDate) {
+        } else if (recordType === "expense" && endDate) {
           autoRenew = true;
         }
 
         currencyId = (sub.currency ? findCurrencyByCode(sub.currency) : "") || mainCurrencyId;
-        cycleId = findCycleByName(sub.cycle || "Monthly");
+        cycleId = findCycleByName(
+          sub.cycle || (recordType === "credit" ? recordTypes.ONE_TIME_CYCLE : "Monthly")
+        );
         frequency = parseInt(sub.frequency) || 1;
 
         categoryId = findOrCreateCategory(sub.category);
@@ -210,7 +216,7 @@ routerAdd("POST", "/api/subscriptions/import", (e) => {
         results.errors.push({ index: i, reason: "Missing name" });
         continue;
       }
-      if (endDate && nextPayment && endDate < String(nextPayment).slice(0, 10)) {
+      if (recordType === "expense" && endDate && nextPayment && endDate < String(nextPayment).slice(0, 10)) {
         results.skipped++;
         results.errors.push({ index: i, name: name, reason: "end_date cannot be before next_payment" });
         continue;
@@ -242,6 +248,13 @@ routerAdd("POST", "/api/subscriptions/import", (e) => {
       if (paymentMethodId) rec.set("payment_method", paymentMethodId);
       if (payerId) rec.set("payer", payerId);
 
+      const policyError = recordTypeHelpers.applyRecordTypeToRecord($app, rec, recordType);
+      if (policyError) {
+        results.skipped++;
+        results.errors.push({ index: i, name: name, reason: policyError });
+        continue;
+      }
+
       $app.save(rec);
       results.imported++;
     } catch (err) {
@@ -257,6 +270,7 @@ routerAdd("POST", "/api/subscriptions/import", (e) => {
 // ROUTE: Subscription Clone
 // ================================================================
 routerAdd("POST", "/api/subscription/clone", (e) => {
+  const recordTypeHelpers = require(__hooks + "/lib/record-type-helpers.js");
   if (!e.auth) throw new ForbiddenError("Authentication required");
   const data = e.requestInfo().body;
   const subId = data.id;
@@ -279,7 +293,7 @@ routerAdd("POST", "/api/subscription/clone", (e) => {
   // keeping, but payments_completed must reset to 0 and an inactive source must
   // not produce a dead clone.
   const fieldsToCopy = [
-    "name", "price", "frequency", "next_payment", "auto_renew",
+    "name", "price", "record_type", "frequency", "next_payment", "auto_renew",
     "start_date", "notes", "url", "notify", "notify_days_before",
     "cancellation_date", "currency", "cycle",
     "end_date", "payment_limit", "auto_mark_paid",
@@ -294,6 +308,9 @@ routerAdd("POST", "/api/subscription/clone", (e) => {
   clone.set("inactive", false);
   clone.set("payments_completed", 0);
 
+  const policyError = recordTypeHelpers.applyRecordTypeToRecord($app, clone, clone.get("record_type"));
+  if (policyError) return e.json(400, { error: policyError });
+
   // Logo needs special handling (file copy)
   $app.save(clone);
 
@@ -305,6 +322,7 @@ routerAdd("POST", "/api/subscription/clone", (e) => {
 // ================================================================
 routerAdd("POST", "/api/subscription/renew", (e) => {
   const dateHelpers = require(__hooks + "/lib/date-helpers.js");
+  const recordTypes = require(__hooks + "/lib/pure/record-types.js");
   const subscriptionLimits = require(__hooks + "/lib/pure/subscription-limits.js");
   if (!e.auth) throw new ForbiddenError("Authentication required");
   const data = e.requestInfo().body;
@@ -318,6 +336,10 @@ routerAdd("POST", "/api/subscription/renew", (e) => {
 
   if (sub.get("user") !== e.auth.id) {
     throw new ForbiddenError("Not your subscription");
+  }
+
+  if (recordTypes.isCredit(sub.get("record_type"))) {
+    return e.json(400, { error: "Credits cannot be renewed" });
   }
 
   const cycleRecord = $app.findRecordById("cycles", sub.get("cycle"));
@@ -353,6 +375,7 @@ routerAdd("POST", "/api/subscription/renew", (e) => {
 // ROUTE: Subscriptions Export
 // ================================================================
 routerAdd("GET", "/api/subscriptions/export", (e) => {
+  const recordTypes = require(__hooks + "/lib/pure/record-types.js");
   if (!e.auth) throw new ForbiddenError("Authentication required");
   const userId = e.auth.id;
 
@@ -396,6 +419,7 @@ routerAdd("GET", "/api/subscriptions/export", (e) => {
 
     exported.push({
       name: sub.get("name"),
+      record_type: recordTypes.normalizeRecordType(sub.get("record_type")),
       price: sub.get("price"),
       currency: currencyCode,
       currency_symbol: currencySymbol,

@@ -67,6 +67,8 @@ export interface Subscription {
   payments_completed?: number;
   replacement_subscription?: string;
   user: string;
+  /** Missing on legacy records; an absent value is always treated as expense. */
+  record_type?: "expense" | "credit";
   // Expanded relations
   expand?: {
     currency?: Currency;
@@ -109,7 +111,7 @@ export interface Household {
 
 export interface Cycle {
   id: string;
-  name: "Daily" | "Weekly" | "Monthly" | "Quarterly" | "Half-Yearly" | "Yearly";
+  name: "Daily" | "Weekly" | "Monthly" | "Quarterly" | "Half-Yearly" | "Yearly" | "One-Time";
 }
 
 export interface Frequency {

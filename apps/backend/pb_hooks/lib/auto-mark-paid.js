@@ -9,6 +9,7 @@
  * @returns {number} how many payment records were created
  */
 function markDuePaymentsPaid(app, todayStr) {
+  var recordTypes = require(__hooks + "/lib/pure/record-types.js");
   var tomorrow = new Date(todayStr + "T00:00:00.000Z");
   tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
   var tomorrowStr = tomorrow.toISOString().slice(0, 10);
@@ -26,6 +27,7 @@ function markDuePaymentsPaid(app, todayStr) {
   var created = 0;
   for (var i = 0; i < subs.length; i++) {
     var sub = subs[i];
+    if (!recordTypes.isExpense(sub.get("record_type"))) continue;
     var userId = sub.get("user");
 
     try {

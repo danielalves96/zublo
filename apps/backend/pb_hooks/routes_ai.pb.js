@@ -78,6 +78,7 @@ routerAdd("POST", "/api/ai/models", (e) => {
 // ================================================================
 routerAdd("POST", "/api/ai/generate", (e) => {
   const aiParsers = require(__hooks + "/lib/pure/ai-parsers.js");
+  const recordTypes = require(__hooks + "/lib/pure/record-types.js");
   if (!e.auth) throw new ForbiddenError("Authentication required");
   const userId = e.auth.id;
 
@@ -110,6 +111,7 @@ routerAdd("POST", "/api/ai/generate", (e) => {
 
   let subsList = "";
   for (const sub of subs) {
+    if (!recordTypes.isExpense(sub.get("record_type"))) continue;
     let currencySymbol = "$";
     const curId = sub.get("currency");
     if (curId) {
@@ -130,6 +132,10 @@ routerAdd("POST", "/api/ai/generate", (e) => {
 
     subsList += "- " + sub.get("name") + ": " + currencySymbol + sub.get("price") +
       " (" + cycleName + ", frequency: " + sub.get("frequency") + ")\n";
+  }
+
+  if (!subsList) {
+    return e.json(400, { error: "No active expense subscriptions found" });
   }
 
   const user = $app.findRecordById("users", userId);

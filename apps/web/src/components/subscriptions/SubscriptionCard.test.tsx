@@ -181,6 +181,30 @@ describe("SubscriptionCard", () => {
     );
 
     expect(screen.getByText("ends_on")).toBeInTheDocument();
+
+    rerender(
+      <SubscriptionCard
+        sub={getSubscription({ payment_limit: 6, payments_completed: undefined })}
+        onEdit={vi.fn()}
+        onClone={vi.fn()}
+        onRenew={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("payments_progress")).toBeInTheDocument();
+
+    rerender(
+      <SubscriptionCard
+        sub={getSubscription({ end_date: "2026-07-10", inactive: true })}
+        onEdit={vi.fn()}
+        onClone={vi.fn()}
+        onRenew={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("ended_on")).toBeInTheDocument();
   });
 
   it("falls back to payment method initials when payment icon image fails to load", () => {
@@ -247,6 +271,44 @@ describe("SubscriptionCard", () => {
     expect(mocks.toMonthly).not.toHaveBeenCalled();
     // formatPrice called with raw price 99
     expect(mocks.formatPrice).toHaveBeenCalledWith(99, expect.any(String));
+  });
+
+  it("keeps one-time credits visible and distinct without recurring actions", () => {
+    const onRenew = vi.fn();
+    render(
+      <SubscriptionCard
+        sub={getSubscription({
+          name: "Bonus",
+          record_type: "credit",
+          price: 500,
+          cycle: "one-time",
+          payment_limit: 12,
+          payments_completed: 3,
+          end_date: "2026-12-31",
+          expand: {
+            currency: getCurrency({ id: "cur-2", symbol: "$", is_main: true }),
+            cycle: { id: "one-time", name: "One-Time" },
+          },
+        })}
+        showMonthly
+        showProgress
+        onEdit={vi.fn()}
+        onClone={vi.fn()}
+        onRenew={onRenew}
+        onDelete={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Bonus")).toBeInTheDocument();
+    expect(screen.getByText("credit_income")).toBeInTheDocument();
+    expect(screen.getByText("+500.00 $")).toBeInTheDocument();
+    expect(screen.getByText("one_time")).toBeInTheDocument();
+    expect(screen.getByText("received_on")).toBeInTheDocument();
+    expect(screen.queryByText("billing_cycle")).not.toBeInTheDocument();
+    expect(screen.queryByText("payments_progress")).not.toBeInTheDocument();
+    expect(screen.queryByText("ends_on")).not.toBeInTheDocument();
+    expect(screen.queryByTitle("renew")).not.toBeInTheDocument();
+    expect(mocks.toMonthly).not.toHaveBeenCalled();
   });
 
   it("uses rawPrice directly when shouldConvert is false (line 102 false branch)", () => {

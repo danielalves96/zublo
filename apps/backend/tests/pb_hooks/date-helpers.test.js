@@ -126,6 +126,9 @@ describe("pb_hooks/lib/date-helpers.js", () => {
     // Half-Yearly: $60 every half-year (6 months) → $10/month
     expect(getPricePerMonth(60, "Half-Yearly", 1, 1)).toBe(10);
     expect(getPricePerMonth(120, "Yearly", 2, 1)).toBe(5);
+    // One-Time is a single dated payout: it contributes nothing to a
+    // recurring monthly total, however large the amount is.
+    expect(getPricePerMonth(2000, "One-Time", 1, 1)).toBe(0);
   });
 
   it("falls back safely when exchange rate or cycle is missing", () => {

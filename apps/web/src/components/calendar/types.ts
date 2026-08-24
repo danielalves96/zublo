@@ -1,4 +1,5 @@
 import { subscriptionsService } from "@/services/subscriptions";
+import { isCredit } from "@/lib/recordTypes";
 import type { Currency, Cycle, PaymentRecord, Subscription } from "@/types";
 
 // ─── Sub-types ───────────────────────────────────────────────────────────────
@@ -111,6 +112,14 @@ export function getOccurrencesInMonth(
 
   const anchor = parseLocalDate(sub.next_payment);
   if (!anchor) return [];
+
+  // Credits are single dated payouts. Ignore any stale finite-schedule fields
+  // from older clients: the backend clears them, and they must never turn a
+  // one-time income record into a recurring calendar series.
+  if (isCredit(sub) || cycleName === "One-Time") {
+    if (sub.inactive || anchor < monthStart || anchor > monthEnd) return [];
+    return [anchor];
+  }
 
   let cursor = anchor;
 

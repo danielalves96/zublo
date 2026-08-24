@@ -248,6 +248,7 @@ describe("calendar types helpers", () => {
       start_date: "2026-01-01",
       next_payment: "2026-03-15",
       end_date: "2026-04-20",
+      cancellation_date: "2026-04-30",
     });
 
     expect(getOccurrencesInMonth(finite, 2026, 3, cycles).map((date) => date.getDate())).toEqual([
@@ -357,6 +358,41 @@ describe("calendar types helpers", () => {
         cycles,
       ).map((date) => date.getDate()),
     ).toEqual([31]);
+
+    expect(
+      getOccurrencesInMonth(
+        getSubscription({ cycle: "quarterly", next_payment: "2026-07-31" }),
+        2026,
+        4,
+        cycles,
+      ).map((date) => date.getDate()),
+    ).toEqual([30]);
+    expect(
+      getOccurrencesInMonth(
+        getSubscription({ cycle: "half-yearly", next_payment: "2026-07-31" }),
+        2026,
+        1,
+        cycles,
+      ).map((date) => date.getDate()),
+    ).toEqual([31]);
+  });
+
+  it("keeps credits one-time even when stale finite-schedule fields are present", () => {
+    const cycles = [{ id: "one-time", name: "One-Time" as const }];
+    const credit = getSubscription({
+      record_type: "credit",
+      cycle: "one-time",
+      next_payment: "2026-03-15",
+      payment_limit: 1,
+      payments_completed: 1,
+      end_date: "2026-02-01",
+    });
+
+    expect(getOccurrencesInMonth(credit, 2026, 3, cycles).map((date) => date.getDate())).toEqual([
+      15,
+    ]);
+    expect(getOccurrencesInMonth(credit, 2026, 2, cycles)).toEqual([]);
+    expect(getOccurrencesInMonth(credit, 2026, 4, cycles)).toEqual([]);
   });
 
   it("returns no occurrences for inactive subscriptions, missing dates, or invalid dates", () => {

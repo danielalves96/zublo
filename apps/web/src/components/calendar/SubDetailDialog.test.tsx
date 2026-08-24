@@ -475,4 +475,39 @@ describe("SubDetailDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "dialog-close" }));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it("presents a credit as one-time income instead of an upcoming charge", () => {
+    render(
+      <SubDetailDialog
+        sub={getSubscription({
+          name: "Performance bonus",
+          record_type: "credit",
+          price: 500,
+        })}
+        date={new Date("2026-03-10T00:00:00Z")}
+        currencies={[getCurrency()]}
+        mainCurrency={getCurrency()}
+        paymentTracking
+        paymentRecord={undefined}
+        onClose={vi.fn()}
+        onEdit={vi.fn()}
+        onMarkAsPaid={vi.fn()}
+        t={(key) => key}
+      />,
+    );
+
+    expect(screen.getByText("credit_income")).toBeInTheDocument();
+    // Cycle reads "one-time", and the date is a received date, not a due date.
+    expect(screen.getByText("one_time")).toBeInTheDocument();
+    expect(screen.getByText("received_on")).toBeInTheDocument();
+    expect(screen.queryByText("next_payment")).not.toBeInTheDocument();
+    // Income is never something to "mark as paid".
+    expect(screen.queryByText("mark_as_paid")).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        (_, element) =>
+          element?.tagName === "P" && element.textContent === "+500 $",
+      ),
+    ).toBeInTheDocument();
+  });
 });

@@ -26,6 +26,7 @@ import { useLogoSearch } from "@/hooks/useLogoSearch";
 import type { SubscriptionFormValues } from "@/hooks/useSubscriptionForm";
 import { useSubscriptionForm } from "@/hooks/useSubscriptionForm";
 import { compressImage } from "@/lib/image";
+import { ONE_TIME_CYCLE } from "@/lib/recordTypes";
 import { toast } from "@/lib/toast";
 import { subscriptionsService } from "@/services/subscriptions";
 import type { Category, Currency, Household, PaymentMethod, Subscription } from "@/types";
@@ -61,6 +62,7 @@ export function SubscriptionFormModal({
     register,
     handleSubmit,
     control,
+    setValue,
     watch,
     cycles,
     selectedCurrency,
@@ -69,18 +71,22 @@ export function SubscriptionFormModal({
 
   const watchedNotify = watch("notify");
   const watchedInactive = watch("inactive");
+  const watchedRecordType = watch("record_type");
   const watchedEndMode = watch("end_mode");
-  const isFiniteSchedule = watchedEndMode !== "never";
+  const isCredit = watchedRecordType === "credit";
+  const isFiniteSchedule = !isCredit && watchedEndMode !== "never";
+  const oneTimeCycle = cycles.find((cycle) => cycle.name === ONE_TIME_CYCLE);
 
   // ── Submit ─────────────────────────────────────────────────────────────────
   const onSubmit = async (data: SubscriptionFormValues) => {
     try {
       const body: Record<string, unknown> = {
+        record_type: data.record_type,
         name: data.name,
         price: data.price,
         currency: data.currency,
-        frequency: parseInt(data.frequency),
-        cycle: data.cycle,
+        frequency: isCredit ? 1 : parseInt(data.frequency),
+        cycle: isCredit && oneTimeCycle ? oneTimeCycle.id : data.cycle,
         next_payment: data.next_payment,
         start_date: data.start_date,
         payment_method: data.payment_method || null,
@@ -88,21 +94,21 @@ export function SubscriptionFormModal({
         category: data.category || null,
         notes: data.notes,
         url: data.url,
-        auto_renew: data.end_mode === "never" ? data.auto_renew : true,
-        notify: data.notify,
+        auto_renew: isCredit ? false : data.end_mode === "never" ? data.auto_renew : true,
+        notify: isCredit ? false : data.notify,
         notify_days_before: parseInt(data.notify_days_before),
         inactive: data.inactive,
-        auto_mark_paid: data.auto_mark_paid,
+        auto_mark_paid: isCredit ? false : data.auto_mark_paid,
         cancellation_date: data.cancellation_date || null,
         // Empty string is intentional: PocketBase clears optional date fields
         // with it, including multipart edits where null values are omitted.
-        end_date: data.end_mode === "date" ? data.end_date : "",
-        payment_limit: data.end_mode === "payments" ? parseInt(data.payment_limit) : 0,
+        end_date: !isCredit && data.end_mode === "date" ? data.end_date : "",
+        payment_limit: !isCredit && data.end_mode === "payments" ? parseInt(data.payment_limit) : 0,
         // The cron counts elapsed payments for date-bounded schedules too, so an
         // unrelated edit must not reset that tally — only dropping the schedule
         // entirely does.
         payments_completed:
-          data.end_mode === "never" ? 0 : parseInt(data.payments_completed) || 0,
+          isCredit || data.end_mode === "never" ? 0 : parseInt(data.payments_completed) || 0,
         user: userId,
       };
 
@@ -165,6 +171,52 @@ export function SubscriptionFormModal({
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div className="space-y-2">
+            <Label>{t("record_type")}</Label>
+            <Controller
+              name="record_type"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  value={field.value}
+                  onValueChange={(value: "expense" | "credit") => {
+                    field.onChange(value);
+                    if (value === "credit") {
+                      if (oneTimeCycle) setValue("cycle", oneTimeCycle.id);
+                      setValue("frequency", "1");
+                      const today = new Date();
+                      setValue(
+                        "next_payment",
+                        `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`,
+                      );
+                      setValue("end_mode", "never");
+                      setValue("end_date", "");
+                      setValue("payment_limit", "");
+                      setValue("payments_completed", "0");
+                      setValue("auto_renew", false);
+                      setValue("notify", false);
+                      setValue("auto_mark_paid", false);
+                    } else {
+                      const monthlyCycle = cycles.find((cycle) => cycle.name === "Monthly");
+                      if (monthlyCycle) setValue("cycle", monthlyCycle.id);
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="expense">{t("expense")}</SelectItem>
+                    <SelectItem value="credit">{t("credit_income")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            <p className="text-xs text-muted-foreground">
+              {t(isCredit ? "credit_income_hint" : "expense_hint")}
+            </p>
+          </div>
+
           {/* Name */}
           <div className="space-y-2">
             <Label>{t("name")} *</Label>
@@ -220,42 +272,51 @@ export function SubscriptionFormModal({
           </div>
 
           {/* Frequency + Cycle */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>{t("frequency")}</Label>
-              <Input type="number" min="1" {...register("frequency")} />
-              {errors.frequency && (
-                <p className="text-sm text-destructive">{errors.frequency.message}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label>{t("cycle")}</Label>
-              <Controller
-                name="cycle"
-                control={control}
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {cycles.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+          {!isCredit ? (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>{t("frequency")}</Label>
+                <Input type="number" min="1" {...register("frequency")} />
+                {errors.frequency && (
+                  <p className="text-sm text-destructive">{errors.frequency.message}</p>
                 )}
-              />
-              {errors.cycle && <p className="text-sm text-destructive">{errors.cycle.message}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label>{t("cycle")}</Label>
+                <Controller
+                  name="cycle"
+                  control={control}
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {cycles
+                          .filter((cycle) => cycle.name !== ONE_TIME_CYCLE)
+                          .map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.name}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {errors.cycle && <p className="text-sm text-destructive">{errors.cycle.message}</p>}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="rounded-xl border bg-muted/30 px-4 py-3">
+              <p className="text-sm font-medium">{t("one_time_payout")}</p>
+              <p className="text-xs text-muted-foreground">{t("one_time_payout_hint")}</p>
+            </div>
+          )}
 
           {/* Next payment + Start date */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label>{t("next_payment")}</Label>
+              <Label>{t(isCredit ? "received_on" : "next_payment")}</Label>
               <Input type="date" {...register("next_payment")} />
               {errors.next_payment && (
                 <p className="text-sm text-destructive">{errors.next_payment.message}</p>
@@ -268,61 +329,65 @@ export function SubscriptionFormModal({
           </div>
 
           {/* Finite schedule */}
-          <div className="space-y-3 rounded-xl border bg-muted/20 p-4">
-            <div className="space-y-2">
-              <Label>{t("subscription_ends")}</Label>
-              <Controller
-                name="end_mode"
-                control={control}
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="never">{t("never")}</SelectItem>
-                      <SelectItem value="date">{t("on_date")}</SelectItem>
-                      <SelectItem value="payments">{t("after_payments")}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              <p className="text-xs text-muted-foreground">{t("finite_subscription_hint")}</p>
-            </div>
-
-            {watchedEndMode === "date" && (
+          {!isCredit && (
+            <div className="space-y-3 rounded-xl border bg-muted/20 p-4">
               <div className="space-y-2">
-                <Label>{t("end_date")}</Label>
-                <Input type="date" {...register("end_date")} />
-                {errors.end_date && (
-                  <p className="text-sm text-destructive">{errors.end_date.message}</p>
-                )}
+                <Label>{t("subscription_ends")}</Label>
+                <Controller
+                  name="end_mode"
+                  control={control}
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="never">{t("never")}</SelectItem>
+                        <SelectItem value="date">{t("on_date")}</SelectItem>
+                        <SelectItem value="payments">{t("after_payments")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                <p className="text-xs text-muted-foreground">{t("finite_subscription_hint")}</p>
               </div>
-            )}
 
-            {watchedEndMode === "payments" && (
-              <div className="grid grid-cols-2 gap-3">
+              {watchedEndMode === "date" && (
                 <div className="space-y-2">
-                  <Label>{t("number_of_payments")}</Label>
-                  <Input type="number" min="1" step="1" {...register("payment_limit")} />
-                  {errors.payment_limit && (
-                    <p className="text-sm text-destructive">{errors.payment_limit.message}</p>
+                  <Label>{t("end_date")}</Label>
+                  <Input type="date" {...register("end_date")} />
+                  {errors.end_date && (
+                    <p className="text-sm text-destructive">{errors.end_date.message}</p>
                   )}
                 </div>
-                <div className="space-y-2">
-                  <Label>{t("payments_already_made")}</Label>
-                  <Input type="number" min="0" step="1" {...register("payments_completed")} />
-                  {errors.payments_completed && (
-                    <p className="text-sm text-destructive">{errors.payments_completed.message}</p>
-                  )}
-                </div>
-              </div>
-            )}
+              )}
 
-            {isFiniteSchedule && (
-              <p className="text-xs text-muted-foreground">{t("finite_auto_renew_hint")}</p>
-            )}
-          </div>
+              {watchedEndMode === "payments" && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>{t("number_of_payments")}</Label>
+                    <Input type="number" min="1" step="1" {...register("payment_limit")} />
+                    {errors.payment_limit && (
+                      <p className="text-sm text-destructive">{errors.payment_limit.message}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t("payments_already_made")}</Label>
+                    <Input type="number" min="0" step="1" {...register("payments_completed")} />
+                    {errors.payments_completed && (
+                      <p className="text-sm text-destructive">
+                        {errors.payments_completed.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {isFiniteSchedule && (
+                <p className="text-xs text-muted-foreground">{t("finite_auto_renew_hint")}</p>
+              )}
+            </div>
+          )}
 
           {/* Category + Payer */}
           <div className="grid grid-cols-2 gap-3">
@@ -405,30 +470,34 @@ export function SubscriptionFormModal({
 
           {/* Toggles */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="flex items-center justify-between">
-              <Label>{t("auto_renew")}</Label>
-              <Controller
-                name="auto_renew"
-                control={control}
-                render={({ field }) => (
-                  <Switch
-                    checked={isFiniteSchedule || field.value}
-                    onCheckedChange={field.onChange}
-                    disabled={isFiniteSchedule}
-                  />
-                )}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label>{t("notify")}</Label>
-              <Controller
-                name="notify"
-                control={control}
-                render={({ field }) => (
-                  <Switch checked={field.value} onCheckedChange={field.onChange} />
-                )}
-              />
-            </div>
+            {!isCredit && (
+              <div className="flex items-center justify-between">
+                <Label>{t("auto_renew")}</Label>
+                <Controller
+                  name="auto_renew"
+                  control={control}
+                  render={({ field }) => (
+                    <Switch
+                      checked={isFiniteSchedule || field.value}
+                      onCheckedChange={field.onChange}
+                      disabled={isFiniteSchedule}
+                    />
+                  )}
+                />
+              </div>
+            )}
+            {!isCredit && (
+              <div className="flex items-center justify-between">
+                <Label>{t("notify")}</Label>
+                <Controller
+                  name="notify"
+                  control={control}
+                  render={({ field }) => (
+                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                  )}
+                />
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <Label>{t("inactive")}</Label>
               <Controller
@@ -439,7 +508,7 @@ export function SubscriptionFormModal({
                 )}
               />
             </div>
-            {!!authUser?.payment_tracking && (
+            {!!authUser?.payment_tracking && !isCredit && (
               <div className="flex items-center justify-between">
                 <Label>{t("auto_mark_paid")}</Label>
                 <Controller
@@ -453,14 +522,14 @@ export function SubscriptionFormModal({
             )}
           </div>
 
-          {watchedNotify && (
+          {watchedNotify && !isCredit && (
             <div className="space-y-2">
               <Label>{t("notify_days_before")}</Label>
               <Input type="number" min="0" {...register("notify_days_before")} />
             </div>
           )}
 
-          {watchedInactive && (
+          {watchedInactive && !isCredit && (
             <div className="space-y-2">
               <Label>{t("cancellation_date")}</Label>
               <Input type="date" {...register("cancellation_date")} />

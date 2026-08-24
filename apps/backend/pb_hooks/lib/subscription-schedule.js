@@ -27,6 +27,7 @@ var DUE_FILTER =
 function advanceDueSubscriptions(app, todayStr) {
   var dateHelpers = require(__hooks + "/lib/date-helpers.js");
   var paymentTracking = require(__hooks + "/lib/auto-mark-paid.js");
+  var recordTypes = require(__hooks + "/lib/pure/record-types.js");
   var subscriptionLimits = require(__hooks + "/lib/pure/subscription-limits.js");
 
   // Record due payments before this helper can advance or deactivate their
@@ -45,8 +46,10 @@ function advanceDueSubscriptions(app, todayStr) {
     tomorrow: tomorrow,
   });
 
+  var processed = 0;
   for (var i = 0; i < subs.length; i++) {
     var sub = subs[i];
+    if (!recordTypes.isExpense(sub.get("record_type"))) continue;
     var cycleRecord = app.findRecordById("cycles", sub.get("cycle"));
 
     var result = subscriptionLimits.advanceFiniteSchedule({
@@ -65,9 +68,10 @@ function advanceDueSubscriptions(app, todayStr) {
     sub.set("payments_completed", result.paymentsCompleted);
     sub.set("inactive", result.inactive);
     app.save(sub);
+    processed++;
   }
 
-  return subs.length;
+  return processed;
 }
 
 module.exports = {

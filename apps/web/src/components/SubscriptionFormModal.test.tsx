@@ -56,13 +56,43 @@ vi.mock("@/components/ui/dialog", () => ({
   DialogFooter: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
-vi.mock("@/components/ui/select", () => ({
-  Select: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  SelectTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  SelectValue: ({ placeholder }: { placeholder?: string }) => <span>{placeholder ?? "value"}</span>,
-  SelectContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  SelectItem: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-}));
+// The real Select is a Radix portal-based widget that jsdom cannot drive.
+// This stub keeps the same shape but wires onValueChange through context, so a
+// test can pick an option by clicking it.
+vi.mock("@/components/ui/select", async () => {
+  const React = await import("react");
+  // Stable identity: a fresh noop per render would change the context value on
+  // every render and retrigger the consumers' effects.
+  const noop = () => {};
+  const SelectContext = React.createContext<(value: string) => void>(noop);
+
+  return {
+    Select: ({
+      children,
+      onValueChange,
+    }: {
+      children: React.ReactNode;
+      onValueChange?: (value: string) => void;
+    }) => (
+      <SelectContext.Provider value={onValueChange ?? noop}>
+        <div>{children}</div>
+      </SelectContext.Provider>
+    ),
+    SelectTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+    SelectValue: ({ placeholder }: { placeholder?: string }) => (
+      <span>{placeholder ?? "value"}</span>
+    ),
+    SelectContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+    SelectItem: ({ children, value }: { children: React.ReactNode; value: string }) => {
+      const onValueChange = React.useContext(SelectContext);
+      return (
+        <div data-testid={`select-item-${value}`} onClick={() => onValueChange(value)}>
+          {children}
+        </div>
+      );
+    },
+  };
+});
 
 vi.mock("@/components/ui/switch", () => ({
   Switch: ({
@@ -81,13 +111,7 @@ vi.mock("@/components/ui/switch", () => ({
 }));
 
 vi.mock("@/components/ui/currency-input", () => ({
-  CurrencyInput: ({
-    value,
-    onChange,
-  }: {
-    value: number;
-    onChange: (value: number) => void;
-  }) => (
+  CurrencyInput: ({ value, onChange }: { value: number; onChange: (value: number) => void }) => (
     <input
       aria-label="currency-input"
       value={value}
@@ -171,6 +195,7 @@ describe("SubscriptionFormModal", () => {
       data: [
         { id: "monthly", name: "Monthly" },
         { id: "yearly", name: "Yearly" },
+        { id: "one-time", name: "One-Time" },
       ],
     });
     mocks.compressImage.mockImplementation(async (file: File) => file);
@@ -183,6 +208,7 @@ describe("SubscriptionFormModal", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -202,12 +228,9 @@ describe("SubscriptionFormModal", () => {
       />,
     );
 
-    fireEvent.change(
-      document.querySelector('input[name="name"]') as HTMLInputElement,
-      {
+    fireEvent.change(document.querySelector('input[name="name"]') as HTMLInputElement, {
       target: { value: "Spotify" },
-      },
-    );
+    });
     fireEvent.change(screen.getByLabelText("currency-input"), {
       target: { value: "20" },
     });
@@ -268,9 +291,140 @@ describe("SubscriptionFormModal", () => {
     await waitFor(() => {
       expect(mocks.compressImage).toHaveBeenCalledWith(file, { maxSize: 256 });
     });
+    expect(mocks.updateSubscription).toHaveBeenCalledWith("sub-1", expect.any(FormData));
+  });
+
+  it("saves income as a one-time credit without recurring payment behavior", async () => {
+    render(
+      <SubscriptionFormModal
+        sub={getSubscription({
+          name: "Performance bonus",
+          record_type: "credit",
+          cycle: "one-time",
+          next_payment: "2026-08-15",
+          auto_renew: true,
+          notify: true,
+          auto_mark_paid: true,
+          end_date: "2026-12-15",
+          payment_limit: 12,
+          payments_completed: 3,
+        })}
+        userId="user-1"
+        currencies={[getCurrency()]}
+        categories={[getCategory()]}
+        paymentMethods={[getPaymentMethod()]}
+        household={[getHousehold()]}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("one_time_payout")).toBeInTheDocument();
+    expect(screen.getByText("received_on")).toBeInTheDocument();
+    expect(screen.queryByText("auto_renew")).not.toBeInTheDocument();
+    expect(screen.queryByText("auto_mark_paid")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => expect(mocks.updateSubscription).toHaveBeenCalled());
     expect(mocks.updateSubscription).toHaveBeenCalledWith(
       "sub-1",
-      expect.any(FormData),
+      expect.objectContaining({
+        record_type: "credit",
+        cycle: "one-time",
+        frequency: 1,
+        auto_renew: false,
+        notify: false,
+        auto_mark_paid: false,
+        next_payment: "2026-08-15",
+        end_date: "",
+        payment_limit: 0,
+        payments_completed: 0,
+      }),
+    );
+  });
+
+  it("switches an expense to a credit and back, resetting the cycle each way", async () => {
+    const oneTime = { id: "one-time", name: "One-Time" as const };
+    const monthly = { id: "monthly", name: "Monthly" as const };
+    mocks.useQuery.mockReturnValue({ data: [monthly, oneTime] });
+
+    render(
+      <SubscriptionFormModal
+        sub={null}
+        userId="user-1"
+        currencies={[getCurrency()]}
+        categories={[getCategory()]}
+        paymentMethods={[getPaymentMethod()]}
+        household={[getHousehold()]}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("currency-input"), { target: { value: "500" } });
+    fireEvent.change(screen.getAllByRole("textbox")[0], { target: { value: "Bonus" } });
+
+    // Expense → credit: forces the One-Time cycle and hides recurring options.
+    fireEvent.click(screen.getByTestId("select-item-credit"));
+    expect(screen.getByText("one_time_payout")).toBeInTheDocument();
+    expect(screen.queryByText("auto_renew")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => expect(mocks.createSubscription).toHaveBeenCalled());
+    expect(mocks.createSubscription).toHaveBeenCalledWith(
+      expect.objectContaining({
+        record_type: "credit",
+        cycle: "one-time",
+        frequency: 1,
+        auto_renew: false,
+        notify: false,
+        auto_mark_paid: false,
+      }),
+    );
+
+    // Credit → expense: restores a recurring cycle rather than leaving the
+    // record on One-Time, which no expense may use.
+    mocks.createSubscription.mockClear();
+    fireEvent.click(screen.getByTestId("select-item-expense"));
+    expect(screen.queryByText("one_time_payout")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => expect(mocks.createSubscription).toHaveBeenCalled());
+    expect(mocks.createSubscription).toHaveBeenCalledWith(
+      expect.objectContaining({ record_type: "expense", cycle: "monthly" }),
+    );
+  });
+
+  it("keeps the selected cycle when the target cycle is missing from the list", async () => {
+    // Neither One-Time nor Monthly exists, so both cycle guards take their
+    // false branch and the record keeps whatever cycle it already had.
+    mocks.useQuery.mockReturnValue({ data: [{ id: "yearly", name: "Yearly" }] });
+
+    render(
+      <SubscriptionFormModal
+        sub={null}
+        userId="user-1"
+        currencies={[getCurrency()]}
+        categories={[getCategory()]}
+        paymentMethods={[getPaymentMethod()]}
+        household={[getHousehold()]}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getAllByRole("textbox")[0], { target: { value: "Bonus" } });
+    fireEvent.click(screen.getByTestId("select-item-credit"));
+    fireEvent.click(screen.getByTestId("select-item-expense"));
+
+    fireEvent.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => expect(mocks.createSubscription).toHaveBeenCalled());
+    expect(mocks.createSubscription).toHaveBeenCalledWith(
+      expect.objectContaining({ record_type: "expense" }),
     );
   });
 
@@ -293,9 +447,7 @@ describe("SubscriptionFormModal", () => {
     );
 
     expect(screen.getByDisplayValue("6")).toBeInTheDocument();
-    expect(
-      document.querySelector('input[name="payments_completed"]'),
-    ).toHaveValue(2);
+    expect(document.querySelector('input[name="payments_completed"]')).toHaveValue(2);
     expect(screen.getByText("finite_auto_renew_hint")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "save" }));
@@ -332,10 +484,85 @@ describe("SubscriptionFormModal", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "save" }));
 
-    expect(
-      await screen.findByText("end_date_after_next_payment"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("end_date_after_next_payment")).toBeInTheDocument();
     expect(mocks.updateSubscription).not.toHaveBeenCalled();
+  });
+
+  it("validates missing finite bounds and completed-payment ranges", async () => {
+    render(
+      <SubscriptionFormModal
+        sub={getSubscription()}
+        userId="user-1"
+        currencies={[getCurrency()]}
+        categories={[getCategory()]}
+        paymentMethods={[getPaymentMethod()]}
+        household={[getHousehold()]}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("select-item-date"));
+    fireEvent.click(screen.getByRole("button", { name: "save" }));
+    expect(await screen.findByText("required")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("select-item-payments"));
+    fireEvent.change(document.querySelector('input[name="payment_limit"]') as HTMLInputElement, {
+      target: { value: "0" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "save" }));
+    expect(await screen.findByText("positive_payment_limit")).toBeInTheDocument();
+
+    fireEvent.change(document.querySelector('input[name="payment_limit"]') as HTMLInputElement, {
+      target: { value: "3" },
+    });
+    fireEvent.change(
+      document.querySelector('input[name="payments_completed"]') as HTMLInputElement,
+      { target: { value: "3" } },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "save" }));
+    expect(await screen.findByText("payments_completed_reactivate")).toBeInTheDocument();
+
+    fireEvent.change(
+      document.querySelector('input[name="payments_completed"]') as HTMLInputElement,
+      { target: { value: "4" } },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "save" }));
+    expect(await screen.findByText("payments_completed_range")).toBeInTheDocument();
+    expect(mocks.updateSubscription).not.toHaveBeenCalled();
+  });
+
+  it("persists a valid date-bounded schedule and keeps its elapsed tally", async () => {
+    render(
+      <SubscriptionFormModal
+        sub={getSubscription({
+          next_payment: "2026-06-10",
+          end_date: "2026-08-10",
+          payments_completed: 0,
+        })}
+        userId="user-1"
+        currencies={[getCurrency()]}
+        categories={[getCategory()]}
+        paymentMethods={[getPaymentMethod()]}
+        household={[getHousehold()]}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => {
+      expect(mocks.updateSubscription).toHaveBeenCalledWith(
+        "sub-1",
+        expect.objectContaining({
+          auto_renew: true,
+          end_date: "2026-08-10",
+          payment_limit: 0,
+          payments_completed: 0,
+        }),
+      );
+    });
   });
 
   it("creates a NEW subscription with FormData when logo file is set (line 564 branch)", async () => {
@@ -355,10 +582,9 @@ describe("SubscriptionFormModal", () => {
     );
 
     // Fill required name field
-    fireEvent.change(
-      document.querySelector('input[name="name"]') as HTMLInputElement,
-      { target: { value: "Spotify" } },
-    );
+    fireEvent.change(document.querySelector('input[name="name"]') as HTMLInputElement, {
+      target: { value: "Spotify" },
+    });
 
     // Upload a logo file
     const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
@@ -420,10 +646,9 @@ describe("SubscriptionFormModal", () => {
       />,
     );
 
-    fireEvent.change(
-      document.querySelector('input[name="name"]') as HTMLInputElement,
-      { target: { value: "Spotify" } },
-    );
+    fireEvent.change(document.querySelector('input[name="name"]') as HTMLInputElement, {
+      target: { value: "Spotify" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "save" }));
 
     await waitFor(() => {
@@ -462,7 +687,10 @@ describe("SubscriptionFormModal", () => {
       blob: () => Promise.resolve(new Blob(["img"], { type: "image/png" })),
     });
     vi.stubGlobal("fetch", fetchMock);
-    vi.stubGlobal("createImageBitmap", vi.fn().mockResolvedValue({ width: 100, height: 100, close: vi.fn() }));
+    vi.stubGlobal(
+      "createImageBitmap",
+      vi.fn().mockResolvedValue({ width: 100, height: 100, close: vi.fn() }),
+    );
 
     render(
       <SubscriptionFormModal
@@ -679,8 +907,9 @@ describe("SubscriptionFormModal", () => {
 
     // Advance past debounce — triggers collectLogos which sets searching=true then false
     await vi.advanceTimersByTimeAsync(400);
-    // Flush all promises from async collectLogos
-    await vi.runAllTimersAsync();
+    // Flush the currently pending search work without recursively draining
+    // timers scheduled by React's test environment.
+    await vi.runOnlyPendingTimersAsync();
 
     vi.useRealTimers();
     vi.unstubAllGlobals();
@@ -711,7 +940,7 @@ describe("SubscriptionFormModal", () => {
     fireEvent.change(logoInput, { target: { value: "xyz" } });
 
     await vi.advanceTimersByTimeAsync(400);
-    await vi.runAllTimersAsync();
+    await vi.runOnlyPendingTimersAsync();
 
     await waitFor(
       () => {
@@ -799,7 +1028,7 @@ describe("SubscriptionFormModal", () => {
     fireEvent.change(logoInput, { target: { value: "spotify" } });
 
     await vi.advanceTimersByTimeAsync(400);
-    await vi.runAllTimersAsync();
+    await vi.runOnlyPendingTimersAsync();
 
     // Wait for logo result buttons to appear
     await waitFor(
@@ -868,7 +1097,8 @@ describe("SubscriptionFormModal", () => {
       if (typeof url === "string" && url.includes("clearbit.com/v1/companies")) {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve([{ domain: "spotify.com" }, { domain: "" }, { domain: null }]),
+          json: () =>
+            Promise.resolve([{ domain: "spotify.com" }, { domain: "" }, { domain: null }]),
         });
       }
       return Promise.resolve({ ok: false });
@@ -892,7 +1122,7 @@ describe("SubscriptionFormModal", () => {
     fireEvent.change(logoInput, { target: { value: "spotify" } });
 
     await vi.advanceTimersByTimeAsync(400);
-    await vi.runAllTimersAsync();
+    await vi.runOnlyPendingTimersAsync();
 
     // Clearbit endpoint must have been called with our query
     await waitFor(() => {
@@ -903,9 +1133,12 @@ describe("SubscriptionFormModal", () => {
     });
 
     // Search completes (searching=false) showing no_logos_found since probeImage returns ok:false
-    await waitFor(() => {
-      expect(screen.getByText("no_logos_found")).toBeInTheDocument();
-    }, { timeout: 5000 });
+    await waitFor(
+      () => {
+        expect(screen.getByText("no_logos_found")).toBeInTheDocument();
+      },
+      { timeout: 5000 },
+    );
 
     vi.useRealTimers();
     vi.unstubAllGlobals();
@@ -940,17 +1173,20 @@ describe("SubscriptionFormModal", () => {
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(400);
-      await vi.runAllTimersAsync();
+      await vi.runOnlyPendingTimersAsync();
     });
 
     // Despite all fetches failing, the fallback domain code ran before they failed
-    await waitFor(() => {
-      expect(screen.getByText("no_logos_found")).toBeInTheDocument();
-    }, { timeout: 5000 });
+    await waitFor(
+      () => {
+        expect(screen.getByText("no_logos_found")).toBeInTheDocument();
+      },
+      { timeout: 5000 },
+    );
 
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("logo.clearbit.com/xyzfoo.com"),
-      expect.anything()
+      expect.anything(),
     );
 
     vi.useRealTimers();
@@ -998,21 +1234,26 @@ describe("SubscriptionFormModal", () => {
     fireEvent.change(logoInput, { target: { value: "testbrand" } });
 
     await vi.advanceTimersByTimeAsync(400);
-    await vi.runAllTimersAsync();
+    await vi.runOnlyPendingTimersAsync();
 
-    await waitFor(() => {
-      const resultButtons = document.querySelectorAll(".h-20.rounded.border");
-      expect(resultButtons.length).toBeGreaterThan(0);
-    }, { timeout: 5000 });
+    await waitFor(
+      () => {
+        const resultButtons = document.querySelectorAll(".h-20.rounded.border");
+        expect(resultButtons.length).toBeGreaterThan(0);
+      },
+      { timeout: 5000 },
+    );
 
     vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
   it("revokes URLs when search is cancelled mid-flight (lines 453-454)", async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.useFakeTimers();
 
-    // Each fetch returns a valid image so collectLogos populates results
+    // The image probes resolve through a controlled bitmap promise. This lets
+    // the test cancel after the first batch has started but before any result
+    // can be committed, without recursively draining React's scheduler timers.
     const imageBlob = new Blob(["x".repeat(600)], { type: "image/png" });
     const fetchMock = vi.fn().mockImplementation((url: string) => {
       if (typeof url === "string" && url.includes("clearbit.com/v1/companies")) {
@@ -1025,10 +1266,15 @@ describe("SubscriptionFormModal", () => {
       });
     });
     vi.stubGlobal("fetch", fetchMock);
-    vi.stubGlobal(
-      "createImageBitmap",
-      vi.fn().mockResolvedValue({ width: 100, height: 100, close: vi.fn() }),
+
+    const resolveBitmaps: Array<() => void> = [];
+    const createImageBitmapMock = vi.fn().mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveBitmaps.push(() => resolve({ width: 100, height: 100, close: vi.fn() }));
+        }),
     );
+    vi.stubGlobal("createImageBitmap", createImageBitmapMock);
 
     render(
       <SubscriptionFormModal
@@ -1047,18 +1293,29 @@ describe("SubscriptionFormModal", () => {
     // Start a search that'll yield results
     fireEvent.change(logoInput, { target: { value: "spotify" } });
 
-    // Advance past debounce to trigger the setTimeout
-    await vi.advanceTimersByTimeAsync(400);
+    // Advance only the 350 ms debounce. The first batch of probes then pauses at
+    // createImageBitmap, which proves the search is genuinely in flight.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(350);
+    });
+    const pendingProbeCount = resolveBitmaps.length;
+    expect(pendingProbeCount).toBeGreaterThan(0);
+    expect(createImageBitmapMock).toHaveBeenCalledTimes(pendingProbeCount);
 
     // Cancel the search by changing query to < 2 chars — cleanup runs:
     // cancelled=true, abort.abort(), clearTimeout
     fireEvent.change(logoInput, { target: { value: "x" } });
 
-    await vi.runAllTimersAsync();
+    // Finish just the pending image work. collectLogos observes `cancelled`,
+    // revokes every blob URL it created, and exits before another batch starts.
+    await act(async () => {
+      resolveBitmaps.forEach((resolve) => resolve());
+      await Promise.resolve();
+    });
 
-    // URL.revokeObjectURL should have been called on any collected URLs
-    // (the cleanup effect also runs on results change — both paths exercise revokeObjectURL)
-    expect(URL.revokeObjectURL).toHaveBeenCalled();
+    expect(URL.createObjectURL).toHaveBeenCalledTimes(pendingProbeCount);
+    expect(URL.revokeObjectURL).toHaveBeenCalledTimes(pendingProbeCount);
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:logo");
 
     vi.useRealTimers();
     vi.unstubAllGlobals();
@@ -1107,12 +1364,15 @@ describe("SubscriptionFormModal", () => {
     fireEvent.change(logoInput, { target: { value: "spotify" } });
 
     await vi.advanceTimersByTimeAsync(400);
-    await vi.runAllTimersAsync();
+    await vi.runOnlyPendingTimersAsync();
 
-    await waitFor(() => {
-      const resultButtons = document.querySelectorAll(".h-20.rounded.border");
-      expect(resultButtons.length).toBeGreaterThan(1);
-    }, { timeout: 5000 });
+    await waitFor(
+      () => {
+        const resultButtons = document.querySelectorAll(".h-20.rounded.border");
+        expect(resultButtons.length).toBeGreaterThan(1);
+      },
+      { timeout: 5000 },
+    );
 
     const resultButtons = document.querySelectorAll(".h-20.rounded.border");
 
@@ -1122,12 +1382,15 @@ describe("SubscriptionFormModal", () => {
     // Results panel closes; re-open by focusing and setting search again
     fireEvent.change(logoInput, { target: { value: "spotify2" } });
     await vi.advanceTimersByTimeAsync(400);
-    await vi.runAllTimersAsync();
+    await vi.runOnlyPendingTimersAsync();
 
-    await waitFor(() => {
-      const btns = document.querySelectorAll(".h-20.rounded.border");
-      expect(btns.length).toBeGreaterThan(0);
-    }, { timeout: 5000 });
+    await waitFor(
+      () => {
+        const btns = document.querySelectorAll(".h-20.rounded.border");
+        expect(btns.length).toBeGreaterThan(0);
+      },
+      { timeout: 5000 },
+    );
 
     // Select a second logo — this should revoke the first preview
     const btns2 = document.querySelectorAll(".h-20.rounded.border");
@@ -1145,17 +1408,17 @@ describe("SubscriptionFormModal", () => {
 
     // Spy on Promise.allSettled to return a LogoResult with file: null
     // This perfectly mocks the unreachable branch !logoToUpload && logoUrl
-    const allSettledSpy = vi.spyOn(Promise, 'allSettled').mockImplementation(async () => {
+    const allSettledSpy = vi.spyOn(Promise, "allSettled").mockImplementation(async () => {
       return [
         {
-          status: 'fulfilled',
+          status: "fulfilled",
           value: {
-            previewUrl: 'http://fake-preview-url',
-            source: 'http://logo.url/logo.png',
-            contentType: 'image/png',
+            previewUrl: "http://fake-preview-url",
+            source: "http://logo.url/logo.png",
+            contentType: "image/png",
             file: null, // Magic: sets logoFile to null while setting logoUrl
-          }
-        }
+          },
+        },
       ] as any;
     });
 
@@ -1178,22 +1441,24 @@ describe("SubscriptionFormModal", () => {
     );
 
     // Fill name
-    fireEvent.change(
-      document.querySelector('input[name="name"]') as HTMLInputElement,
-      { target: { value: "Spotify" } },
-    );
+    fireEvent.change(document.querySelector('input[name="name"]') as HTMLInputElement, {
+      target: { value: "Spotify" },
+    });
 
     // Trigger logo search
     const logoInput = screen.getByPlaceholderText("search_logo...");
     fireEvent.change(logoInput, { target: { value: "spotify" } });
 
     await vi.advanceTimersByTimeAsync(400);
-    await vi.runAllTimersAsync();
+    await vi.runOnlyPendingTimersAsync();
 
-    await waitFor(() => {
-      const resultButtons = document.querySelectorAll(".h-20.rounded.border");
-      expect(resultButtons.length).toBeGreaterThan(0);
-    }, { timeout: 5000 });
+    await waitFor(
+      () => {
+        const resultButtons = document.querySelectorAll(".h-20.rounded.border");
+        expect(resultButtons.length).toBeGreaterThan(0);
+      },
+      { timeout: 5000 },
+    );
 
     // Select the mocked logo result (sets logoUrl="...", logoFile=null)
     const resultButtons = document.querySelectorAll(".h-20.rounded.border");
@@ -1203,11 +1468,14 @@ describe("SubscriptionFormModal", () => {
     fireEvent.click(screen.getByRole("button", { name: "save" }));
 
     // Advance timers so fetch finishes
-    await vi.runAllTimersAsync();
+    await vi.runOnlyPendingTimersAsync();
 
-    await waitFor(() => {
-      expect(mocks.toastError).toHaveBeenCalledWith("error_fetching_image_results");
-    }, { timeout: 5000 });
+    await waitFor(
+      () => {
+        expect(mocks.toastError).toHaveBeenCalledWith("error_fetching_image_results");
+      },
+      { timeout: 5000 },
+    );
 
     // createSubscription must NOT have been called
     expect(mocks.createSubscription).not.toHaveBeenCalled();
@@ -1231,31 +1499,58 @@ describe("SubscriptionFormModal", () => {
     const imageBlob = new Blob(["x".repeat(600)], { type: "image/webp" });
     const fetchMock = vi.fn().mockImplementation((url: string) => {
       // Return empty array for clearbit to trigger fallback (Lines 367-368) without error masking
-      if (typeof url === 'string' && url.includes('clearbit')) {
-         return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+      if (typeof url === "string" && url.includes("clearbit")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
       }
       return Promise.resolve({
         ok: true,
         headers: { get: () => "image/webp" },
-        blob: () => Promise.resolve(imageBlob)
+        blob: () => Promise.resolve(imageBlob),
       });
     });
     vi.stubGlobal("fetch", fetchMock);
 
     let bitmapCount = 0;
-    vi.stubGlobal("createImageBitmap", vi.fn().mockImplementation(() => {
-      bitmapCount++;
-      return Promise.resolve({ width: 100 + bitmapCount, height: 100, close: vi.fn() });
-    }));
+    vi.stubGlobal(
+      "createImageBitmap",
+      vi.fn().mockImplementation(() => {
+        bitmapCount++;
+        return Promise.resolve({ width: 100 + bitmapCount, height: 100, close: vi.fn() });
+      }),
+    );
 
     // Mock Promise.allSettled to hit content type (Line 447)
     // We add a delay to allow us to cancel the promise mid-flight (Lines 453-454)
-    const allSettledSpy = vi.spyOn(Promise, 'allSettled').mockImplementation(async () => {
-      await new Promise(r => setTimeout(r, 500)); // Simulating slow fetch
+    const allSettledSpy = vi.spyOn(Promise, "allSettled").mockImplementation(async () => {
+      await new Promise((r) => setTimeout(r, 500)); // Simulating slow fetch
       return [
-        { status: 'fulfilled', value: { previewUrl: 'blob:webp', source: 'http://custom/logo.webp', contentType: 'image/webp', file: null } },
-        { status: 'fulfilled', value: { previewUrl: 'blob:gif', source: 'http://custom/logo.gif', contentType: 'image/gif', file: null } },
-        { status: 'fulfilled', value: { previewUrl: 'blob:png', source: 'http://custom/logo.png', contentType: 'image/png', file: null } }
+        {
+          status: "fulfilled",
+          value: {
+            previewUrl: "blob:webp",
+            source: "http://custom/logo.webp",
+            contentType: "image/webp",
+            file: null,
+          },
+        },
+        {
+          status: "fulfilled",
+          value: {
+            previewUrl: "blob:gif",
+            source: "http://custom/logo.gif",
+            contentType: "image/gif",
+            file: null,
+          },
+        },
+        {
+          status: "fulfilled",
+          value: {
+            previewUrl: "blob:png",
+            source: "http://custom/logo.png",
+            contentType: "image/png",
+            file: null,
+          },
+        },
       ] as any;
     });
 
@@ -1297,28 +1592,33 @@ describe("SubscriptionFormModal", () => {
       await vi.advanceTimersByTimeAsync(600);
 
       // Continue waiting for secondquery's debounce and fetch
-      await vi.runAllTimersAsync();
+      await vi.runOnlyPendingTimersAsync();
     });
 
-    await waitFor(() => {
-      expect(document.querySelectorAll(".h-20.rounded.border").length).toBeGreaterThan(0);
-    }, { timeout: 5000 });
+    await waitFor(
+      () => {
+        expect(document.querySelectorAll(".h-20.rounded.border").length).toBeGreaterThan(0);
+      },
+      { timeout: 5000 },
+    );
 
     // 3. Select the mocked logo and submit
     const resultButtons = document.querySelectorAll(".h-20.rounded.border");
     fireEvent.click(resultButtons[0] as HTMLElement);
 
-    fireEvent.change(
-      document.querySelector('input[name="name"]') as HTMLInputElement,
-      { target: { value: "Test" } },
-    );
+    fireEvent.change(document.querySelector('input[name="name"]') as HTMLInputElement, {
+      target: { value: "Test" },
+    });
 
     fireEvent.click(screen.getByRole("button", { name: "save" }));
-    await vi.runAllTimersAsync();
+    await vi.runOnlyPendingTimersAsync();
 
-    await waitFor(() => {
-      expect(mocks.createSubscription).toHaveBeenCalled();
-    }, { timeout: 5000 });
+    await waitFor(
+      () => {
+        expect(mocks.createSubscription).toHaveBeenCalled();
+      },
+      { timeout: 5000 },
+    );
 
     unmount();
     allSettledSpy.mockRestore();
@@ -1344,17 +1644,17 @@ describe("SubscriptionFormModal", () => {
     // We can achieve it via: upload a file (sets logoPreview), then clear file (logoPreview=null)
     // while logoUrl stays set from a prior search selection.
     // Use the allSettled mock to get a result with source set:
-    const allSettledSpy = vi.spyOn(Promise, 'allSettled').mockImplementation(async () => {
+    const allSettledSpy = vi.spyOn(Promise, "allSettled").mockImplementation(async () => {
       return [
         {
-          status: 'fulfilled',
+          status: "fulfilled",
           value: {
-            previewUrl: 'blob:preview-1',
-            source: 'http://logo.example.com/logo.png',
-            contentType: 'image/png',
+            previewUrl: "blob:preview-1",
+            source: "http://logo.example.com/logo.png",
+            contentType: "image/png",
             file: new File(["x"], "logo.png", { type: "image/png" }),
-          }
-        }
+          },
+        },
       ] as any;
     });
 
@@ -1378,13 +1678,16 @@ describe("SubscriptionFormModal", () => {
     const logoInput = screen.getByPlaceholderText("search_logo...");
     fireEvent.change(logoInput, { target: { value: "example" } });
     await vi.advanceTimersByTimeAsync(400);
-    await vi.runAllTimersAsync();
+    await vi.runOnlyPendingTimersAsync();
 
     // Wait for the logo result button to appear
-    await waitFor(() => {
-      const resultButtons = document.querySelectorAll(".h-20.rounded.border");
-      expect(resultButtons.length).toBeGreaterThan(0);
-    }, { timeout: 5000 });
+    await waitFor(
+      () => {
+        const resultButtons = document.querySelectorAll(".h-20.rounded.border");
+        expect(resultButtons.length).toBeGreaterThan(0);
+      },
+      { timeout: 5000 },
+    );
 
     // Select the logo — sets logoPreview='blob:preview-1', logoUrl='http://logo.example.com/logo.png'
     const resultButtons = document.querySelectorAll(".h-20.rounded.border");
@@ -1466,9 +1769,11 @@ describe("SubscriptionFormModal", () => {
     );
 
     // Find the useQuery call that was made with cycles queryKey and invoke the queryFn
-    const allCalls = mocks.useQuery.mock.calls as Array<[{ queryKey: unknown[]; queryFn?: () => unknown }]>;
+    const allCalls = mocks.useQuery.mock.calls as Array<
+      [{ queryKey: unknown[]; queryFn?: () => unknown }]
+    >;
     const cycleCall = allCalls.find(
-      ([opts]) => Array.isArray(opts.queryKey) && opts.queryKey[0] === "cycles"
+      ([opts]) => Array.isArray(opts.queryKey) && opts.queryKey[0] === "cycles",
     );
 
     // The queryFn is the `fetchCycles` function — calling it exercises the branch
@@ -1553,10 +1858,9 @@ describe("SubscriptionFormModal", () => {
       />,
     );
 
-    fireEvent.change(
-      document.querySelector('input[name="name"]') as HTMLInputElement,
-      { target: { value: "Spotify" } },
-    );
+    fireEvent.change(document.querySelector('input[name="name"]') as HTMLInputElement, {
+      target: { value: "Spotify" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "save" }));
 
     await waitFor(() => {
@@ -1582,10 +1886,9 @@ describe("SubscriptionFormModal", () => {
       />,
     );
 
-    fireEvent.change(
-      document.querySelector('input[name="name"]') as HTMLInputElement,
-      { target: { value: "Spotify" } },
-    );
+    fireEvent.change(document.querySelector('input[name="name"]') as HTMLInputElement, {
+      target: { value: "Spotify" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "save" }));
 
     await waitFor(() => {
@@ -1607,10 +1910,9 @@ describe("SubscriptionFormModal", () => {
       />,
     );
 
-    fireEvent.change(
-      document.querySelector('input[name="name"]') as HTMLInputElement,
-      { target: { value: "Test" } },
-    );
+    fireEvent.change(document.querySelector('input[name="name"]') as HTMLInputElement, {
+      target: { value: "Test" },
+    });
     fireEvent.change(screen.getByLabelText("currency-input"), {
       target: { value: "-5" },
     });
@@ -1637,15 +1939,13 @@ describe("SubscriptionFormModal", () => {
       />,
     );
 
-    fireEvent.change(
-      document.querySelector('input[name="name"]') as HTMLInputElement,
-      { target: { value: "Test" } },
-    );
+    fireEvent.change(document.querySelector('input[name="name"]') as HTMLInputElement, {
+      target: { value: "Test" },
+    });
     // Clear frequency to trigger min(1) validation failure
-    fireEvent.change(
-      document.querySelector('input[name="frequency"]') as HTMLInputElement,
-      { target: { value: "" } },
-    );
+    fireEvent.change(document.querySelector('input[name="frequency"]') as HTMLInputElement, {
+      target: { value: "" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "save" }));
 
     await waitFor(() => {
@@ -1668,14 +1968,12 @@ describe("SubscriptionFormModal", () => {
       />,
     );
 
-    fireEvent.change(
-      document.querySelector('input[name="name"]') as HTMLInputElement,
-      { target: { value: "Test" } },
-    );
-    fireEvent.change(
-      document.querySelector('input[name="next_payment"]') as HTMLInputElement,
-      { target: { value: "" } },
-    );
+    fireEvent.change(document.querySelector('input[name="name"]') as HTMLInputElement, {
+      target: { value: "Test" },
+    });
+    fireEvent.change(document.querySelector('input[name="next_payment"]') as HTMLInputElement, {
+      target: { value: "" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "save" }));
 
     await waitFor(() => {
@@ -1694,17 +1992,17 @@ describe("SubscriptionFormModal", () => {
   it("shows logo preview with logoPreview from search result selection (line 694 left branch)", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
 
-    const allSettledSpy = vi.spyOn(Promise, 'allSettled').mockImplementation(async () => {
+    const allSettledSpy = vi.spyOn(Promise, "allSettled").mockImplementation(async () => {
       return [
         {
-          status: 'fulfilled',
+          status: "fulfilled",
           value: {
-            previewUrl: 'blob:the-preview',
-            source: 'https://some.source/logo.png',
-            contentType: 'image/png',
+            previewUrl: "blob:the-preview",
+            source: "https://some.source/logo.png",
+            contentType: "image/png",
             file: new File(["x"], "logo.png", { type: "image/png" }),
-          }
-        }
+          },
+        },
       ] as any;
     });
 
@@ -1726,11 +2024,14 @@ describe("SubscriptionFormModal", () => {
     const logoInput = screen.getByPlaceholderText("search_logo...");
     fireEvent.change(logoInput, { target: { value: "brand" } });
     await vi.advanceTimersByTimeAsync(400);
-    await vi.runAllTimersAsync();
+    await vi.runOnlyPendingTimersAsync();
 
-    await waitFor(() => {
-      expect(document.querySelectorAll(".h-20.rounded.border").length).toBeGreaterThan(0);
-    }, { timeout: 5000 });
+    await waitFor(
+      () => {
+        expect(document.querySelectorAll(".h-20.rounded.border").length).toBeGreaterThan(0);
+      },
+      { timeout: 5000 },
+    );
 
     // Select logo — logoPreview='blob:the-preview', logoUrl='https://some.source/logo.png'
     fireEvent.click(document.querySelectorAll(".h-20.rounded.border")[0] as HTMLElement);

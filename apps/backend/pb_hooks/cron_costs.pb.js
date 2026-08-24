@@ -8,6 +8,7 @@
 // ================================================================
 cronAdd("storeYearlyCost", "0 3 1 * *", () => {
   const dateHelpers = require(__hooks + "/lib/date-helpers.js");
+  const recordTypes = require(__hooks + "/lib/pure/record-types.js");
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
@@ -29,6 +30,7 @@ cronAdd("storeYearlyCost", "0 3 1 * *", () => {
     );
 
     for (const sub of subs) {
+      if (!recordTypes.isExpense(sub.get("record_type"))) continue;
       const price = sub.get("price") || 0;
       const frequency = sub.get("frequency") || 1;
 
@@ -77,4 +79,3 @@ cronAdd("storeYearlyCost", "0 3 1 * *", () => {
 
   console.log("[Zublo] storeYearlyCost: snapshot saved for " + year + "/" + month);
 });
-

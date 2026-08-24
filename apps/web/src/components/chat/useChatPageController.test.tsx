@@ -317,7 +317,7 @@ describe("useChatPageController", () => {
       queryKey: queryKeys.subscriptions.all("user-1"),
     });
     expect(invalidateQueries).toHaveBeenCalledWith({
-      queryKey: queryKeys.dashboard("user-1"),
+      queryKey: queryKeys.dashboard.all("user-1"),
     });
     expect(invalidateQueries).toHaveBeenCalledWith({
       queryKey: queryKeys.categories.all("user-1"),
@@ -389,7 +389,7 @@ describe("useChatPageController", () => {
       queryKey: queryKeys.subscriptions.all("user-1"),
     });
     expect(invalidateQueries).toHaveBeenCalledWith({
-      queryKey: queryKeys.dashboard("user-1"),
+      queryKey: queryKeys.dashboard.all("user-1"),
     });
     expect(invalidateQueries).not.toHaveBeenCalledWith({
       queryKey: queryKeys.categories.all("user-1"),
@@ -499,7 +499,7 @@ describe("useChatPageController", () => {
       queryKey: queryKeys.subscriptions.all("user-1"),
     });
     expect(invalidateQueries).not.toHaveBeenCalledWith({
-      queryKey: queryKeys.dashboard("user-1"),
+      queryKey: queryKeys.dashboard.all("user-1"),
     });
   });
 

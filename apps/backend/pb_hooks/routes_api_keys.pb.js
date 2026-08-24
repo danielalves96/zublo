@@ -184,6 +184,7 @@ routerAdd("PUT", "/api/api-keys/{id}", function(e) {
 routerAdd("GET", "/api/external/subscriptions", function(e) {
   try {
     var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+    var recordTypes = require(__hooks + "/lib/pure/record-types.js");
     var rawKey = authHeaders.extractBearerToken(e.request.header.get("Authorization"));
 
     // inline resolveApiKey
@@ -222,6 +223,7 @@ routerAdd("GET", "/api/external/subscriptions", function(e) {
       items.push({
         id: sub.id,
         name: sub.get("name"),
+        record_type: recordTypes.normalizeRecordType(sub.get("record_type")),
         price: sub.get("price"),
         currency_symbol: currencySymbol,
         currency_code: currencyCode,
@@ -251,6 +253,7 @@ routerAdd("GET", "/api/external/subscriptions", function(e) {
 routerAdd("GET", "/api/external/subscriptions/{id}", function(e) {
   try {
     var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+    var recordTypes = require(__hooks + "/lib/pure/record-types.js");
     var rawKey = authHeaders.extractBearerToken(e.request.header.get("Authorization"));
 
     var userId = null;
@@ -286,6 +289,7 @@ routerAdd("GET", "/api/external/subscriptions/{id}", function(e) {
     return e.json(200, {
       id: sub.id,
       name: sub.get("name"),
+      record_type: recordTypes.normalizeRecordType(sub.get("record_type")),
       price: sub.get("price"),
       currency_id: sub.get("currency"),
       currency_symbol: currencySymbol,
@@ -379,14 +383,17 @@ routerAdd("POST", "/api/external/subscriptions", function(e) {
     var endDate = String(body.end_date || "").trim().slice(0, 10);
     var paymentLimit = Math.max(0, parseInt(body.payment_limit) || 0);
     var paymentsCompleted = Math.max(0, parseInt(body.payments_completed) || 0);
+    var recordTypes = require(__hooks + "/lib/pure/record-types.js");
+    var recordTypeHelpers = require(__hooks + "/lib/record-type-helpers.js");
+    var recordType = recordTypes.normalizeRecordType(body.record_type);
 
     if (!name) return e.json(400, { error: "name is required" });
     if (!currencyId) return e.json(400, { error: "currency_id is required" });
     if (!cycleId) return e.json(400, { error: "cycle_id is required" });
     if (!nextPayment) return e.json(400, { error: "next_payment is required (YYYY-MM-DD)" });
-    if (endDate && paymentLimit) return e.json(400, { error: "Use either end_date or payment_limit, not both" });
-    if (endDate && endDate < nextPayment.slice(0, 10)) return e.json(400, { error: "end_date cannot be before next_payment" });
-    if (paymentLimit && (paymentsCompleted > paymentLimit || (paymentsCompleted === paymentLimit && body.inactive !== true))) return e.json(400, { error: "payments_completed must be less than payment_limit while active" });
+    if (recordType === "expense" && endDate && paymentLimit) return e.json(400, { error: "Use either end_date or payment_limit, not both" });
+    if (recordType === "expense" && endDate && endDate < nextPayment.slice(0, 10)) return e.json(400, { error: "end_date cannot be before next_payment" });
+    if (recordType === "expense" && paymentLimit && (paymentsCompleted > paymentLimit || (paymentsCompleted === paymentLimit && body.inactive !== true))) return e.json(400, { error: "payments_completed must be less than payment_limit while active" });
 
     try {
       var cur = $app.findRecordById("currencies", currencyId);
@@ -396,6 +403,7 @@ routerAdd("POST", "/api/external/subscriptions", function(e) {
     var col = $app.findCollectionByNameOrId("subscriptions");
     var record = new Record(col);
     record.set("name", name);
+    record.set("record_type", recordType);
     record.set("price", price);
     record.set("currency", currencyId);
     record.set("cycle", cycleId);
@@ -415,8 +423,11 @@ routerAdd("POST", "/api/external/subscriptions", function(e) {
     if (body.payment_method_id) record.set("payment_method", String(body.payment_method_id));
     if (body.payer_id) record.set("payer", String(body.payer_id));
 
+    var policyError = recordTypeHelpers.applyRecordTypeToRecord($app, record, recordType);
+    if (policyError) return e.json(400, { error: policyError });
+
     $app.save(record);
-    return e.json(200, { id: record.id, name: name, price: price, next_payment: nextPayment });
+    return e.json(200, { id: record.id, name: name, record_type: recordType, price: price, next_payment: nextPayment });
   } catch (err) { return e.json(500, { error: String(err) }); }
 });
 
@@ -426,6 +437,7 @@ routerAdd("POST", "/api/external/subscriptions", function(e) {
 routerAdd("GET", "/api/external/statistics", function(e) {
   try {
     var authHeaders = require(__hooks + "/lib/pure/auth-headers.js");
+    var recordTypes = require(__hooks + "/lib/pure/record-types.js");
     var rawKey = authHeaders.extractBearerToken(e.request.header.get("Authorization"));
 
     // inline resolveApiKey
@@ -458,10 +470,13 @@ routerAdd("GET", "/api/external/statistics", function(e) {
     } catch (_) {}
 
     var totalMonthly = 0;
+    var activeCount = 0;
     var breakdown = [];
 
     for (var i = 0; i < subs.length; i++) {
       var sub = subs[i];
+      if (!recordTypes.isExpense(sub.get("record_type"))) continue;
+      activeCount++;
       var cycleMultiplier = 1;
       try {
         var cyc = $app.findRecordById("cycles", sub.get("cycle"));
@@ -469,7 +484,10 @@ routerAdd("GET", "/api/external/statistics", function(e) {
         if (cn === "Daily") cycleMultiplier = 30.44;
         else if (cn === "Weekly") cycleMultiplier = 4.33;
         else if (cn === "Monthly") cycleMultiplier = 1;
+        else if (cn === "Quarterly") cycleMultiplier = 1 / 3;
+        else if (cn === "Half-Yearly") cycleMultiplier = 1 / 6;
         else if (cn === "Yearly") cycleMultiplier = 1 / 12;
+        else if (recordTypes.isOneTimeCycle(cn)) cycleMultiplier = 0;
       } catch (_) {}
 
       var freq = sub.get("frequency") || 1;
@@ -480,7 +498,7 @@ routerAdd("GET", "/api/external/statistics", function(e) {
     }
 
     return e.json(200, {
-      active_count: subs.length,
+      active_count: activeCount,
       total_monthly: Math.round(totalMonthly * 100) / 100,
       total_yearly: Math.round(totalMonthly * 12 * 100) / 100,
       currency_symbol: mainCurrencySymbol,
@@ -874,6 +892,11 @@ routerAdd("PUT", "/api/external/subscriptions/{id}", function(e) {
     if (record.get("user") !== userId) return e.json(403, { error: "Forbidden" });
 
     var body = e.requestInfo().body;
+    var recordTypes = require(__hooks + "/lib/pure/record-types.js");
+    var recordTypeHelpers = require(__hooks + "/lib/record-type-helpers.js");
+    var proposedRecordType = body.record_type !== undefined
+      ? recordTypes.normalizeRecordType(body.record_type)
+      : recordTypes.normalizeRecordType(record.get("record_type"));
     var proposedNextPayment = body.next_payment !== undefined
       ? String(body.next_payment).trim().slice(0, 10)
       : String(record.get("next_payment") || "").slice(0, 10);
@@ -887,12 +910,13 @@ routerAdd("PUT", "/api/external/subscriptions/{id}", function(e) {
       ? Math.max(0, parseInt(body.payments_completed) || 0)
       : Math.max(0, parseInt(record.get("payments_completed")) || 0);
 
-    if (proposedEndDate && proposedPaymentLimit) return e.json(400, { error: "Use either end_date or payment_limit, not both" });
-    if (proposedEndDate && proposedEndDate < proposedNextPayment) return e.json(400, { error: "end_date cannot be before next_payment" });
+    if (proposedRecordType === "expense" && proposedEndDate && proposedPaymentLimit) return e.json(400, { error: "Use either end_date or payment_limit, not both" });
+    if (proposedRecordType === "expense" && proposedEndDate && proposedEndDate < proposedNextPayment) return e.json(400, { error: "end_date cannot be before next_payment" });
     var proposedInactive = body.inactive !== undefined ? body.inactive === true : record.get("inactive") === true;
-    if (proposedPaymentLimit && (proposedCompleted > proposedPaymentLimit || (proposedCompleted === proposedPaymentLimit && !proposedInactive))) return e.json(400, { error: "payments_completed must be less than payment_limit while active" });
+    if (proposedRecordType === "expense" && proposedPaymentLimit && (proposedCompleted > proposedPaymentLimit || (proposedCompleted === proposedPaymentLimit && !proposedInactive))) return e.json(400, { error: "payments_completed must be less than payment_limit while active" });
 
     if (body.name !== undefined) record.set("name", String(body.name).trim());
+    record.set("record_type", proposedRecordType);
     if (body.price !== undefined) record.set("price", parseFloat(body.price) || 0);
     if (body.currency_id !== undefined) record.set("currency", String(body.currency_id).trim());
     if (body.cycle_id !== undefined) record.set("cycle", String(body.cycle_id).trim());
@@ -911,6 +935,9 @@ routerAdd("PUT", "/api/external/subscriptions/{id}", function(e) {
     if (body.category_id !== undefined) record.set("category", String(body.category_id));
     if (body.payment_method_id !== undefined) record.set("payment_method", String(body.payment_method_id));
     if (body.payer_id !== undefined) record.set("payer", String(body.payer_id));
+
+    var policyError = recordTypeHelpers.applyRecordTypeToRecord($app, record, proposedRecordType);
+    if (policyError) return e.json(400, { error: policyError });
 
     $app.save(record);
     return e.json(200, { success: true, id: record.id });
@@ -1263,6 +1290,10 @@ routerAdd("POST", "/api/external/subscriptions/{id}/mark-paid", function(e) {
     var sub;
     try { sub = $app.findRecordById("subscriptions", id); } catch (_) { return e.json(404, { error: "Not found" }); }
     if (sub.get("user") !== userId) return e.json(403, { error: "Forbidden" });
+    var recordTypes = require(__hooks + "/lib/pure/record-types.js");
+    if (recordTypes.isCredit(sub.get("record_type"))) {
+      return e.json(400, { error: "Credits cannot be marked paid" });
+    }
 
     var body = e.requestInfo().body;
     var amount = parseFloat(body.amount) || sub.get("price");
@@ -1311,12 +1342,15 @@ routerAdd("POST", "/api/external/subscriptions/batch", function(e) {
     if (!items || !Array.isArray(items)) return e.json(400, { error: "items array is required" });
 
     var col = $app.findCollectionByNameOrId("subscriptions");
+    var recordTypes = require(__hooks + "/lib/pure/record-types.js");
+    var recordTypeHelpers = require(__hooks + "/lib/record-type-helpers.js");
     var created = [];
     var errors = [];
 
     for (var i = 0; i < items.length; i++) {
-        var item = items[i];
+        var item = items[i] || {};
         var itemName = String(item.name || "Unnamed");
+        var itemRecordType = recordTypes.normalizeRecordType(item.record_type);
         var itemNextPayment = String(item.next_payment || "").trim().slice(0, 10);
         var itemEndDate = String(item.end_date || "").trim().slice(0, 10);
         var itemPaymentLimit = Math.max(0, parseInt(item.payment_limit) || 0);
@@ -1334,15 +1368,15 @@ routerAdd("POST", "/api/external/subscriptions/batch", function(e) {
             errors.push({ index: i, name: itemName, reason: "next_payment is required (YYYY-MM-DD)" });
             continue;
         }
-        if (itemEndDate && itemPaymentLimit) {
+        if (itemRecordType === "expense" && itemEndDate && itemPaymentLimit) {
             errors.push({ index: i, name: itemName, reason: "Use either end_date or payment_limit, not both" });
             continue;
         }
-        if (itemEndDate && itemEndDate < itemNextPayment) {
+        if (itemRecordType === "expense" && itemEndDate && itemEndDate < itemNextPayment) {
             errors.push({ index: i, name: itemName, reason: "end_date cannot be before next_payment" });
             continue;
         }
-        if (itemPaymentLimit && (itemCompleted > itemPaymentLimit || (itemCompleted === itemPaymentLimit && item.inactive !== true))) {
+        if (itemRecordType === "expense" && itemPaymentLimit && (itemCompleted > itemPaymentLimit || (itemCompleted === itemPaymentLimit && item.inactive !== true))) {
             errors.push({ index: i, name: itemName, reason: "payments_completed must be less than payment_limit while active" });
             continue;
         }
@@ -1364,6 +1398,12 @@ routerAdd("POST", "/api/external/subscriptions/batch", function(e) {
         if (item.category_id) record.set("category", String(item.category_id));
         if (item.payment_method_id) record.set("payment_method", String(item.payment_method_id));
         if (item.payer_id) record.set("payer", String(item.payer_id));
+
+        var policyError = recordTypeHelpers.applyRecordTypeToRecord($app, record, itemRecordType);
+        if (policyError) {
+            errors.push({ index: i, name: itemName, reason: policyError });
+            continue;
+        }
 
         // A save can still fail on rules this handler does not model — a blank
         // required price, a relation id that does not resolve. Letting it reach

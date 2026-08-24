@@ -13,6 +13,7 @@ const fetchCycles = () => cyclesService.list();
 
 // Static schema used only for type inference (no i18n needed for the type)
 const _schemaShape = z.object({
+  record_type: z.enum(["expense", "credit"]),
   name: z.string(),
   price: z.number(),
   currency: z.string(),
@@ -67,6 +68,7 @@ export function useSubscriptionForm({ sub, currencies, household }: UseSubscript
 
   const schema = z
     .object({
+      record_type: z.enum(["expense", "credit"]),
       name: z.string().min(1, t("required")),
       price: z.number().nonnegative(),
       currency: z.string().min(1, t("required")),
@@ -91,6 +93,8 @@ export function useSubscriptionForm({ sub, currencies, household }: UseSubscript
       payments_completed: z.string(),
     })
     .superRefine((values, context) => {
+      if (values.record_type === "credit") return;
+
       if (values.end_mode === "date") {
         if (!values.end_date) {
           context.addIssue({
@@ -136,6 +140,7 @@ export function useSubscriptionForm({ sub, currencies, household }: UseSubscript
   const form = useForm<SubscriptionFormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
+      record_type: "expense",
       name: "",
       price: 0,
       currency: "",
@@ -167,6 +172,7 @@ export function useSubscriptionForm({ sub, currencies, household }: UseSubscript
   useEffect(() => {
     if (sub) {
       reset({
+        record_type: sub.record_type === "credit" ? "credit" : "expense",
         name: sub.name,
         price: sub.price,
         currency: sub.currency,
@@ -194,6 +200,7 @@ export function useSubscriptionForm({ sub, currencies, household }: UseSubscript
       const mainCur = currencies.find((c) => c.is_main);
       const monthCycle = cycles.find((c) => c.name === "Monthly");
       reset({
+        record_type: "expense",
         name: "",
         price: 0,
         currency: mainCur?.id || currencies[0]?.id || "",

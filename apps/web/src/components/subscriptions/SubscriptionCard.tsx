@@ -2,8 +2,10 @@ import { Calendar, Copy, Edit, ExternalLink, Hourglass, RefreshCw, Trash2 } from
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { isCredit } from "@/lib/recordTypes";
 import {
   cn,
   daysUntil,
@@ -128,9 +130,11 @@ export function SubscriptionCard({
   const category = sub.expand?.category;
   const payer = sub.expand?.payer;
   const paymentMethod = sub.expand?.payment_method;
+  const credit = isCredit(sub);
 
   const shouldConvert = convertCurrency && mainCurrency && !currency?.is_main;
-  const rawPrice = showMonthly ? toMonthly(sub.price, cycleName, sub.frequency || 1) : sub.price;
+  const rawPrice =
+    showMonthly && !credit ? toMonthly(sub.price, cycleName, sub.frequency || 1) : sub.price;
   const price = shouldConvert ? toMainCurrency(rawPrice, currency) : rawPrice;
   const symbol = shouldConvert ? (mainCurrency?.symbol ?? "$") : (currency?.symbol ?? "$");
   const days = daysUntil(sub.next_payment);
@@ -164,6 +168,11 @@ export function SubscriptionCard({
             <h3 className="font-bold text-lg leading-tight line-clamp-1 group-hover:text-primary transition-colors">
               {sub.name}
             </h3>
+            {credit && (
+              <Badge className="mr-2 mt-1 bg-green-500/15 text-green-700 hover:bg-green-500/15 dark:text-green-400">
+                {t("credit_income")}
+              </Badge>
+            )}
             {category && (
               <span className="text-xs font-medium text-muted-foreground mr-2">
                 {category.name}
@@ -178,11 +187,17 @@ export function SubscriptionCard({
         </div>
 
         <div className="text-right">
-          <p className="font-extrabold text-xl font-mono text-foreground tracking-tight">
+          <p
+            className={cn(
+              "font-extrabold text-xl font-mono tracking-tight",
+              credit ? "text-green-600 dark:text-green-400" : "text-foreground",
+            )}
+          >
+            {credit ? "+" : ""}
             {formatPrice(price, symbol)}
           </p>
           <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-            {showMonthly ? t("monthly") : cycleName}
+            {credit ? t("one_time") : showMonthly ? t("monthly") : cycleName}
           </p>
         </div>
       </div>
@@ -191,7 +206,7 @@ export function SubscriptionCard({
         {sub.next_payment && !sub.inactive && (
           <div className="flex items-center justify-between text-sm bg-background/50 border rounded-xl px-3 py-2">
             <span className="text-muted-foreground flex items-center gap-1.5">
-              <Calendar className="w-4 h-4" /> {t("next")}
+              <Calendar className="w-4 h-4" /> {t(credit ? "received_on" : "next")}
             </span>
             <div className="font-medium text-foreground flex items-center gap-2">
               {formatDate(sub.next_payment)}
@@ -211,7 +226,7 @@ export function SubscriptionCard({
           </div>
         )}
 
-        {((sub.payment_limit ?? 0) > 0 || sub.end_date) && (
+        {!credit && ((sub.payment_limit ?? 0) > 0 || sub.end_date) && (
           <div className="flex items-center gap-1.5 px-1 text-xs font-medium text-muted-foreground">
             <Hourglass className="h-3.5 w-3.5" />
             {(sub.payment_limit ?? 0) > 0
@@ -219,11 +234,11 @@ export function SubscriptionCard({
                   completed: sub.payments_completed ?? 0,
                   total: sub.payment_limit,
                 })
-              : t(sub.inactive ? "ended_on" : "ends_on", { date: formatDate(sub.end_date ?? "") })}
+              : t(sub.inactive ? "ended_on" : "ends_on", { date: formatDate(sub.end_date!) })}
           </div>
         )}
 
-        {showProgress && progress > 0 && !sub.inactive && (
+        {showProgress && !credit && progress > 0 && !sub.inactive && (
           <div className="space-y-1.5">
             <div className="flex justify-between text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-1">
               <span>{t("billing_cycle")}</span>
@@ -280,7 +295,7 @@ export function SubscriptionCard({
           {/* Renewing an inactive subscription is a no-op on the backend — it
               refuses to advance a paused or finished schedule — so offering the
               action here would just be a button that does nothing. */}
-          {!sub.inactive && (
+          {!sub.inactive && !credit && (
             <Button
               variant="ghost"
               size="icon"

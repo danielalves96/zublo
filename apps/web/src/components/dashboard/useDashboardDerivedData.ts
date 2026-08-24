@@ -4,6 +4,7 @@ import type { User } from "@/types";
 
 interface SummaryData {
   totalMonthly: number;
+  totalCredits?: number;
 }
 
 interface YearlyCostPoint {
@@ -33,15 +34,23 @@ export function useDashboardDerivedData({
   );
 
   const budget = user?.budget ?? 0;
+  const totalCredits = summary?.totalCredits ?? 0;
+  const availableBudget = budget + totalCredits;
+  const remaining = summary ? availableBudget - summary.totalMonthly : availableBudget;
   const budgetUsed =
-    budget > 0 && summary
-      ? Math.min(100, (summary.totalMonthly / budget) * 100)
+    availableBudget > 0 && summary
+      ? Math.min(100, (summary.totalMonthly / availableBudget) * 100)
       : 0;
-  const isOverBudget = budgetUsed >= 100;
+  // There is nothing to be "over" until the user has a budget or a credit to
+  // measure against — otherwise every account without a budget reads as
+  // over-budget the moment it has a single expense.
+  const isOverBudget = availableBudget > 0 && remaining < 0;
 
   return {
     budget,
     budgetUsed,
+    remaining,
+    totalCredits,
     chartData,
     isOverBudget,
   };

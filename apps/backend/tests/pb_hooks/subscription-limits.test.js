@@ -39,12 +39,27 @@ describe("pb_hooks/lib/pure/subscription-limits.js", () => {
     });
   });
 
+  it("stops safely when a cycle cannot advance the due date", () => {
+    expect(
+      advance({
+        advanceDate: (date) => date,
+      }),
+    ).toEqual({
+      nextPayment: "2026-01-01",
+      paymentsCompleted: 0,
+      inactive: false,
+      processed: 1,
+    });
+  });
+
   it("completes on the final configured payment and preserves its due date", () => {
-    expect(advance({
-      today: "2026-04-15",
-      paymentLimit: 3,
-      paymentsCompleted: 1,
-    })).toEqual({
+    expect(
+      advance({
+        today: "2026-04-15",
+        paymentLimit: 3,
+        paymentsCompleted: 1,
+      }),
+    ).toEqual({
       nextPayment: "2026-02-01",
       paymentsCompleted: 3,
       inactive: true,
@@ -74,11 +89,13 @@ describe("pb_hooks/lib/pure/subscription-limits.js", () => {
       inactive: false,
       processed: 0,
     });
-    expect(advance({
-      nextPayment: "2026-05-01",
-      today: "2026-04-01",
-      endDate: "2026-03-31",
-    })).toMatchObject({ inactive: true, processed: 0 });
+    expect(
+      advance({
+        nextPayment: "2026-05-01",
+        today: "2026-04-01",
+        endDate: "2026-03-31",
+      }),
+    ).toMatchObject({ inactive: true, processed: 0 });
   });
 
   it("never reactivates a paused subscription that the caller passes through", () => {
@@ -92,12 +109,14 @@ describe("pb_hooks/lib/pure/subscription-limits.js", () => {
     });
 
     // Paused mid-schedule: still no advancement, and the tally is preserved.
-    expect(advance({
-      today: "2026-06-01",
-      paymentLimit: 12,
-      paymentsCompleted: 3,
-      inactive: true,
-    })).toEqual({
+    expect(
+      advance({
+        today: "2026-06-01",
+        paymentLimit: 12,
+        paymentsCompleted: 3,
+        inactive: true,
+      }),
+    ).toEqual({
       nextPayment: "2026-01-01",
       paymentsCompleted: 3,
       inactive: true,
@@ -108,7 +127,9 @@ describe("pb_hooks/lib/pure/subscription-limits.js", () => {
   it("counts elapsed payments for date-bounded schedules too", () => {
     // payments_completed is meaningful in both modes, so the API and the
     // calendar can rely on it regardless of which bound was configured.
-    expect(advance({ today: "2026-03-01", endDate: "2026-12-31" })).toMatchObject({
+    expect(
+      advance({ today: "2026-03-01", endDate: "2026-12-31" }),
+    ).toMatchObject({
       nextPayment: "2026-04-01",
       paymentsCompleted: 3,
       inactive: false,

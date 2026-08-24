@@ -51,6 +51,8 @@ describe("BudgetOverviewCard", () => {
         budgetUsed={45}
         isOverBudget={false}
         totalMonthly={45}
+        totalCredits={25}
+        remaining={80}
         subscriptionsCount={4}
         mostExpensive={{
           name: "Netflix",
@@ -65,6 +67,9 @@ describe("BudgetOverviewCard", () => {
     expect(screen.getByText("budget_overview")).toBeInTheDocument();
     expect(screen.getByText("$45.00")).toBeInTheDocument();
     expect(screen.getByText("$100.00")).toBeInTheDocument();
+    expect(screen.getByText("credits_this_month")).toBeInTheDocument();
+    expect(screen.getByText("+$25.00")).toBeInTheDocument();
+    expect(screen.getByText("$80.00")).toBeInTheDocument();
     expect(screen.getByText("45.0% budget_used")).toBeInTheDocument();
     expect(screen.getByText("budget_remaining:")).toBeInTheDocument();
     expect(screen.getByText("most_expensive_sub")).toBeInTheDocument();
@@ -110,13 +115,15 @@ describe("BudgetOverviewCard", () => {
         budgetUsed={30}
         isOverBudget={false}
         totalMonthly={30}
+        remaining={70}
         subscriptionsCount={undefined}
         mostExpensive={null}
         formatValue={(value) => `$${value.toFixed(2)}`}
       />,
     );
 
-    // subscriptionsCount ?? "—" → shows "—" when undefined
+    // subscriptionsCount ?? "—" → shows "—" when undefined. `remaining` is
+    // supplied so the only dash on the card comes from the count.
     expect(screen.getByText("—")).toBeInTheDocument();
   });
 

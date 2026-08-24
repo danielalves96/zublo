@@ -11,6 +11,8 @@
 routerAdd("POST", "/api/ai/chat", function (e) {
   var aiParsers = require(__hooks + "/lib/pure/ai-parsers.js");
   var chatAi = require(__hooks + "/lib/pure/chat-ai.js");
+  var recordTypes = require(__hooks + "/lib/pure/record-types.js");
+  var recordTypeHelpers = require(__hooks + "/lib/record-type-helpers.js");
   if (!e.auth) throw new ForbiddenError("Authentication required");
   var userId = e.auth.id;
 
@@ -113,6 +115,7 @@ routerAdd("POST", "/api/ai/chat", function (e) {
         result.push({
           id: sub.id,
           name: sub.get("name"),
+          record_type: recordTypes.normalizeRecordType(sub.get("record_type")),
           price: sub.get("price"),
           currency: currencyCode || currencySymbol,
           currency_symbol: currencySymbol,
@@ -155,6 +158,9 @@ routerAdd("POST", "/api/ai/chat", function (e) {
         return { error: "Multiple subscriptions match '" + args.name + "': " + names.join(", ") + ". Please use the exact name." };
       }
       var sub = subs[0];
+      var proposedRecordType = args.record_type !== undefined
+        ? recordTypes.normalizeRecordType(args.record_type)
+        : recordTypes.normalizeRecordType(sub.get("record_type"));
       var proposedNextPayment = args.next_payment !== undefined
         ? String(args.next_payment).slice(0, 10)
         : String(sub.get("next_payment") || "").slice(0, 10);
@@ -167,11 +173,12 @@ routerAdd("POST", "/api/ai/chat", function (e) {
       var proposedCompleted = args.payments_completed !== undefined
         ? Math.max(0, parseInt(args.payments_completed) || 0)
         : Math.max(0, parseInt(sub.get("payments_completed")) || 0);
-      if (proposedEndDate && proposedPaymentLimit) return { error: "Use either end_date or payment_limit, not both." };
-      if (proposedEndDate && proposedEndDate < proposedNextPayment) return { error: "end_date cannot be before next_payment." };
-      if (proposedPaymentLimit && (proposedCompleted > proposedPaymentLimit || (proposedCompleted === proposedPaymentLimit && !sub.get("inactive")))) return { error: "payments_completed must be less than payment_limit while active." };
+      if (proposedRecordType === "expense" && proposedEndDate && proposedPaymentLimit) return { error: "Use either end_date or payment_limit, not both." };
+      if (proposedRecordType === "expense" && proposedEndDate && proposedEndDate < proposedNextPayment) return { error: "end_date cannot be before next_payment." };
+      if (proposedRecordType === "expense" && proposedPaymentLimit && (proposedCompleted > proposedPaymentLimit || (proposedCompleted === proposedPaymentLimit && !sub.get("inactive")))) return { error: "payments_completed must be less than payment_limit while active." };
 
       if (args.new_name !== undefined) sub.set("name", args.new_name);
+      sub.set("record_type", proposedRecordType);
       if (args.price !== undefined) sub.set("price", parseFloat(args.price));
       if (args.next_payment !== undefined) sub.set("next_payment", args.next_payment);
       if (args.frequency !== undefined) sub.set("frequency", parseInt(args.frequency) || 1);
@@ -198,7 +205,7 @@ routerAdd("POST", "/api/ai/chat", function (e) {
           "cycles", "name = {:name}", "", 1, 0,
           { name: args.cycle }
         );
-        if (cycles.length === 0) return { error: "Cycle not found: " + args.cycle + ". Use: Daily, Weekly, Monthly, Quarterly, Half-Yearly, or Yearly." };
+        if (cycles.length === 0) return { error: "Cycle not found: " + args.cycle + ". Use: Daily, Weekly, Monthly, Quarterly, Half-Yearly, Yearly, or One-Time." };
         sub.set("cycle", cycles[0].id);
       }
 
@@ -238,6 +245,9 @@ routerAdd("POST", "/api/ai/chat", function (e) {
           }
         }
       }
+
+      var policyError = recordTypeHelpers.applyRecordTypeToRecord($app, sub, proposedRecordType);
+      if (policyError) return { error: policyError };
 
       $app.save(sub);
       return { success: true, id: sub.id, name: sub.get("name"), message: "Subscription updated successfully!" };
@@ -467,16 +477,17 @@ routerAdd("POST", "/api/ai/chat", function (e) {
         if (cycles.length > 0) cycleId = cycles[0].id;
       } catch (_) { }
       if (!cycleId) {
-        return { error: "Cycle not found: " + args.cycle + ". Use: Daily, Weekly, Monthly, Quarterly, Half-Yearly, or Yearly." };
+        return { error: "Cycle not found: " + args.cycle + ". Use: Daily, Weekly, Monthly, Quarterly, Half-Yearly, Yearly, or One-Time." };
       }
 
+      var recordType = recordTypes.normalizeRecordType(args.record_type);
       var endDate = String(args.end_date || "").slice(0, 10);
       var paymentLimit = Math.max(0, parseInt(args.payment_limit) || 0);
       var paymentsCompleted = Math.max(0, parseInt(args.payments_completed) || 0);
       var nextPayment = String(args.next_payment || "").slice(0, 10);
-      if (endDate && paymentLimit) return { error: "Use either end_date or payment_limit, not both." };
-      if (endDate && endDate < nextPayment) return { error: "end_date cannot be before next_payment." };
-      if (paymentLimit && paymentsCompleted >= paymentLimit) return { error: "payments_completed must be less than payment_limit for a new active subscription." };
+      if (recordType === "expense" && endDate && paymentLimit) return { error: "Use either end_date or payment_limit, not both." };
+      if (recordType === "expense" && endDate && endDate < nextPayment) return { error: "end_date cannot be before next_payment." };
+      if (recordType === "expense" && paymentLimit && paymentsCompleted >= paymentLimit) return { error: "payments_completed must be less than payment_limit for a new active subscription." };
 
       var categoryId = "";
       if (args.category_name) {
@@ -513,6 +524,7 @@ routerAdd("POST", "/api/ai/chat", function (e) {
       var record = new Record(col);
       record.set("user", uid);
       record.set("name", args.name);
+      record.set("record_type", recordType);
       record.set("price", parseFloat(args.price));
       record.set("currency", currencyId);
       record.set("cycle", cycleId);
@@ -528,6 +540,10 @@ routerAdd("POST", "/api/ai/chat", function (e) {
       if (args.notes) record.set("notes", args.notes);
       if (args.url) record.set("url", args.url);
       if (args.notify !== undefined) record.set("notify", !!args.notify);
+
+      var policyError = recordTypeHelpers.applyRecordTypeToRecord($app, record, recordType);
+      if (policyError) return { error: policyError };
+
       $app.save(record);
 
       return { success: true, id: record.id, name: args.name, message: "Subscription '" + args.name + "' created successfully!" };
@@ -740,6 +756,7 @@ routerAdd("POST", "/api/ai/chat", function (e) {
         } catch (_) { }
         exported.push({
           name: sub.get("name"),
+          record_type: recordTypes.normalizeRecordType(sub.get("record_type")),
           price: sub.get("price"),
           currency: currencyCode,
           currency_symbol: currencySymbol,
@@ -1509,7 +1526,9 @@ routerAdd("POST", "/api/ai/chat", function (e) {
 
       glossary:
         "**Zublo glossary:**\n\n" +
-        "- **Cycle**: billing period unit — Daily, Weekly, Monthly, Quarterly, Half-Yearly, or Yearly.\n" +
+        "- **Cycle**: billing period unit — Daily, Weekly, Monthly, Quarterly, Half-Yearly, Yearly, or One-Time.\n" +
+        "- **Record type**: `expense` (default) or `credit`. A credit is one-time income that raises the month's spending power instead of being a recurring cost.\n" +
+        "- **One-Time**: reserved for credits. Credits cannot use finite schedule limits, renewals, notifications, or automatic payment tracking.\n" +
         "- **Frequency**: how many cycles between charges (default 1). Frequency=3 + Cycle=Monthly = quarterly billing.\n" +
         "- **Next payment**: date the next charge is expected. Advances automatically when payment is recorded.\n" +
         "- **Start date**: when the subscription began. Used for progress bars and history.\n" +
@@ -1864,14 +1883,15 @@ routerAdd("POST", "/api/ai/chat", function (e) {
       type: "function",
       function: {
         name: "create_subscription",
-        description: "Creates a new subscription. IMPORTANT: Collect all required fields, present a summary, and ask for user confirmation BEFORE calling this tool.",
+        description: "Creates an expense or one-time income credit. IMPORTANT: Collect all required fields, present a summary, and ask for user confirmation BEFORE calling this tool.",
         parameters: {
           type: "object",
           properties: {
             name: { type: "string", description: "Subscription name" },
+            record_type: { type: "string", enum: ["expense", "credit"], default: "expense", description: "credit = one-time income; finite schedule fields are ignored for credits" },
             price: { type: "number", description: "Billing price" },
             currency_code: { type: "string", description: "ISO 4217 code e.g. BRL, USD, EUR" },
-            cycle: { type: "string", enum: ["Daily", "Weekly", "Monthly", "Quarterly", "Half-Yearly", "Yearly"] },
+            cycle: { type: "string", enum: ["Daily", "Weekly", "Monthly", "Quarterly", "Half-Yearly", "Yearly", "One-Time"] },
             frequency: { type: "integer", description: "Cycles between payments. Default 1.", default: 1 },
             next_payment: { type: "string", description: "Next payment date YYYY-MM-DD" },
             end_date: { type: "string", description: "Inclusive last payment date YYYY-MM-DD; mutually exclusive with payment_limit" },
@@ -1896,10 +1916,11 @@ routerAdd("POST", "/api/ai/chat", function (e) {
           type: "object",
           properties: {
             name: { type: "string", description: "Current subscription name (partial match)" },
+            record_type: { type: "string", enum: ["expense", "credit"], description: "Switching to credit clears finite schedule fields and forces One-Time" },
             new_name: { type: "string", description: "New name to rename it to" },
             price: { type: "number", description: "New billing price" },
             currency_code: { type: "string", description: "New currency ISO code" },
-            cycle: { type: "string", enum: ["Daily", "Weekly", "Monthly", "Quarterly", "Half-Yearly", "Yearly"] },
+            cycle: { type: "string", enum: ["Daily", "Weekly", "Monthly", "Quarterly", "Half-Yearly", "Yearly", "One-Time"] },
             frequency: { type: "integer" },
             next_payment: { type: "string", description: "New next payment date YYYY-MM-DD" },
             end_date: { type: "string", description: "Inclusive last payment date; empty string clears it" },
@@ -2198,9 +2219,10 @@ routerAdd("POST", "/api/ai/chat", function (e) {
                 type: "object",
                 properties: {
                   name: { type: "string" },
+                  record_type: { type: "string", enum: ["expense", "credit"], default: "expense" },
                   price: { type: "number" },
                   currency_code: { type: "string", description: "ISO 4217 e.g. BRL, USD, EUR" },
-                  cycle: { type: "string", enum: ["Daily", "Weekly", "Monthly", "Quarterly", "Half-Yearly", "Yearly"] },
+                  cycle: { type: "string", enum: ["Daily", "Weekly", "Monthly", "Quarterly", "Half-Yearly", "Yearly", "One-Time"] },
                   frequency: { type: "integer", default: 1 },
                   next_payment: { type: "string", description: "YYYY-MM-DD" },
                   end_date: { type: "string", description: "Inclusive last payment date; mutually exclusive with payment_limit" },
