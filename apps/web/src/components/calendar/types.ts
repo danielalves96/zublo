@@ -1,5 +1,5 @@
 import { subscriptionsService } from "@/services/subscriptions";
-import type { Currency, Cycle, PaymentRecord,Subscription } from "@/types";
+import type { Currency, Cycle, PaymentRecord, Subscription } from "@/types";
 
 // ─── Sub-types ───────────────────────────────────────────────────────────────
 
@@ -58,6 +58,17 @@ export function getPaymentRecord(
 
   return paid[0] ?? matches[0];
 }
+
+/**
+ * Months advanced per cycle unit. "One-Time" is deliberately absent: a single
+ * dated payout never repeats, so it must not gain a step here.
+ */
+const MONTHS_PER_CYCLE: Record<string, number> = {
+  Monthly: 1,
+  Quarterly: 3,
+  "Half-Yearly": 6,
+  Yearly: 12,
+};
 
 const DATE_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
@@ -151,21 +162,21 @@ export function getOccurrencesInMonth(
     return new Date(yr, mo, Math.min(originalDay, daysInTarget));
   };
 
-  const add = (d: Date): Date => {
-    if (cycleName === "Daily") { const r = new Date(d); r.setDate(r.getDate() + freq); return r; }
-    if (cycleName === "Weekly") { const r = new Date(d); r.setDate(r.getDate() + freq * 7); return r; }
-    if (cycleName === "Monthly") return addMonths(d, freq);
-    if (cycleName === "Yearly") return addMonths(d, freq * 12);
-    return new Date(d);
+  const step = (d: Date, direction: 1 | -1): Date => {
+    const n = freq * direction;
+    if (cycleName === "Daily") { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
+    if (cycleName === "Weekly") { const r = new Date(d); r.setDate(r.getDate() + n * 7); return r; }
+
+    const months = MONTHS_PER_CYCLE[cycleName];
+    // "One-Time" (and any unrecognised cycle) has no step. Returning the same
+    // date stops both walks below — they stop as soon as a step fails to move —
+    // which yields exactly one occurrence, on the anchor date.
+    if (months === undefined) return new Date(d);
+    return addMonths(d, n * months);
   };
 
-  const sub1 = (d: Date): Date => {
-    if (cycleName === "Daily") { const r = new Date(d); r.setDate(r.getDate() - freq); return r; }
-    if (cycleName === "Weekly") { const r = new Date(d); r.setDate(r.getDate() - freq * 7); return r; }
-    if (cycleName === "Monthly") return addMonths(d, -freq);
-    if (cycleName === "Yearly") return addMonths(d, -freq * 12);
-    return new Date(d);
-  };
+  const add = (d: Date): Date => step(d, 1);
+  const sub1 = (d: Date): Date => step(d, -1);
 
   let g = 0;
   while (cursor > rangeStart && g++ < 600) {

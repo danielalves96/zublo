@@ -234,7 +234,7 @@ export function useChatPageController() {
           queryKey: queryKeys.subscriptions.all(userId),
         });
         queryClient.invalidateQueries({
-          queryKey: queryKeys.dashboard(userId),
+          queryKey: queryKeys.dashboard.all(userId),
         });
       }
       if (didCategories) {

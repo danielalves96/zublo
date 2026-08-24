@@ -83,4 +83,31 @@ describe("useDashboardDerivedData", () => {
     expect(result.current.budgetUsed).toBe(80);
     expect(result.current.isOverBudget).toBe(false);
   });
+
+  it("does not flag an account with no budget and no credits as over budget", () => {
+    const { result } = renderHook(() =>
+      useDashboardDerivedData({
+        user: getUser({ budget: 0 }),
+        summary: { totalMonthly: 120, totalCredits: 0 },
+        yearlyCosts: [],
+      }),
+    );
+
+    // There is nothing to be "over": the user never set a ceiling.
+    expect(result.current.remaining).toBe(-120);
+    expect(result.current.isOverBudget).toBe(false);
+  });
+
+  it("flags over budget once there is a budget or a credit to measure against", () => {
+    const { result } = renderHook(() =>
+      useDashboardDerivedData({
+        user: getUser({ budget: 0 }),
+        summary: { totalMonthly: 120, totalCredits: 50 },
+        yearlyCosts: [],
+      }),
+    );
+
+    expect(result.current.remaining).toBe(-70);
+    expect(result.current.isOverBudget).toBe(true);
+  });
 });

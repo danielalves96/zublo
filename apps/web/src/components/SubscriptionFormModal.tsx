@@ -26,6 +26,7 @@ import { useLogoSearch } from "@/hooks/useLogoSearch";
 import type { SubscriptionFormValues } from "@/hooks/useSubscriptionForm";
 import { useSubscriptionForm } from "@/hooks/useSubscriptionForm";
 import { compressImage } from "@/lib/image";
+import { ONE_TIME_CYCLE } from "@/lib/recordTypes";
 import { toast } from "@/lib/toast";
 import { subscriptionsService } from "@/services/subscriptions";
 import type { Category, Currency, Household, PaymentMethod, Subscription } from "@/types";
@@ -72,7 +73,7 @@ export function SubscriptionFormModal({
   const watchedInactive = watch("inactive");
   const watchedRecordType = watch("record_type");
   const isCredit = watchedRecordType === "credit";
-  const oneTimeCycle = cycles.find((cycle) => cycle.name === "One-Time");
+  const oneTimeCycle = cycles.find((cycle) => cycle.name === ONE_TIME_CYCLE);
 
   // ── Submit ─────────────────────────────────────────────────────────────────
   const onSubmit = async (data: SubscriptionFormValues) => {
@@ -283,7 +284,7 @@ export function SubscriptionFormModal({
                       </SelectTrigger>
                       <SelectContent>
                         {cycles
-                          .filter((cycle) => cycle.name !== "One-Time")
+                          .filter((cycle) => cycle.name !== ONE_TIME_CYCLE)
                           .map((cycle) => (
                             <SelectItem key={cycle.id} value={cycle.id}>
                               {cycle.name}

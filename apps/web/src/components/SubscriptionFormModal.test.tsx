@@ -56,13 +56,43 @@ vi.mock("@/components/ui/dialog", () => ({
   DialogFooter: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
-vi.mock("@/components/ui/select", () => ({
-  Select: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  SelectTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  SelectValue: ({ placeholder }: { placeholder?: string }) => <span>{placeholder ?? "value"}</span>,
-  SelectContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  SelectItem: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-}));
+// The real Select is a Radix portal-based widget that jsdom cannot drive.
+// This stub keeps the same shape but wires onValueChange through context, so a
+// test can pick an option by clicking it.
+vi.mock("@/components/ui/select", async () => {
+  const React = await import("react");
+  // Stable identity: a fresh noop per render would change the context value on
+  // every render and retrigger the consumers' effects.
+  const noop = () => {};
+  const SelectContext = React.createContext<(value: string) => void>(noop);
+
+  return {
+    Select: ({
+      children,
+      onValueChange,
+    }: {
+      children: React.ReactNode;
+      onValueChange?: (value: string) => void;
+    }) => (
+      <SelectContext.Provider value={onValueChange ?? noop}>
+        <div>{children}</div>
+      </SelectContext.Provider>
+    ),
+    SelectTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+    SelectValue: ({ placeholder }: { placeholder?: string }) => (
+      <span>{placeholder ?? "value"}</span>
+    ),
+    SelectContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+    SelectItem: ({ children, value }: { children: React.ReactNode; value: string }) => {
+      const onValueChange = React.useContext(SelectContext);
+      return (
+        <div data-testid={`select-item-${value}`} onClick={() => onValueChange(value)}>
+          {children}
+        </div>
+      );
+    },
+  };
+});
 
 vi.mock("@/components/ui/switch", () => ({
   Switch: ({
@@ -304,6 +334,90 @@ describe("SubscriptionFormModal", () => {
         auto_mark_paid: false,
         next_payment: "2026-08-15",
       }),
+    );
+  });
+
+  it("switches an expense to a credit and back, resetting the cycle each way", async () => {
+    const oneTime = { id: "one-time", name: "One-Time" as const };
+    const monthly = { id: "monthly", name: "Monthly" as const };
+    mocks.useQuery.mockReturnValue({ data: [monthly, oneTime] });
+
+    render(
+      <SubscriptionFormModal
+        sub={null}
+        userId="user-1"
+        currencies={[getCurrency()]}
+        categories={[getCategory()]}
+        paymentMethods={[getPaymentMethod()]}
+        household={[getHousehold()]}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("currency-input"), { target: { value: "500" } });
+    fireEvent.change(screen.getAllByRole("textbox")[0], { target: { value: "Bonus" } });
+
+    // Expense → credit: forces the One-Time cycle and hides recurring options.
+    fireEvent.click(screen.getByTestId("select-item-credit"));
+    expect(screen.getByText("one_time_payout")).toBeInTheDocument();
+    expect(screen.queryByText("auto_renew")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => expect(mocks.createSubscription).toHaveBeenCalled());
+    expect(mocks.createSubscription).toHaveBeenCalledWith(
+      expect.objectContaining({
+        record_type: "credit",
+        cycle: "one-time",
+        frequency: 1,
+        auto_renew: false,
+        notify: false,
+        auto_mark_paid: false,
+      }),
+    );
+
+    // Credit → expense: restores a recurring cycle rather than leaving the
+    // record on One-Time, which no expense may use.
+    mocks.createSubscription.mockClear();
+    fireEvent.click(screen.getByTestId("select-item-expense"));
+    expect(screen.queryByText("one_time_payout")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => expect(mocks.createSubscription).toHaveBeenCalled());
+    expect(mocks.createSubscription).toHaveBeenCalledWith(
+      expect.objectContaining({ record_type: "expense", cycle: "monthly" }),
+    );
+  });
+
+  it("keeps the selected cycle when the target cycle is missing from the list", async () => {
+    // Neither One-Time nor Monthly exists, so both cycle guards take their
+    // false branch and the record keeps whatever cycle it already had.
+    mocks.useQuery.mockReturnValue({ data: [{ id: "yearly", name: "Yearly" }] });
+
+    render(
+      <SubscriptionFormModal
+        sub={null}
+        userId="user-1"
+        currencies={[getCurrency()]}
+        categories={[getCategory()]}
+        paymentMethods={[getPaymentMethod()]}
+        household={[getHousehold()]}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getAllByRole("textbox")[0], { target: { value: "Bonus" } });
+    fireEvent.click(screen.getByTestId("select-item-credit"));
+    fireEvent.click(screen.getByTestId("select-item-expense"));
+
+    fireEvent.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => expect(mocks.createSubscription).toHaveBeenCalled());
+    expect(mocks.createSubscription).toHaveBeenCalledWith(
+      expect.objectContaining({ record_type: "expense" }),
     );
   });
 

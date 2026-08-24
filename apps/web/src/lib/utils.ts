@@ -77,8 +77,15 @@ export function toMonthly(
       return (price / f) * (52 / 12);
     case "Monthly":
       return price / f;
+    case "Quarterly":
+      return price / (f * 3);
+    case "Half-Yearly":
+      return price / (f * 6);
     case "Yearly":
       return price / (f * 12);
+    case "One-Time":
+      // A single dated payout has no recurring monthly equivalent.
+      return 0;
     default:
       return price;
   }

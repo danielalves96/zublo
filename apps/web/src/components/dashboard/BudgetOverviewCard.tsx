@@ -95,11 +95,7 @@ export function BudgetOverviewCard({
                   <span className="text-muted-foreground">
                     {t("budget_remaining")}:{" "}
                     <span className="font-semibold text-foreground">
-                      {typeof remaining === "number"
-                        ? formatValue(remaining)
-                        : typeof totalMonthly === "number"
-                          ? formatValue(budget + totalCredits - totalMonthly)
-                          : "—"}
+                      {typeof remaining === "number" ? formatValue(remaining) : "—"}
                     </span>
                   </span>
                 )}

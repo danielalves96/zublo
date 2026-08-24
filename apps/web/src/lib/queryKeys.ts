@@ -49,7 +49,13 @@ export const queryKeys = {
   cycles: () => ["cycles"] as const,
 
   // ─── Dashboard / summary ──────────────────────────────────────────────────
-  dashboard: (userId: string) => ["dashboard", userId] as const,
+  // `forMonth` scopes the cache to the month the summary describes, because the
+  // credits it reports only apply to the current month. Invalidate via `all`.
+  dashboard: {
+    all: (userId: string) => ["dashboard", userId] as const,
+    forMonth: (userId: string, monthKey: string) =>
+      ["dashboard", userId, monthKey] as const,
+  },
 
   // ─── Yearly costs ─────────────────────────────────────────────────────────
   yearlyCosts: {

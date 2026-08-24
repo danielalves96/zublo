@@ -438,4 +438,53 @@ describe("CalendarMonthCard", () => {
     expect(screen.getByText("Archive")).toBeInTheDocument();
     expect(screen.queryByText("15.00 $")).not.toBeInTheDocument();
   });
+
+  it("keeps credits out of the day total and marks their amount as incoming", () => {
+    mocks.getLogoUrl.mockReturnValue(null);
+    const expense = getSubscription({ id: "sub-expense", name: "Netflix", price: 20 });
+    const credit = getSubscription({
+      id: "sub-credit",
+      name: "Bonus",
+      price: 500,
+      record_type: "credit",
+    });
+
+    render(
+      <CalendarMonthCard
+        month={4}
+        year={2026}
+        now={new Date(2026, 3, 15)}
+        daysInMonth={30}
+        isCurrentMonth={true}
+        loading={false}
+        statsCount={2}
+        selectedDay={null}
+        allCells={[{ day: 10, type: "current" }]}
+        entriesByDay={{
+          10: [
+            { sub: expense, date: new Date(2026, 3, 10) },
+            { sub: credit, date: new Date(2026, 3, 10) },
+          ],
+        }}
+        mainCurrency={getCurrency()}
+        currencyById={new Map([["cur-1", getCurrency()]])}
+        paymentTracking={false}
+        paymentRecords={[]}
+        onPrev={vi.fn()}
+        onNext={vi.fn()}
+        onGoToday={vi.fn()}
+        onSelectDay={vi.fn()}
+      />,
+    );
+
+    // The day badge sums the $20 expense only — the $500 credit is income, so
+    // it never inflates what the day appears to cost.
+    expect(screen.queryByText("520.00 $")).not.toBeInTheDocument();
+    // Both the day badge and the expense row read "20.00 $".
+    expect(screen.getAllByText("20.00 $")).toHaveLength(2);
+    // The credit still shows its own amount, marked as incoming.
+    expect(
+      screen.getByText((_, element) => element?.textContent === "+500.00 $"),
+    ).toBeInTheDocument();
+  });
 });

@@ -5,7 +5,6 @@ describe("queryKeys", () => {
     expect(queryKeys.user()).toEqual(["user"]);
     expect(queryKeys.mainCurrency("user-1")).toEqual(["main-currency", "user-1"]);
     expect(queryKeys.cycles()).toEqual(["cycles"]);
-    expect(queryKeys.dashboard("user-1")).toEqual(["dashboard", "user-1"]);
     expect(queryKeys.aiSettings("user-1")).toEqual(["ai_settings", "user-1"]);
     expect(queryKeys.notificationsConfig("user-1")).toEqual([
       "notifications_config",
@@ -55,6 +54,14 @@ describe("queryKeys", () => {
       "user-1",
       2026,
       3,
+    ]);
+    expect(queryKeys.dashboard.all("user-1")).toEqual(["dashboard", "user-1"]);
+    // The month is part of the key so a summary computed in August is not
+    // reused in September, when its credits no longer apply.
+    expect(queryKeys.dashboard.forMonth("user-1", "2026-08")).toEqual([
+      "dashboard",
+      "user-1",
+      "2026-08",
     ]);
   });
 

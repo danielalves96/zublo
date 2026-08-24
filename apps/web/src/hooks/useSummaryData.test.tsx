@@ -165,7 +165,9 @@ describe("useSummaryData", () => {
       totalMonthly: 40,
       totalYearly: 480,
       totalCredits: 250,
-      count: 3,
+      // Only the expense counts: credits are income, so counting them here
+      // would disagree with every total reported alongside it.
+      count: 1,
       mostExpensive: { id: "expense" },
     });
   });

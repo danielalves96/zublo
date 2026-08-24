@@ -41,7 +41,10 @@ export function useDashboardDerivedData({
     availableBudget > 0 && summary
       ? Math.min(100, (summary.totalMonthly / availableBudget) * 100)
       : 0;
-  const isOverBudget = remaining < 0;
+  // There is nothing to be "over" until the user has a budget or a credit to
+  // measure against — otherwise every account without a budget reads as
+  // over-budget the moment it has a single expense.
+  const isOverBudget = availableBudget > 0 && remaining < 0;
 
   return {
     budget,

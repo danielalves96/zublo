@@ -485,4 +485,34 @@ describe("DayPanel", () => {
 
     expect(screen.getByText("paid")).toBeInTheDocument();
   });
+
+  it("labels a credit and prefixes its amount with a plus sign", () => {
+    mocks.getLogoUrl.mockReturnValue(null);
+    const entry = {
+      sub: getSubscription({ id: "credit-1", name: "Bonus", record_type: "credit", price: 500 }),
+      date: new Date(2026, 2, 10),
+    };
+
+    render(
+      <DayPanel
+        day={10}
+        month={3}
+        year={2026}
+        entries={[entry]}
+        total={0}
+        mainCurrency={getCurrency()}
+        currencies={[getCurrency()]}
+        now={new Date(2026, 2, 8)}
+        t={(key) => key}
+        paymentTracking
+        paymentRecords={[]}
+        onSelectEntry={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("credit_income")).toBeInTheDocument();
+    // Income reads as "+500 $", never as an amount owed.
+    expect(screen.getByText(/\+/)).toBeInTheDocument();
+  });
 });

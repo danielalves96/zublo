@@ -1,15 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/queryKeys";
-import { isCredit, isDateInMonth } from "@/lib/recordTypes";
+import { currentMonthKey, isCredit, isDateInMonth } from "@/lib/recordTypes";
 import { toMonthly } from "@/lib/utils";
 import { currenciesService } from "@/services/currencies";
 import { subscriptionsService } from "@/services/subscriptions";
 import type { Subscription } from "@/types";
 
 export function useSummaryData(userId: string) {
+  // "Credits this month" is only correct relative to the month it was computed
+  // in, so the month is part of the cache key: an app left open across a month
+  // boundary refetches instead of serving last month's credits forever.
+  const monthKey = currentMonthKey();
+
   return useQuery({
-    queryKey: queryKeys.dashboard(userId),
+    queryKey: queryKeys.dashboard.forMonth(userId, monthKey),
     queryFn: async () => {
       const [subs, currencies] = await Promise.all([
         subscriptionsService.listActive(userId),
@@ -22,6 +27,7 @@ export function useSummaryData(userId: string) {
 
       let totalMonthly = 0;
       let totalCredits = 0;
+      let expenseCount = 0;
       let mostExpensive: {
         id: string;
         name: string;
@@ -42,6 +48,7 @@ export function useSummaryData(userId: string) {
           continue;
         }
 
+        expenseCount += 1;
         const cycleName = sub.expand?.cycle?.name ?? "Monthly";
         const monthly = toMonthly(sub.price, cycleName, sub.frequency || 1);
         const monthlyMain = (monthly / rate) * mainRate;
@@ -65,7 +72,9 @@ export function useSummaryData(userId: string) {
         totalDaily: (totalMonthly * 12) / 365,
         totalCredits,
         mainSymbol,
-        count: subs.length,
+        // Credits are income, not subscriptions: counting them here would
+        // disagree with every total on the same card, which excludes them.
+        count: expenseCount,
         mostExpensive,
       };
     },

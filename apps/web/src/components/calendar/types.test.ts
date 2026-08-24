@@ -145,6 +145,27 @@ describe("calendar types helpers", () => {
     ).toEqual([15]);
   });
 
+  it("repeats quarterly and half-yearly cycles on their own multi-month step", () => {
+    const cycles = [
+      { id: "quarterly", name: "Quarterly" as const },
+      { id: "half", name: "Half-Yearly" as const },
+    ];
+
+    // Anchored in March, a quarterly charge lands in March, June, September…
+    // so it appears in June and is absent from April.
+    const quarterly = getSubscription({
+      cycle: "quarterly",
+      next_payment: "2026-03-10",
+    });
+    expect(getOccurrencesInMonth(quarterly, 2026, 6, cycles).map((d) => d.getDate())).toEqual([10]);
+    expect(getOccurrencesInMonth(quarterly, 2026, 4, cycles)).toEqual([]);
+
+    // Half-yearly from March lands again in September, not in June.
+    const half = getSubscription({ cycle: "half", next_payment: "2026-03-10" });
+    expect(getOccurrencesInMonth(half, 2026, 9, cycles).map((d) => d.getDate())).toEqual([10]);
+    expect(getOccurrencesInMonth(half, 2026, 6, cycles)).toEqual([]);
+  });
+
   it("emits a one-time credit only in its received month", () => {
     const cycles = [{ id: "one-time", name: "One-Time" as const }];
     const credit = getSubscription({

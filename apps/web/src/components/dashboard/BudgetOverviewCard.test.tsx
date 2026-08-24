@@ -115,13 +115,15 @@ describe("BudgetOverviewCard", () => {
         budgetUsed={30}
         isOverBudget={false}
         totalMonthly={30}
+        remaining={70}
         subscriptionsCount={undefined}
         mostExpensive={null}
         formatValue={(value) => `$${value.toFixed(2)}`}
       />,
     );
 
-    // subscriptionsCount ?? "—" → shows "—" when undefined
+    // subscriptionsCount ?? "—" → shows "—" when undefined. `remaining` is
+    // supplied so the only dash on the card comes from the count.
     expect(screen.getByText("—")).toBeInTheDocument();
   });
 
