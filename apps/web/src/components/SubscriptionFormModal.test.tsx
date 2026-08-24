@@ -208,6 +208,7 @@ describe("SubscriptionFormModal", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -906,8 +907,9 @@ describe("SubscriptionFormModal", () => {
 
     // Advance past debounce — triggers collectLogos which sets searching=true then false
     await vi.advanceTimersByTimeAsync(400);
-    // Flush all promises from async collectLogos
-    await vi.runAllTimersAsync();
+    // Flush the currently pending search work without recursively draining
+    // timers scheduled by React's test environment.
+    await vi.runOnlyPendingTimersAsync();
 
     vi.useRealTimers();
     vi.unstubAllGlobals();
@@ -938,7 +940,7 @@ describe("SubscriptionFormModal", () => {
     fireEvent.change(logoInput, { target: { value: "xyz" } });
 
     await vi.advanceTimersByTimeAsync(400);
-    await vi.runAllTimersAsync();
+    await vi.runOnlyPendingTimersAsync();
 
     await waitFor(
       () => {
@@ -1026,7 +1028,7 @@ describe("SubscriptionFormModal", () => {
     fireEvent.change(logoInput, { target: { value: "spotify" } });
 
     await vi.advanceTimersByTimeAsync(400);
-    await vi.runAllTimersAsync();
+    await vi.runOnlyPendingTimersAsync();
 
     // Wait for logo result buttons to appear
     await waitFor(
@@ -1120,7 +1122,7 @@ describe("SubscriptionFormModal", () => {
     fireEvent.change(logoInput, { target: { value: "spotify" } });
 
     await vi.advanceTimersByTimeAsync(400);
-    await vi.runAllTimersAsync();
+    await vi.runOnlyPendingTimersAsync();
 
     // Clearbit endpoint must have been called with our query
     await waitFor(() => {
@@ -1171,7 +1173,7 @@ describe("SubscriptionFormModal", () => {
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(400);
-      await vi.runAllTimersAsync();
+      await vi.runOnlyPendingTimersAsync();
     });
 
     // Despite all fetches failing, the fallback domain code ran before they failed
@@ -1232,7 +1234,7 @@ describe("SubscriptionFormModal", () => {
     fireEvent.change(logoInput, { target: { value: "testbrand" } });
 
     await vi.advanceTimersByTimeAsync(400);
-    await vi.runAllTimersAsync();
+    await vi.runOnlyPendingTimersAsync();
 
     await waitFor(
       () => {
@@ -1247,9 +1249,11 @@ describe("SubscriptionFormModal", () => {
   });
 
   it("revokes URLs when search is cancelled mid-flight (lines 453-454)", async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.useFakeTimers();
 
-    // Each fetch returns a valid image so collectLogos populates results
+    // The image probes resolve through a controlled bitmap promise. This lets
+    // the test cancel after the first batch has started but before any result
+    // can be committed, without recursively draining React's scheduler timers.
     const imageBlob = new Blob(["x".repeat(600)], { type: "image/png" });
     const fetchMock = vi.fn().mockImplementation((url: string) => {
       if (typeof url === "string" && url.includes("clearbit.com/v1/companies")) {
@@ -1262,10 +1266,15 @@ describe("SubscriptionFormModal", () => {
       });
     });
     vi.stubGlobal("fetch", fetchMock);
-    vi.stubGlobal(
-      "createImageBitmap",
-      vi.fn().mockResolvedValue({ width: 100, height: 100, close: vi.fn() }),
+
+    const resolveBitmaps: Array<() => void> = [];
+    const createImageBitmapMock = vi.fn().mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveBitmaps.push(() => resolve({ width: 100, height: 100, close: vi.fn() }));
+        }),
     );
+    vi.stubGlobal("createImageBitmap", createImageBitmapMock);
 
     render(
       <SubscriptionFormModal
@@ -1284,18 +1293,29 @@ describe("SubscriptionFormModal", () => {
     // Start a search that'll yield results
     fireEvent.change(logoInput, { target: { value: "spotify" } });
 
-    // Advance past debounce to trigger the setTimeout
-    await vi.advanceTimersByTimeAsync(400);
+    // Advance only the 350 ms debounce. The first batch of probes then pauses at
+    // createImageBitmap, which proves the search is genuinely in flight.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(350);
+    });
+    const pendingProbeCount = resolveBitmaps.length;
+    expect(pendingProbeCount).toBeGreaterThan(0);
+    expect(createImageBitmapMock).toHaveBeenCalledTimes(pendingProbeCount);
 
     // Cancel the search by changing query to < 2 chars — cleanup runs:
     // cancelled=true, abort.abort(), clearTimeout
     fireEvent.change(logoInput, { target: { value: "x" } });
 
-    await vi.runAllTimersAsync();
+    // Finish just the pending image work. collectLogos observes `cancelled`,
+    // revokes every blob URL it created, and exits before another batch starts.
+    await act(async () => {
+      resolveBitmaps.forEach((resolve) => resolve());
+      await Promise.resolve();
+    });
 
-    // URL.revokeObjectURL should have been called on any collected URLs
-    // (the cleanup effect also runs on results change — both paths exercise revokeObjectURL)
-    expect(URL.revokeObjectURL).toHaveBeenCalled();
+    expect(URL.createObjectURL).toHaveBeenCalledTimes(pendingProbeCount);
+    expect(URL.revokeObjectURL).toHaveBeenCalledTimes(pendingProbeCount);
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:logo");
 
     vi.useRealTimers();
     vi.unstubAllGlobals();
@@ -1344,7 +1364,7 @@ describe("SubscriptionFormModal", () => {
     fireEvent.change(logoInput, { target: { value: "spotify" } });
 
     await vi.advanceTimersByTimeAsync(400);
-    await vi.runAllTimersAsync();
+    await vi.runOnlyPendingTimersAsync();
 
     await waitFor(
       () => {
@@ -1362,7 +1382,7 @@ describe("SubscriptionFormModal", () => {
     // Results panel closes; re-open by focusing and setting search again
     fireEvent.change(logoInput, { target: { value: "spotify2" } });
     await vi.advanceTimersByTimeAsync(400);
-    await vi.runAllTimersAsync();
+    await vi.runOnlyPendingTimersAsync();
 
     await waitFor(
       () => {
@@ -1430,7 +1450,7 @@ describe("SubscriptionFormModal", () => {
     fireEvent.change(logoInput, { target: { value: "spotify" } });
 
     await vi.advanceTimersByTimeAsync(400);
-    await vi.runAllTimersAsync();
+    await vi.runOnlyPendingTimersAsync();
 
     await waitFor(
       () => {
@@ -1448,7 +1468,7 @@ describe("SubscriptionFormModal", () => {
     fireEvent.click(screen.getByRole("button", { name: "save" }));
 
     // Advance timers so fetch finishes
-    await vi.runAllTimersAsync();
+    await vi.runOnlyPendingTimersAsync();
 
     await waitFor(
       () => {
@@ -1572,7 +1592,7 @@ describe("SubscriptionFormModal", () => {
       await vi.advanceTimersByTimeAsync(600);
 
       // Continue waiting for secondquery's debounce and fetch
-      await vi.runAllTimersAsync();
+      await vi.runOnlyPendingTimersAsync();
     });
 
     await waitFor(
@@ -1591,7 +1611,7 @@ describe("SubscriptionFormModal", () => {
     });
 
     fireEvent.click(screen.getByRole("button", { name: "save" }));
-    await vi.runAllTimersAsync();
+    await vi.runOnlyPendingTimersAsync();
 
     await waitFor(
       () => {
@@ -1658,7 +1678,7 @@ describe("SubscriptionFormModal", () => {
     const logoInput = screen.getByPlaceholderText("search_logo...");
     fireEvent.change(logoInput, { target: { value: "example" } });
     await vi.advanceTimersByTimeAsync(400);
-    await vi.runAllTimersAsync();
+    await vi.runOnlyPendingTimersAsync();
 
     // Wait for the logo result button to appear
     await waitFor(
@@ -2004,7 +2024,7 @@ describe("SubscriptionFormModal", () => {
     const logoInput = screen.getByPlaceholderText("search_logo...");
     fireEvent.change(logoInput, { target: { value: "brand" } });
     await vi.advanceTimersByTimeAsync(400);
-    await vi.runAllTimersAsync();
+    await vi.runOnlyPendingTimersAsync();
 
     await waitFor(
       () => {
