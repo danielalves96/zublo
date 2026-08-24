@@ -1,3 +1,4 @@
+import type * as ReactQuery from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import { createQueryClientWrapper } from "@/test/query-client";
@@ -73,6 +74,17 @@ const defaultSettings = {
 };
 
 describe("AITab", () => {
+  // Captured once, before any vi.resetModules() runs. Re-importing the real
+  // module from inside a doMock factory can catch it mid-evaluation and hand
+  // back a namespace whose hooks are still undefined, which made the two
+  // re-import tests below fail intermittently with
+  // "useQueryClient is not a function".
+  let reactQueryActual: typeof ReactQuery;
+
+  beforeAll(async () => {
+    reactQueryActual = await vi.importActual<typeof ReactQuery>("@tanstack/react-query");
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     useAuthMock.mockReturnValue({ user: { id: "u1" } });
@@ -418,11 +430,9 @@ describe("AITab", () => {
     vi.resetModules();
     const invalidateQueries = vi.fn();
 
-    vi.doMock("@tanstack/react-query", async () => {
-      const actual = await vi.importActual<typeof import("@tanstack/react-query")>("@tanstack/react-query");
-
+    vi.doMock("@tanstack/react-query", () => {
       return {
-        ...actual,
+        ...reactQueryActual,
         useQuery: () => ({ data: defaultSettings, isLoading: false }),
         useQueryClient: () => ({ invalidateQueries }),
         useMutation: ({ mutationFn, onSuccess, onError }: {
@@ -460,11 +470,9 @@ describe("AITab", () => {
     const invalidateQueries = vi.fn();
     useAuthMock.mockReturnValue({ user: null });
 
-    vi.doMock("@tanstack/react-query", async () => {
-      const actual = await vi.importActual<typeof import("@tanstack/react-query")>("@tanstack/react-query");
-
+    vi.doMock("@tanstack/react-query", () => {
       return {
-        ...actual,
+        ...reactQueryActual,
         useQuery: () => ({ data: defaultSettings, isLoading: false }),
         useQueryClient: () => ({ invalidateQueries }),
         useMutation: ({ mutationFn, onSuccess, onError }: {

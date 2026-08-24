@@ -60,12 +60,16 @@ describe("fixer settings API-key security", () => {
     expect(emptyRecord.get("api_key_configured")).toBe(false);
     expect(saved).toEqual([collection, configuredRecord, emptyRecord]);
 
+    // Force the field back to hidden so the assertion below can only pass if
+    // down() genuinely leaves it alone, rather than inheriting up()'s result.
+    apiKeyField.hidden = true;
+
     down(app);
 
     // down() must revert the create rule but NOT re-hide api_key: on fresh
     // installs the field is already visible, and re-hiding would reintroduce the
     // key-discard bug.
-    expect(apiKeyField.hidden).toBe(false);
+    expect(apiKeyField.hidden).toBe(true);
     expect(collection.createRule).toBe("@request.auth.id != ''");
     expect(saved.at(-1)).toBe(collection);
   });

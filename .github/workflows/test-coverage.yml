@@ -25,9 +25,13 @@ jobs:
 
       - name: Download PocketBase binary (for backend integration tests)
         run: |
-          wget -q \
-            "https://github.com/pocketbase/pocketbase/releases/download/v0.25.9/pocketbase_0.25.9_linux_amd64.zip" \
-            -O /tmp/pb.zip
+          # The Dockerfile is the single source of truth for the version we ship,
+          # so the integration tests always run against that same build.
+          PB_VERSION="$(sed -n 's/^ARG PB_VERSION=//p' Dockerfile)"
+          test -n "$PB_VERSION"
+          curl -sSfL \
+            "https://github.com/pocketbase/pocketbase/releases/download/v${PB_VERSION}/pocketbase_${PB_VERSION}_linux_amd64.zip" \
+            -o /tmp/pb.zip
           unzip -o /tmp/pb.zip pocketbase -d apps/backend
           chmod +x apps/backend/pocketbase
           rm /tmp/pb.zip

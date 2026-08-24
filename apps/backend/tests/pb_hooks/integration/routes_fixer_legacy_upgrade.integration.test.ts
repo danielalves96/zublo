@@ -88,6 +88,10 @@ describe.skipIf(!hasPocketBaseBinary).sequential(
   "fixer_settings API-key persistence on legacy (already-upgraded) installs",
   () => {
     const harness = new PocketBaseIntegrationHarness();
+    // Every run mints its own copy; keep them all so the teardown can drop each
+    // one instead of leaking every directory but the last into /tmp. They are
+    // removed only after the server that read them has stopped.
+    const legacyMigrationDirs: string[] = [];
     let legacyMigrationsDir: string | null = null;
 
     beforeEach(() => {
@@ -95,6 +99,7 @@ describe.skipIf(!hasPocketBaseBinary).sequential(
       // reproduces a database that upgraded from the version that marked
       // api_key hidden — the exact scenario migration 0022 exists to fix.
       legacyMigrationsDir = mkdtempSync(join(tmpdir(), "zublo-legacy-migrations-"));
+      legacyMigrationDirs.push(legacyMigrationsDir);
       for (const entry of readdirSync(realMigrationsDir)) {
         if (!entry.endsWith(".js")) continue;
         copyFileSync(join(realMigrationsDir, entry), join(legacyMigrationsDir, entry));
@@ -108,8 +113,10 @@ describe.skipIf(!hasPocketBaseBinary).sequential(
 
     afterAll(async () => {
       await harness.stop();
-      if (legacyMigrationsDir && existsSync(legacyMigrationsDir)) {
-        rmSync(legacyMigrationsDir, { recursive: true, force: true });
+      for (const dir of legacyMigrationDirs) {
+        if (existsSync(dir)) {
+          rmSync(dir, { recursive: true, force: true });
+        }
       }
     });
 
