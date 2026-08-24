@@ -60,9 +60,7 @@ function getCurrency(overrides: Partial<Currency> = {}): Currency {
   };
 }
 
-function getPaymentMethod(
-  overrides: Partial<PaymentMethod> = {},
-): PaymentMethod {
+function getPaymentMethod(overrides: Partial<PaymentMethod> = {}): PaymentMethod {
   return {
     id: "pm-1",
     name: "Visa",
@@ -144,10 +142,7 @@ describe("SubscriptionCard", () => {
       "src",
       "https://cdn.example.com/netflix.png",
     );
-    expect(screen.getByAltText("Visa")).toHaveAttribute(
-      "src",
-      "https://cdn.example.com/visa.png",
-    );
+    expect(screen.getByAltText("Visa")).toHaveAttribute("src", "https://cdn.example.com/visa.png");
 
     fireEvent.click(screen.getByTitle("open_url"));
     fireEvent.click(screen.getByTitle("edit"));
@@ -155,14 +150,37 @@ describe("SubscriptionCard", () => {
     fireEvent.click(screen.getByTitle("renew"));
     fireEvent.click(screen.getByTitle("delete"));
 
-    expect(mocks.windowOpen).toHaveBeenCalledWith(
-      "https://example.com/netflix",
-      "_blank",
-    );
+    expect(mocks.windowOpen).toHaveBeenCalledWith("https://example.com/netflix", "_blank");
     expect(onEdit).toHaveBeenCalledTimes(1);
     expect(onClone).toHaveBeenCalledTimes(1);
     expect(onRenew).toHaveBeenCalledTimes(1);
     expect(onDelete).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows count and date limits for finite subscriptions", () => {
+    const { rerender } = render(
+      <SubscriptionCard
+        sub={getSubscription({ payment_limit: 6, payments_completed: 2 })}
+        onEdit={vi.fn()}
+        onClone={vi.fn()}
+        onRenew={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("payments_progress")).toBeInTheDocument();
+
+    rerender(
+      <SubscriptionCard
+        sub={getSubscription({ end_date: "2026-07-10" })}
+        onEdit={vi.fn()}
+        onClone={vi.fn()}
+        onRenew={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("ends_on")).toBeInTheDocument();
   });
 
   it("falls back to payment method initials when payment icon image fails to load", () => {

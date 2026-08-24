@@ -140,6 +140,7 @@ routerAdd("POST", "/api/subscriptions/import", (e) => {
     try {
       let name, price, currencyId, cycleId, frequency, nextPayment;
       let autoRenew, inactive, notes, url, notify, notifyDaysBefore, cancellationDate;
+      let endDate, paymentLimit, paymentsCompleted;
       let categoryId, paymentMethodId, payerId;
 
       if (isWallos) {
@@ -153,6 +154,9 @@ routerAdd("POST", "/api/subscriptions/import", (e) => {
         notify = sub["Notifications"] === "Enabled";
         notifyDaysBefore = 3;
         cancellationDate = sub["Cancellation Date"] || "";
+        endDate = "";
+        paymentLimit = 0;
+        paymentsCompleted = 0;
 
         // "€9.99" → symbol="€", price=9.99
         const priceInfo = importParsers.parseWallosPrice(sub["Price"]);
@@ -180,6 +184,17 @@ routerAdd("POST", "/api/subscriptions/import", (e) => {
         notify = !!sub.notify;
         notifyDaysBefore = sub.notify_days_before || 3;
         cancellationDate = sub.cancellation_date || "";
+        endDate = sub.end_date || "";
+        paymentLimit = Math.max(0, parseInt(sub.payment_limit) || 0);
+        paymentsCompleted = Math.max(0, parseInt(sub.payments_completed) || 0);
+        if (paymentLimit > 0) {
+          endDate = "";
+          paymentsCompleted = Math.min(paymentsCompleted, paymentLimit);
+          if (paymentsCompleted >= paymentLimit) inactive = true;
+          autoRenew = true;
+        } else if (endDate) {
+          autoRenew = true;
+        }
 
         currencyId = (sub.currency ? findCurrencyByCode(sub.currency) : "") || mainCurrencyId;
         cycleId = findCycleByName(sub.cycle || "Monthly");
@@ -210,9 +225,12 @@ routerAdd("POST", "/api/subscriptions/import", (e) => {
       rec.set("inactive", inactive);
       rec.set("notify", notify);
       rec.set("notify_days_before", notifyDaysBefore);
+      rec.set("payment_limit", paymentLimit);
+      rec.set("payments_completed", paymentsCompleted);
       rec.set("notes", notes);
       rec.set("url", url);
       if (cancellationDate) rec.set("cancellation_date", cancellationDate);
+      if (endDate) rec.set("end_date", endDate);
       if (currencyId) rec.set("currency", currencyId);
       if (cycleId) rec.set("cycle", cycleId);
       if (categoryId) rec.set("category", categoryId);
@@ -256,6 +274,7 @@ routerAdd("POST", "/api/subscription/clone", (e) => {
     "name", "price", "frequency", "next_payment", "auto_renew",
     "start_date", "notes", "url", "notify", "notify_days_before",
     "inactive", "cancellation_date", "currency", "cycle",
+    "end_date", "payment_limit", "payments_completed", "auto_mark_paid",
     "payment_method", "payer", "category", "user",
   ];
 
@@ -274,6 +293,7 @@ routerAdd("POST", "/api/subscription/clone", (e) => {
 // ================================================================
 routerAdd("POST", "/api/subscription/renew", (e) => {
   const dateHelpers = require(__hooks + "/lib/date-helpers.js");
+  const subscriptionLimits = require(__hooks + "/lib/pure/subscription-limits.js");
   if (!e.auth) throw new ForbiddenError("Authentication required");
   const data = e.requestInfo().body;
   const subId = data.id;
@@ -291,18 +311,30 @@ routerAdd("POST", "/api/subscription/renew", (e) => {
   const cycleRecord = $app.findRecordById("cycles", sub.get("cycle"));
   const cycleName = cycleRecord.get("name");
   const frequency = sub.get("frequency");
-  let nextPayment = new Date(sub.get("next_payment"));
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const result = subscriptionLimits.advanceFiniteSchedule({
+    nextPayment: sub.get("next_payment"),
+    today: dateHelpers.formatLocalDate(today),
+    cycleName: cycleName,
+    frequency: frequency,
+    endDate: sub.get("end_date"),
+    paymentLimit: sub.get("payment_limit"),
+    paymentsCompleted: sub.get("payments_completed"),
+    inactive: false,
+    advanceDate: dateHelpers.advanceDate,
+  });
 
-  // Advance to next payment after today
-  while (nextPayment <= today) {
-    nextPayment = dateHelpers.advanceDate(nextPayment, cycleName, frequency);
-  }
-
-  sub.set("next_payment", nextPayment.toISOString().split("T")[0]);
+  sub.set("next_payment", result.nextPayment);
+  sub.set("payments_completed", result.paymentsCompleted);
+  sub.set("inactive", result.inactive);
   $app.save(sub);
 
-  return e.json(200, { next_payment: sub.get("next_payment") });
+  return e.json(200, {
+    next_payment: sub.get("next_payment"),
+    payments_completed: sub.get("payments_completed"),
+    inactive: sub.get("inactive"),
+  });
 });
 
 // ================================================================
@@ -369,6 +401,9 @@ routerAdd("GET", "/api/subscriptions/export", (e) => {
       notes: sub.get("notes"),
       url: sub.get("url"),
       cancellation_date: sub.get("cancellation_date"),
+      end_date: sub.get("end_date"),
+      payment_limit: sub.get("payment_limit"),
+      payments_completed: sub.get("payments_completed"),
     });
   }
 

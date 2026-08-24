@@ -8,30 +8,39 @@
 // ================================================================
 cronAdd("updateNextPayment", "0 0 * * *", () => {
   const dateHelpers = require(__hooks + "/lib/date-helpers.js");
+  const subscriptionLimits = require(__hooks + "/lib/pure/subscription-limits.js");
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  const todayStr = dateHelpers.formatLocalDate(today);
 
   const subs = $app.findRecordsByFilter(
     "subscriptions",
-    "inactive = false && auto_renew = true && next_payment <= {:today}",
+    "inactive = false && auto_renew = true && (next_payment <= {:today} || end_date < {:today})",
     "",
     0,
     0,
-    { today: dateHelpers.formatLocalDate(today) }
+    { today: todayStr }
   );
 
   for (const sub of subs) {
     const cycleRecord = $app.findRecordById("cycles", sub.get("cycle"));
     const cycleName = cycleRecord.get("name");
     const frequency = sub.get("frequency");
-    let nextPayment = new Date(sub.get("next_payment"));
+    const result = subscriptionLimits.advanceFiniteSchedule({
+      nextPayment: sub.get("next_payment"),
+      today: todayStr,
+      cycleName: cycleName,
+      frequency: frequency,
+      endDate: sub.get("end_date"),
+      paymentLimit: sub.get("payment_limit"),
+      paymentsCompleted: sub.get("payments_completed"),
+      inactive: sub.get("inactive"),
+      advanceDate: dateHelpers.advanceDate,
+    });
 
-    // Advance until next_payment is in the future
-    while (nextPayment <= today) {
-      nextPayment = dateHelpers.advanceDate(nextPayment, cycleName, frequency);
-    }
-
-    sub.set("next_payment", nextPayment.toISOString().split("T")[0]);
+    sub.set("next_payment", result.nextPayment);
+    sub.set("payments_completed", result.paymentsCompleted);
+    sub.set("inactive", result.inactive);
     $app.save(sub);
   }
 

@@ -1,35 +1,64 @@
-import { Calendar,Copy, Edit, ExternalLink, RefreshCw, Trash2 } from "lucide-react";
+import { Calendar, Copy, Edit, ExternalLink, Hourglass, RefreshCw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { cn,daysUntil, formatDate, formatPrice, subscriptionProgress, toMainCurrency, toMonthly } from "@/lib/utils";
+import {
+  cn,
+  daysUntil,
+  formatDate,
+  formatPrice,
+  subscriptionProgress,
+  toMainCurrency,
+  toMonthly,
+} from "@/lib/utils";
 import { paymentMethodsService } from "@/services/paymentMethods";
 import { subscriptionsService } from "@/services/subscriptions";
-import type { Currency, PaymentMethod,Subscription } from "@/types";
+import type { Currency, PaymentMethod, Subscription } from "@/types";
 
 // ── Payment method icon helpers ───────────────────────────────────────────────
 
 const PAYMENT_ICON_MAP: Record<string, string> = {
-  "visa": "Visa.png", "mastercard": "Mastercard.png",
-  "american express": "Amex.png", "amex": "Amex.png",
-  "discover": "Discover.png", "diners club": "DinersClub.png",
-  "jcb": "JCB.png", "unionpay": "unionpay.png", "union pay": "unionpay.png",
-  "maestro": "Maestro.png", "paypal": "PayPal.png",
-  "apple pay": "ApplePay.png", "google pay": "GooglePay.png",
-  "samsung pay": "samsungpay.png", "amazon pay": "amazonpay.png",
-  "alipay": "alipay.png", "wechat pay": "wechat.png", "wechat": "wechat.png",
-  "venmo": "venmo.png", "stripe": "Stripe.png", "klarna": "Klarna.png",
-  "affirm": "affirm.png", "skrill": "skrill.png",
-  "paysafecard": "paysafe.png", "paysafe": "paysafe.png",
-  "ideal": "ideal.png", "bancontact": "bancontact.png",
-  "giropay": "gitopay.png", "sofort": "sofort.png",
-  "payoneer": "Payoneer.png", "interac": "Interac.png",
-  "bitcoin": "Bitcoin.png", "bitcoin cash": "BitcoinCash.png",
-  "ethereum": "Etherium.png", "litecoin": "Lightcoin.png",
-  "direct debit": "directdebit.png", "directdebit": "directdebit.png",
-  "shop pay": "shoppay.png", "shoppay": "shoppay.png",
+  visa: "Visa.png",
+  mastercard: "Mastercard.png",
+  "american express": "Amex.png",
+  amex: "Amex.png",
+  discover: "Discover.png",
+  "diners club": "DinersClub.png",
+  jcb: "JCB.png",
+  unionpay: "unionpay.png",
+  "union pay": "unionpay.png",
+  maestro: "Maestro.png",
+  paypal: "PayPal.png",
+  "apple pay": "ApplePay.png",
+  "google pay": "GooglePay.png",
+  "samsung pay": "samsungpay.png",
+  "amazon pay": "amazonpay.png",
+  alipay: "alipay.png",
+  "wechat pay": "wechat.png",
+  wechat: "wechat.png",
+  venmo: "venmo.png",
+  stripe: "Stripe.png",
+  klarna: "Klarna.png",
+  affirm: "affirm.png",
+  skrill: "skrill.png",
+  paysafecard: "paysafe.png",
+  paysafe: "paysafe.png",
+  ideal: "ideal.png",
+  bancontact: "bancontact.png",
+  giropay: "gitopay.png",
+  sofort: "sofort.png",
+  payoneer: "Payoneer.png",
+  interac: "Interac.png",
+  bitcoin: "Bitcoin.png",
+  "bitcoin cash": "BitcoinCash.png",
+  ethereum: "Etherium.png",
+  litecoin: "Lightcoin.png",
+  "direct debit": "directdebit.png",
+  directdebit: "directdebit.png",
+  "shop pay": "shoppay.png",
+  shoppay: "shoppay.png",
   "facebook pay": "facebookpay.png",
 };
 
@@ -53,7 +82,12 @@ function PaymentMethodIcon({ method }: { method: PaymentMethod }) {
       />
     );
   }
-  const initials = method.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+  const initials = method.name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
   return (
     <span
       title={method.name}
@@ -96,25 +130,21 @@ export function SubscriptionCard({
   const paymentMethod = sub.expand?.payment_method;
 
   const shouldConvert = convertCurrency && mainCurrency && !currency?.is_main;
-  const rawPrice = showMonthly
-    ? toMonthly(sub.price, cycleName, sub.frequency || 1)
-    : sub.price;
+  const rawPrice = showMonthly ? toMonthly(sub.price, cycleName, sub.frequency || 1) : sub.price;
   const price = shouldConvert ? toMainCurrency(rawPrice, currency) : rawPrice;
   const symbol = shouldConvert ? (mainCurrency?.symbol ?? "$") : (currency?.symbol ?? "$");
   const days = daysUntil(sub.next_payment);
-  const progress = showProgress
-    ? subscriptionProgress(sub.start_date, sub.next_payment)
-    : 0;
+  const progress = showProgress ? subscriptionProgress(sub.start_date, sub.next_payment) : 0;
 
   return (
     <div
       className={cn(
         "group relative rounded-2xl border bg-card/60 backdrop-blur-sm p-5 transition-all duration-300 hover:shadow-lg hover:bg-card hover:-translate-y-1 flex flex-col justify-between overflow-hidden",
-        sub.inactive && "opacity-60 grayscale-[0.3]"
+        sub.inactive && "opacity-60 grayscale-[0.3]",
       )}
     >
       <div className="absolute -z-10 bg-gradient-to-br from-primary/5 to-transparent w-full h-full top-0 left-0 transition-opacity opacity-0 group-hover:opacity-100" />
-      
+
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="h-12 w-12 shrink-0 rounded-2xl overflow-hidden bg-background shadow-sm border flex items-center justify-center text-xl font-bold">
@@ -125,11 +155,15 @@ export function SubscriptionCard({
                 className="h-full w-full object-cover p-1 rounded-2xl"
               />
             ) : (
-              <span className="bg-primary/10 text-primary w-full h-full flex items-center justify-center">{sub.name[0]?.toUpperCase()}</span>
+              <span className="bg-primary/10 text-primary w-full h-full flex items-center justify-center">
+                {sub.name[0]?.toUpperCase()}
+              </span>
             )}
           </div>
           <div>
-            <h3 className="font-bold text-lg leading-tight line-clamp-1 group-hover:text-primary transition-colors">{sub.name}</h3>
+            <h3 className="font-bold text-lg leading-tight line-clamp-1 group-hover:text-primary transition-colors">
+              {sub.name}
+            </h3>
             {category && (
               <span className="text-xs font-medium text-muted-foreground mr-2">
                 {category.name}
@@ -142,7 +176,7 @@ export function SubscriptionCard({
             )}
           </div>
         </div>
-        
+
         <div className="text-right">
           <p className="font-extrabold text-xl font-mono text-foreground tracking-tight">
             {formatPrice(price, symbol)}
@@ -156,14 +190,18 @@ export function SubscriptionCard({
       <div className="space-y-4">
         {sub.next_payment && !sub.inactive && (
           <div className="flex items-center justify-between text-sm bg-background/50 border rounded-xl px-3 py-2">
-            <span className="text-muted-foreground flex items-center gap-1.5"><Calendar className="w-4 h-4" /> {t("next")}</span>
+            <span className="text-muted-foreground flex items-center gap-1.5">
+              <Calendar className="w-4 h-4" /> {t("next")}
+            </span>
             <div className="font-medium text-foreground flex items-center gap-2">
               {formatDate(sub.next_payment)}
               {days >= 0 && (
                 <span
                   className={cn(
                     "text-xs px-2 py-0.5 rounded-full",
-                    days <= 3 ? "bg-orange-500/10 text-orange-600 font-bold" : "bg-primary/10 text-primary font-semibold"
+                    days <= 3
+                      ? "bg-orange-500/10 text-orange-600 font-bold"
+                      : "bg-primary/10 text-primary font-semibold",
                   )}
                 >
                   {days}d
@@ -173,13 +211,28 @@ export function SubscriptionCard({
           </div>
         )}
 
+        {!sub.inactive && ((sub.payment_limit ?? 0) > 0 || sub.end_date) && (
+          <div className="flex items-center gap-1.5 px-1 text-xs font-medium text-muted-foreground">
+            <Hourglass className="h-3.5 w-3.5" />
+            {(sub.payment_limit ?? 0) > 0
+              ? t("payments_progress", {
+                  completed: sub.payments_completed ?? 0,
+                  total: sub.payment_limit,
+                })
+              : t("ends_on", { date: formatDate(sub.end_date ?? "") })}
+          </div>
+        )}
+
         {showProgress && progress > 0 && !sub.inactive && (
           <div className="space-y-1.5">
             <div className="flex justify-between text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-1">
               <span>{t("billing_cycle")}</span>
               <span className={days <= 3 ? "text-orange-500 font-bold" : ""}>{days}d</span>
             </div>
-            <Progress value={progress} className="h-2 rounded-full bg-accent [&>div]:bg-primary/80" />
+            <Progress
+              value={progress}
+              className="h-2 rounded-full bg-accent [&>div]:bg-primary/80"
+            />
           </div>
         )}
       </div>
@@ -187,25 +240,59 @@ export function SubscriptionCard({
       <div className="mt-5 pt-4 border-t flex items-center justify-between">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           {paymentMethod && <PaymentMethodIcon method={paymentMethod} />}
-          {payer && <span className="font-medium text-foreground/80">{t("pays")} {payer.name}</span>}
+          {payer && (
+            <span className="font-medium text-foreground/80">
+              {t("pays")} {payer.name}
+            </span>
+          )}
         </div>
-        
+
         <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 backdrop-blur rounded-full p-1 border shadow-sm absolute bottom-4 right-4">
           {sub.url && (
-            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10" onClick={() => window.open(sub.url, "_blank")} title={t("open_url")}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10"
+              onClick={() => window.open(sub.url, "_blank")}
+              title={t("open_url")}
+            >
               <ExternalLink className="h-3.5 w-3.5" />
             </Button>
           )}
-          <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-blue-500 hover:bg-blue-500/10" onClick={onEdit} title={t("edit")}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 rounded-full text-muted-foreground hover:text-blue-500 hover:bg-blue-500/10"
+            onClick={onEdit}
+            title={t("edit")}
+          >
             <Edit className="h-3.5 w-3.5" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-green-500 hover:bg-green-500/10" onClick={onClone} title={t("clone")}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 rounded-full text-muted-foreground hover:text-green-500 hover:bg-green-500/10"
+            onClick={onClone}
+            title={t("clone")}
+          >
             <Copy className="h-3.5 w-3.5" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10" onClick={onRenew} title={t("renew")}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10"
+            onClick={onRenew}
+            title={t("renew")}
+          >
             <RefreshCw className="h-3.5 w-3.5" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={onDelete} title={t("delete")}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            onClick={onDelete}
+            title={t("delete")}
+          >
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
         </div>

@@ -12,7 +12,7 @@ import {
   Tag,
   Users,
 } from "lucide-react";
-import { type ReactNode,useState } from "react";
+import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { PermissionBadge } from "@/components/settings/api-keys/PermissionBadge";
@@ -27,6 +27,9 @@ const SUBSCRIPTION_CREATE_BODY = `{
   "cycle_id": "<id>",          // required - from GET api/external/cycles
   "frequency": 1,              // required - e.g. 1 = every 1 cycle
   "next_payment": "2025-02-01",// required - YYYY-MM-DD
+  "end_date": "2025-12-01",    // optional, inclusive; mutually exclusive with payment_limit
+  "payment_limit": 12,          // optional, mutually exclusive with end_date
+  "payments_completed": 0,      // optional, must be less than payment_limit
   "auto_renew": true,          // optional
   "notify": true,              // optional
   "notify_days_before": 3,     // optional
@@ -63,6 +66,9 @@ const SUBSCRIPTION_UPDATE_BODY = `{
   "cycle_id": "<id>",          // optional
   "frequency": 1,              // optional
   "next_payment": "2025-03-01",// optional
+  "end_date": null,             // optional, inclusive; mutually exclusive with payment_limit
+  "payment_limit": 6,           // optional, 0 removes the limit
+  "payments_completed": 2,      // optional, must be less than payment_limit
   "auto_renew": true,          // optional
   "notify": true,              // optional
   "notify_days_before": 5,     // optional
@@ -147,10 +153,7 @@ function getMethodColor(method: HttpMethod) {
   }
 }
 
-function buildEndpointGroups(
-  t: (key: string) => string,
-  baseUrl: string,
-): EndpointGroup[] {
+function buildEndpointGroups(t: (key: string) => string, baseUrl: string): EndpointGroup[] {
   return [
     {
       id: "subscriptions",
@@ -446,9 +449,7 @@ export function ApiKeyEndpointsReference() {
         <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10">
           <BookOpen className="h-3.5 w-3.5 text-primary" />
         </div>
-        <h3 className="flex-1 text-left text-sm font-semibold">
-          {t("api_key_endpoints_title")}
-        </h3>
+        <h3 className="flex-1 text-left text-sm font-semibold">{t("api_key_endpoints_title")}</h3>
         <ChevronDown
           className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
             open ? "rotate-180" : ""
@@ -493,14 +494,9 @@ export function ApiKeyEndpointsReference() {
                   <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground transition-colors group-hover/group:text-primary">
                     {group.icon}
                   </div>
-                  <span className="flex-1 text-left text-sm font-medium">
-                    {group.title}
-                  </span>
+                  <span className="flex-1 text-left text-sm font-medium">{group.title}</span>
                   <div className="flex items-center gap-2">
-                    <Badge
-                      variant="secondary"
-                      className="h-5 px-1.5 text-[10px] font-bold"
-                    >
+                    <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-bold">
                       {group.endpoints.length}
                     </Badge>
                     <ChevronRight
@@ -530,9 +526,7 @@ export function ApiKeyEndpointsReference() {
                             >
                               {endpoint.method}
                             </span>
-                            <span className="text-sm font-medium">
-                              {endpoint.label}
-                            </span>
+                            <span className="text-sm font-medium">{endpoint.label}</span>
                             <PermissionBadge perm={endpoint.perm} />
                           </div>
 

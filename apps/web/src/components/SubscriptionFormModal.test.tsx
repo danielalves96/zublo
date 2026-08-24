@@ -274,6 +274,70 @@ describe("SubscriptionFormModal", () => {
     );
   });
 
+  it("prefills and persists a payment-count limit with automatic advancement", async () => {
+    render(
+      <SubscriptionFormModal
+        sub={getSubscription({
+          auto_renew: false,
+          payment_limit: 6,
+          payments_completed: 2,
+        })}
+        userId="user-1"
+        currencies={[getCurrency()]}
+        categories={[getCategory()]}
+        paymentMethods={[getPaymentMethod()]}
+        household={[getHousehold()]}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByDisplayValue("6")).toBeInTheDocument();
+    expect(
+      document.querySelector('input[name="payments_completed"]'),
+    ).toHaveValue(2);
+    expect(screen.getByText("finite_auto_renew_hint")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => {
+      expect(mocks.updateSubscription).toHaveBeenCalledWith(
+        "sub-1",
+        expect.objectContaining({
+          auto_renew: true,
+          end_date: "",
+          payment_limit: 6,
+          payments_completed: 2,
+        }),
+      );
+    });
+  });
+
+  it("validates that a finite end date includes the next payment", async () => {
+    render(
+      <SubscriptionFormModal
+        sub={getSubscription({
+          next_payment: "2026-06-10",
+          end_date: "2026-05-10",
+        })}
+        userId="user-1"
+        currencies={[getCurrency()]}
+        categories={[getCategory()]}
+        paymentMethods={[getPaymentMethod()]}
+        household={[getHousehold()]}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "save" }));
+
+    expect(
+      await screen.findByText("end_date_after_next_payment"),
+    ).toBeInTheDocument();
+    expect(mocks.updateSubscription).not.toHaveBeenCalled();
+  });
+
   it("creates a NEW subscription with FormData when logo file is set (line 564 branch)", async () => {
     const onSaved = vi.fn();
 
