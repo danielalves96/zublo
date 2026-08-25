@@ -12,8 +12,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/components/calendar/types", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/components/calendar/types")>();
+  const actual = await importOriginal<typeof import("@/components/calendar/types")>();
   return {
     ...actual,
     getColorForSub: mocks.getColorForSub,
@@ -444,7 +443,9 @@ describe("DayPanel", () => {
     );
 
     // formatPrice is called with "$" (the fallback symbol) because cur is undefined
-    expect(mocks.formatPrice).toHaveBeenCalledWith(expect.any(Number), "$");
+    expect(mocks.formatPrice).toHaveBeenCalledWith(expect.any(Number), "$", {
+      currencyCode: undefined,
+    });
   });
 
   it("shows paid badge in no-logo div when paymentTracking and isPaid are true", () => {

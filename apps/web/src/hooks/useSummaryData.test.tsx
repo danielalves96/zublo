@@ -1,7 +1,7 @@
 import { renderHook, waitFor } from "@testing-library/react";
 
-import type { Currency, Subscription } from "@/types";
 import { createQueryClientWrapper } from "@/test/query-client";
+import type { Currency, Subscription } from "@/types";
 
 const { listActive, listCurrencies } = vi.hoisted(() => ({
   listActive: vi.fn(),
@@ -114,6 +114,7 @@ describe("useSummaryData", () => {
     expect(listActive).toHaveBeenCalledWith("user-1");
     expect(listCurrencies).toHaveBeenCalledWith("user-1");
     expect(result.current.data).toMatchObject({
+      mainCode: "BRL",
       mainSymbol: "R$",
       count: 2,
     });

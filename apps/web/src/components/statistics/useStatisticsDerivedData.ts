@@ -26,6 +26,7 @@ export function useStatisticsDerivedData({
     const mainCurrency = currencies.find((currency) => currency.is_main);
     const mainRate = mainCurrency?.rate ?? 1;
     const mainSymbol = mainCurrency?.symbol ?? "$";
+    const mainCode = mainCurrency?.code;
 
     const groupedData = subscriptions
       .filter(isExpense)
@@ -65,6 +66,7 @@ export function useStatisticsDerivedData({
 
     return {
       lineData,
+      mainCode,
       mainSymbol,
       pieData,
       totalMonthly,

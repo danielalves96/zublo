@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { formatPrice } from "@/lib/utils";
 
 interface StatisticsSummaryCardsProps {
+  mainCode?: string;
   mainSymbol: string;
   subscriptionsCount: number;
   totalMonthly: number;
@@ -11,6 +12,7 @@ interface StatisticsSummaryCardsProps {
 }
 
 export function StatisticsSummaryCards({
+  mainCode,
   mainSymbol,
   subscriptionsCount,
   totalMonthly,
@@ -23,11 +25,9 @@ export function StatisticsSummaryCards({
       <Card className="group relative overflow-hidden rounded-3xl border bg-card/40 shadow-sm backdrop-blur-md">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
         <CardContent className="relative p-6">
-          <p className="text-sm font-medium text-muted-foreground">
-            {t("total_monthly")}
-          </p>
+          <p className="text-sm font-medium text-muted-foreground">{t("total_monthly")}</p>
           <p className="mt-2 text-3xl font-extrabold tracking-tight">
-            {formatPrice(totalMonthly, mainSymbol)}
+            {formatPrice(totalMonthly, mainSymbol, { currencyCode: mainCode })}
           </p>
         </CardContent>
       </Card>
@@ -35,11 +35,9 @@ export function StatisticsSummaryCards({
       <Card className="group relative overflow-hidden rounded-3xl border bg-card/40 shadow-sm backdrop-blur-md">
         <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
         <CardContent className="relative p-6">
-          <p className="text-sm font-medium text-muted-foreground">
-            {t("total_yearly")}
-          </p>
+          <p className="text-sm font-medium text-muted-foreground">{t("total_yearly")}</p>
           <p className="mt-2 text-3xl font-extrabold tracking-tight">
-            {formatPrice(totalYearly, mainSymbol)}
+            {formatPrice(totalYearly, mainSymbol, { currencyCode: mainCode })}
           </p>
         </CardContent>
       </Card>
@@ -47,12 +45,8 @@ export function StatisticsSummaryCards({
       <Card className="group relative overflow-hidden rounded-3xl border bg-card/40 shadow-sm backdrop-blur-md">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
         <CardContent className="relative p-6">
-          <p className="text-sm font-medium text-muted-foreground">
-            {t("subscriptions")}
-          </p>
-          <p className="mt-2 text-3xl font-extrabold tracking-tight">
-            {subscriptionsCount}
-          </p>
+          <p className="text-sm font-medium text-muted-foreground">{t("subscriptions")}</p>
+          <p className="mt-2 text-3xl font-extrabold tracking-tight">{subscriptionsCount}</p>
         </CardContent>
       </Card>
     </div>

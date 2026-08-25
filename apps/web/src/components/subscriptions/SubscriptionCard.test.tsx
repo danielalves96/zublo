@@ -270,7 +270,9 @@ describe("SubscriptionCard", () => {
     // toMonthly should NOT have been called
     expect(mocks.toMonthly).not.toHaveBeenCalled();
     // formatPrice called with raw price 99
-    expect(mocks.formatPrice).toHaveBeenCalledWith(99, expect.any(String));
+    expect(mocks.formatPrice).toHaveBeenCalledWith(99, expect.any(String), {
+      currencyCode: "USD",
+    });
   });
 
   it("keeps one-time credits visible and distinct without recurring actions", () => {
@@ -386,7 +388,9 @@ describe("SubscriptionCard", () => {
       />,
     );
     expect(mocks.toMonthly).toHaveBeenCalledWith(20, "Monthly", 1);
-    expect(mocks.formatPrice).toHaveBeenCalledWith(expect.any(Number), "$");
+    expect(mocks.formatPrice).toHaveBeenCalledWith(expect.any(Number), "$", {
+      currencyCode: undefined,
+    });
   });
 
   it("falls back to $ symbol when mainCurrency has no symbol and shouldConvert is true", () => {
@@ -402,7 +406,9 @@ describe("SubscriptionCard", () => {
         onDelete={vi.fn()}
       />,
     );
-    expect(mocks.formatPrice).toHaveBeenCalledWith(expect.any(Number), "$");
+    expect(mocks.formatPrice).toHaveBeenCalledWith(expect.any(Number), "$", {
+      currencyCode: "USD",
+    });
   });
 
   it("uses empty string src when logoUrl returns null", () => {

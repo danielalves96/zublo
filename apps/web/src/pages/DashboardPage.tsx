@@ -69,7 +69,10 @@ export function DashboardPage() {
   });
 
   const summaryData = summary.data;
-  const formatValue = (value: number) => formatPrice(value, summaryData?.mainSymbol ?? "$");
+  const formatValue = (value: number) =>
+    formatPrice(value, summaryData?.mainSymbol ?? "$", {
+      currencyCode: summaryData?.mainCode,
+    });
 
   const { budget, budgetUsed, chartData, isOverBudget, remaining, totalCredits } =
     useDashboardDerivedData({

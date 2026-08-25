@@ -191,6 +191,7 @@ export function CalendarMonthCard({
                           return sum + toMain(sub.price, currency);
                         }, 0),
                         mainCurrency.symbol,
+                        { currencyCode: mainCurrency.code },
                       )}
                     </span>
                   ) : null}
@@ -254,7 +255,9 @@ export function CalendarMonthCard({
                           {mainCurrency ? (
                             <span className="ml-auto shrink-0 text-[10px] tabular-nums opacity-70">
                               {credit ? "+" : ""}
-                              {formatPrice(sub.price, mainCurrency.symbol)}
+                              {formatPrice(sub.price, mainCurrency.symbol, {
+                                currencyCode: mainCurrency.code,
+                              })}
                             </span>
                           ) : null}
                         </div>

@@ -5,6 +5,7 @@ import { formatPrice } from "@/lib/utils";
 
 interface StatisticsBreakdownCardProps {
   data: StatisticsPieDatum[];
+  mainCode?: string;
   mainSymbol: string;
   title: string;
   totalMonthly: number;
@@ -12,6 +13,7 @@ interface StatisticsBreakdownCardProps {
 
 export function StatisticsBreakdownCard({
   data,
+  mainCode,
   mainSymbol,
   title,
   totalMonthly,
@@ -35,19 +37,15 @@ export function StatisticsBreakdownCard({
               <div
                 className="h-4 w-4 shrink-0 rounded-full shadow-sm"
                 style={{
-                  backgroundColor:
-                    STATISTICS_COLORS[index % STATISTICS_COLORS.length],
+                  backgroundColor: STATISTICS_COLORS[index % STATISTICS_COLORS.length],
                 }}
               />
               <span className="flex-1 font-medium">{item.name}</span>
               <span className="font-bold tracking-tight">
-                {formatPrice(item.value, mainSymbol)}
+                {formatPrice(item.value, mainSymbol, { currencyCode: mainCode })}
               </span>
               <span className="rounded-lg bg-muted/50 px-2 py-0.5 text-sm font-medium text-muted-foreground">
-                {totalMonthly > 0
-                  ? ((item.value / totalMonthly) * 100).toFixed(1)
-                  : 0}
-                %
+                {totalMonthly > 0 ? ((item.value / totalMonthly) * 100).toFixed(1) : 0}%
               </span>
             </div>
           ))}
