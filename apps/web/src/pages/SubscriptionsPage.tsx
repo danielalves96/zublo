@@ -10,6 +10,7 @@ import {
   type SubscriptionFiltersState,
   type SubscriptionSortKey,
 } from "@/components/subscriptions/subscriptionsPage.types";
+import { SubscriptionHistoryDialog } from "@/components/subscriptions/SubscriptionHistoryDialog";
 import { SubscriptionsPageHeader } from "@/components/subscriptions/SubscriptionsPageHeader";
 import { SubscriptionsToolbar } from "@/components/subscriptions/SubscriptionsToolbar";
 import { useFilteredSubscriptions } from "@/hooks/useFilteredSubscriptions";
@@ -40,6 +41,8 @@ export function SubscriptionsPage() {
   const [editSubscription, setEditSubscription] = useState<Subscription | null>(
     null,
   );
+  const [historySubscription, setHistorySubscription] =
+    useState<Subscription | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -244,6 +247,7 @@ export function SubscriptionsPage() {
         onEdit={handleEdit}
         onClone={(id) => cloneMutation.mutate(id)}
         onRenew={(id) => renewMutation.mutate(id)}
+        onHistory={setHistorySubscription}
         onDelete={setDeleteId}
       />
 
@@ -262,6 +266,14 @@ export function SubscriptionsPage() {
               queryKey: queryKeys.subscriptions.all(userId),
             });
           }}
+        />
+      ) : null}
+
+      {historySubscription ? (
+        <SubscriptionHistoryDialog
+          sub={historySubscription}
+          userId={userId}
+          onClose={() => setHistorySubscription(null)}
         />
       ) : null}
 

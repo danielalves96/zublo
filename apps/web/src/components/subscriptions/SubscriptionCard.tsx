@@ -1,4 +1,4 @@
-import { Calendar, Copy, Edit, ExternalLink, Hourglass, RefreshCw, Trash2 } from "lucide-react";
+import { Calendar, Copy, Edit, ExternalLink, History, Hourglass, RefreshCw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -111,6 +111,7 @@ export function SubscriptionCard({
   onEdit,
   onClone,
   onRenew,
+  onHistory,
   onDelete,
 }: {
   sub: Subscription;
@@ -122,6 +123,7 @@ export function SubscriptionCard({
   onEdit: () => void;
   onClone: () => void;
   onRenew: () => void;
+  onHistory: () => void;
   onDelete: () => void;
 }) {
   const { t } = useTranslation();
@@ -291,6 +293,15 @@ export function SubscriptionCard({
             title={t("clone")}
           >
             <Copy className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 rounded-full text-muted-foreground hover:text-purple-500 hover:bg-purple-500/10"
+            onClick={onHistory}
+            title={t("history")}
+          >
+            <History className="h-3.5 w-3.5" />
           </Button>
           {/* Renewing an inactive subscription is a no-op on the backend — it
               refuses to advance a paused or finished schedule — so offering the

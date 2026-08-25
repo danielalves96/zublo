@@ -18,6 +18,11 @@ describe("queryKeys", () => {
       "subscriptions",
       "user-1",
     ]);
+    expect(queryKeys.subscriptions.history("user-1", "sub-1")).toEqual([
+      "subscription-history",
+      "user-1",
+      "sub-1",
+    ]);
     expect(queryKeys.currencies.all("user-1")).toEqual([
       "currencies",
       "user-1",

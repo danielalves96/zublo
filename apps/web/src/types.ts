@@ -38,6 +38,68 @@ export interface PaymentRecord {
   proof?: string; // filename
 }
 
+/** One logged change to a subscription, as written by the backend hooks. */
+export type SubscriptionHistoryEventType =
+  | "created"
+  | "price_changed"
+  | "cycle_changed"
+  | "currency_changed"
+  | "paused"
+  | "resumed";
+
+export interface SubscriptionHistoryEvent {
+  id: string;
+  event_type: SubscriptionHistoryEventType;
+  /** YYYY-MM-DD the change applies from. */
+  effective_date: string;
+  old_price: number;
+  new_price: number;
+  old_cycle: string;
+  new_cycle: string;
+  old_frequency: number;
+  new_frequency: number;
+  old_currency: string;
+  new_currency: string;
+  /** "backfilled" on events the upgrade migration synthesised. */
+  note?: string;
+  created?: string;
+}
+
+export interface SubscriptionHistoryTotals {
+  /** Start of the price timeline; empty when the subscription has no history. */
+  since: string;
+  until: string;
+  /** Replay of the billing schedule against the price timeline. */
+  estimated_total: number;
+  estimated_payments: number;
+  last_estimated_date: string;
+  /** Payments the user confirmed through payment tracking. */
+  paid_total: number;
+  paid_payments: number;
+  last_paid_date: string;
+}
+
+export interface SubscriptionHistory {
+  subscription: {
+    id: string;
+    name: string;
+    record_type: "expense" | "credit";
+    currency: string;
+    currency_symbol: string;
+    cycle: string;
+    frequency: number;
+    price: number;
+  };
+  events: SubscriptionHistoryEvent[];
+  timeline: Array<{
+    from: string;
+    price: number;
+    cycleName: string;
+    frequency: number;
+  }>;
+  totals: SubscriptionHistoryTotals;
+}
+
 export interface Subscription {
   id: string;
   name: string;

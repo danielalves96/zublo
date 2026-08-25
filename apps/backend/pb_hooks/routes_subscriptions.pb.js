@@ -372,6 +372,37 @@ routerAdd("POST", "/api/subscription/renew", (e) => {
 });
 
 // ================================================================
+// ROUTE: Subscription History
+//
+// Replays the append-only log written by subscription_history.pb.js: the
+// change events themselves, the price timeline they describe, and what that
+// timeline adds up to since the subscription started.
+// ================================================================
+routerAdd("GET", "/api/subscription/history", (e) => {
+  const history = require(__hooks + "/lib/subscription-history.js");
+  const requestQuery = require(__hooks + "/lib/pure/request-query.js");
+  if (!e.auth) throw new ForbiddenError("Authentication required");
+
+  const subId = requestQuery.getQueryParam(e, "id");
+  if (!subId) {
+    return e.json(400, { error: "Missing subscription id" });
+  }
+
+  let sub;
+  try {
+    sub = $app.findRecordById("subscriptions", subId);
+  } catch (_) {
+    return e.json(404, { error: "Subscription not found" });
+  }
+
+  if (sub.get("user") !== e.auth.id) {
+    throw new ForbiddenError("Not your subscription");
+  }
+
+  return e.json(200, history.buildHistoryResponse($app, sub));
+});
+
+// ================================================================
 // ROUTE: Subscriptions Export
 // ================================================================
 routerAdd("GET", "/api/subscriptions/export", (e) => {
