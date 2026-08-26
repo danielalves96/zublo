@@ -134,7 +134,9 @@ vi.mock("@/components/subscriptions/SubscriptionsPageHeader", () => ({
       <button
         type="button"
         onClick={() => {
-          onImportChange({ target: { files: [] } } as any);
+          onImportChange({
+            target: { files: [] },
+          } as unknown as React.ChangeEvent<HTMLInputElement>);
         }}
       >
         import-empty
@@ -146,7 +148,9 @@ vi.mock("@/components/subscriptions/SubscriptionsPageHeader", () => ({
           Object.defineProperty(file, "text", {
             value: vi.fn().mockResolvedValue("invalid json"),
           });
-          onImportChange({ target: { files: [file] } } as any);
+          onImportChange({
+            target: { files: [file] },
+          } as unknown as React.ChangeEvent<HTMLInputElement>);
         }}
       >
         import-invalid-json
@@ -158,7 +162,9 @@ vi.mock("@/components/subscriptions/SubscriptionsPageHeader", () => ({
           Object.defineProperty(file, "text", {
             value: vi.fn().mockResolvedValue('{"some_key": 1}'),
           });
-          onImportChange({ target: { files: [file] } } as any);
+          onImportChange({
+            target: { files: [file] },
+          } as unknown as React.ChangeEvent<HTMLInputElement>);
         }}
       >
         import-missing-subs
@@ -170,7 +176,9 @@ vi.mock("@/components/subscriptions/SubscriptionsPageHeader", () => ({
           Object.defineProperty(file, "text", {
             value: vi.fn().mockResolvedValue('{"subscriptions": [{"id": "1"}]}'),
           });
-          onImportChange({ target: { files: [file] } } as any);
+          onImportChange({
+            target: { files: [file] },
+          } as unknown as React.ChangeEvent<HTMLInputElement>);
         }}
       >
         import-obj-subs
@@ -184,10 +192,12 @@ vi.mock("@/components/subscriptions/SubscriptionsToolbar", () => ({
     onSearchChange,
     onToggleFilters,
     onCycleSort,
+    onViewChange,
   }: {
     onSearchChange: (value: string) => void;
     onToggleFilters: () => void;
     onCycleSort: () => void;
+    onViewChange: (view: "grid" | "list") => void;
   }) => (
     <div>
       <button type="button" onClick={() => onSearchChange("netflix")}>
@@ -198,6 +208,9 @@ vi.mock("@/components/subscriptions/SubscriptionsToolbar", () => ({
       </button>
       <button type="button" onClick={onCycleSort}>
         cycle-sort
+      </button>
+      <button type="button" onClick={() => onViewChange("list")}>
+        list-view
       </button>
     </div>
   ),
@@ -210,12 +223,14 @@ vi.mock("@/components/subscriptions/SubscriptionsFiltersPanel", () => ({
 vi.mock("@/components/subscriptions/SubscriptionsGrid", () => ({
   SubscriptionsGrid: ({
     subscriptions,
+    layout,
     onEdit,
     onClone,
     onRenew,
     onDelete,
   }: {
     subscriptions: Array<{ id: string; name: string }>;
+    layout: "grid" | "list";
     onEdit: (subscription: { id: string; name: string }) => void;
     onClone: (id: string) => void;
     onRenew: (id: string) => void;
@@ -223,6 +238,7 @@ vi.mock("@/components/subscriptions/SubscriptionsGrid", () => ({
   }) => (
     <div>
       <div>grid:{subscriptions.length}</div>
+      <div>layout:{layout}</div>
       <button type="button" onClick={() => onEdit(subscriptions[0])}>
         edit-subscription
       </button>
@@ -311,8 +327,7 @@ describe("SubscriptionsPage", () => {
     });
     mocks.importSubscriptions.mockResolvedValue({ imported: 1, skipped: 0 });
     mocks.filteredSubscriptions.mockImplementation(
-      ({ subscriptions }: { subscriptions: Array<{ id: string; name: string }> }) =>
-        subscriptions,
+      ({ subscriptions }: { subscriptions: Array<{ id: string; name: string }> }) => subscriptions,
     );
     vi.stubGlobal("URL", {
       createObjectURL: mocks.jsonUrl.mockReturnValue("blob:subscriptions"),
@@ -338,9 +353,7 @@ describe("SubscriptionsPage", () => {
     }) as typeof document.createElement);
 
     const { client, Wrapper } = createQueryClientWrapper();
-    const invalidateQueries = vi
-      .spyOn(client, "invalidateQueries")
-      .mockResolvedValue(undefined);
+    const invalidateQueries = vi.spyOn(client, "invalidateQueries").mockResolvedValue(undefined);
 
     render(<SubscriptionsPage />, { wrapper: Wrapper });
 
@@ -375,22 +388,16 @@ describe("SubscriptionsPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "import-file" }));
     await waitFor(() => {
-      expect(mocks.importSubscriptions).toHaveBeenCalledWith([
-        { id: "sub-imported" },
-      ]);
+      expect(mocks.importSubscriptions).toHaveBeenCalledWith([{ id: "sub-imported" }]);
     });
-    expect(mocks.toastSuccess).toHaveBeenCalledWith(
-      'import_success:{"count":1}',
-    );
+    expect(mocks.toastSuccess).toHaveBeenCalledWith('import_success:{"count":1}');
 
     createElement.mockRestore();
   });
 
   it("handles edit, clone, renew, and delete flows with query invalidation", async () => {
     const { client, Wrapper } = createQueryClientWrapper();
-    const invalidateQueries = vi
-      .spyOn(client, "invalidateQueries")
-      .mockResolvedValue(undefined);
+    const invalidateQueries = vi.spyOn(client, "invalidateQueries").mockResolvedValue(undefined);
 
     render(<SubscriptionsPage />, { wrapper: Wrapper });
 
@@ -482,9 +489,7 @@ describe("SubscriptionsPage", () => {
     mocks.importSubscriptions.mockResolvedValueOnce({ imported: 1, skipped: 1 });
     fireEvent.click(screen.getByRole("button", { name: "import-obj-subs" }));
     await waitFor(() => {
-      expect(mocks.toastSuccess).toHaveBeenCalledWith(
-        'import_partial:{"imported":1,"skipped":1}'
-      );
+      expect(mocks.toastSuccess).toHaveBeenCalledWith('import_partial:{"imported":1,"skipped":1}');
     });
   });
 
@@ -496,6 +501,15 @@ describe("SubscriptionsPage", () => {
     fireEvent.click(btn);
     fireEvent.click(btn);
     // Verified implicitly as code path is walked since initial is `sort=name`.
+  });
+
+  it("switches between grid and compact list views", async () => {
+    const { Wrapper } = createQueryClientWrapper();
+    render(<SubscriptionsPage />, { wrapper: Wrapper });
+
+    expect(screen.getByText("layout:grid")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "list-view" }));
+    expect(screen.getByText("layout:list")).toBeInTheDocument();
   });
 
   it("closes the subscription form via the close-form button (onClose handler)", async () => {

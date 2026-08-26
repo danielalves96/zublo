@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   listCurrencies: vi.fn(),
   listYearlyCosts: vi.fn(),
   useStatisticsDerivedData: vi.fn(),
-  user: { id: "user-1" } as any,
+  user: { id: "user-1" } as { id: string } | null,
 }));
 
 vi.mock("react-i18next", () => ({
@@ -74,29 +74,33 @@ vi.mock("@/components/statistics/StatisticsSummaryCards", () => ({
   }: {
     subscriptionsCount: number;
     totalMonthly: number;
-  }) => <div>summary:{subscriptionsCount}:{totalMonthly}</div>,
+  }) => (
+    <div>
+      summary:{subscriptionsCount}:{totalMonthly}
+    </div>
+  ),
 }));
 
 vi.mock("@/components/statistics/StatisticsDistributionCard", () => ({
-  StatisticsDistributionCard: ({
-    title,
-  }: {
-    title: string;
-  }) => <div>distribution:{title}</div>,
+  StatisticsDistributionCard: ({ title }: { title: string }) => <div>distribution:{title}</div>,
 }));
 
 vi.mock("@/components/statistics/StatisticsHistoryCard", () => ({
-  StatisticsHistoryCard: ({ data }: { data: unknown[] }) => (
-    <div>history:{data.length}</div>
-  ),
+  StatisticsHistoryCard: ({ data }: { data: unknown[] }) => <div>history:{data.length}</div>,
 }));
 
 vi.mock("@/components/statistics/StatisticsBreakdownCard", () => ({
   StatisticsBreakdownCard: ({
     title,
+    categoryDetails,
   }: {
     title: string;
-  }) => <div>breakdown:{title}</div>,
+    categoryDetails?: Record<string, unknown[]>;
+  }) => (
+    <div>
+      breakdown:{title}:details:{categoryDetails ? "yes" : "no"}
+    </div>
+  ),
 }));
 
 import { StatisticsPage } from "./StatisticsPage";
@@ -107,15 +111,14 @@ describe("StatisticsPage", () => {
     mocks.listActiveExpanded.mockResolvedValue([{ id: "sub-1" }, { id: "sub-2" }]);
     mocks.listCurrencies.mockResolvedValue([{ id: "cur-1", symbol: "$" }]);
     mocks.listYearlyCosts.mockResolvedValue([{ id: "yc-1" }]);
-    mocks.useStatisticsDerivedData.mockImplementation(
-      ({ groupBy }: { groupBy: string }) => ({
-        lineData: [{ label: groupBy }],
-        mainSymbol: "$",
-        pieData: [{ name: groupBy, value: 10 }],
-        totalMonthly: 50,
-        totalYearly: 600,
-      }),
-    );
+    mocks.useStatisticsDerivedData.mockImplementation(({ groupBy }: { groupBy: string }) => ({
+      categoryDetails: { category: [{ id: "sub-1" }] },
+      lineData: [{ label: groupBy }],
+      mainSymbol: "$",
+      pieData: [{ name: groupBy, value: 10 }],
+      totalMonthly: 50,
+      totalYearly: 600,
+    }));
   });
 
   it("loads statistics data and switches the grouping across the page cards", async () => {
@@ -131,16 +134,16 @@ describe("StatisticsPage", () => {
       expect(screen.getByText((content) => content === "summary:2:50")).toBeInTheDocument();
     });
     expect(screen.getByText("distribution:cost_by_category")).toBeInTheDocument();
-    expect(screen.getByText("breakdown:categories")).toBeInTheDocument();
+    expect(screen.getByText("breakdown:categories:details:yes")).toBeInTheDocument();
     expect(screen.getByText("history:1")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "payment" }));
     expect(screen.getByText("distribution:cost_by_payment")).toBeInTheDocument();
-    expect(screen.getByText("breakdown:payment_methods")).toBeInTheDocument();
+    expect(screen.getByText("breakdown:payment_methods:details:no")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "member" }));
     expect(screen.getByText("distribution:cost_by_member")).toBeInTheDocument();
-    expect(screen.getByText("breakdown:household")).toBeInTheDocument();
+    expect(screen.getByText("breakdown:household:details:no")).toBeInTheDocument();
   });
 
   it("handles null user gracefully", () => {

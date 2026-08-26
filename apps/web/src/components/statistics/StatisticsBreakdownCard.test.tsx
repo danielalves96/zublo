@@ -1,4 +1,10 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
+
+vi.mock("react-i18next", () => ({
+  useTranslation: () => ({
+    t: (key: string) => key,
+  }),
+}));
 
 vi.mock("@/components/statistics/constants", () => ({
   STATISTICS_COLORS: ["#ff0000", "#00ff00", "#0000ff"],
@@ -14,12 +20,7 @@ const sampleData = [
 describe("StatisticsBreakdownCard", () => {
   it("returns null when data is empty", () => {
     const { container } = render(
-      <StatisticsBreakdownCard
-        data={[]}
-        mainSymbol="$"
-        title="By Category"
-        totalMonthly={0}
-      />,
+      <StatisticsBreakdownCard data={[]} mainSymbol="$" title="By Category" totalMonthly={0} />,
     );
     expect(container.firstChild).toBeNull();
   });
@@ -52,5 +53,38 @@ describe("StatisticsBreakdownCard", () => {
       />,
     );
     expect(screen.getByText("0%")).toBeInTheDocument();
+  });
+
+  it("expands a category to show the subscriptions that compose its cost", () => {
+    render(
+      <StatisticsBreakdownCard
+        data={[{ name: "Streaming", value: 25 }]}
+        mainSymbol="$"
+        title="Categories"
+        totalMonthly={25}
+        categoryDetails={{
+          Streaming: [
+            { id: "netflix", name: "Netflix", value: 15 },
+            { id: "spotify", name: "Spotify", value: 10 },
+          ],
+        }}
+      />,
+    );
+
+    const category = screen.getByRole("button", {
+      name: "details: Streaming",
+    });
+    expect(category).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText("Netflix")).not.toBeInTheDocument();
+
+    fireEvent.click(category);
+
+    expect(category).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("subscriptions")).toBeInTheDocument();
+    expect(screen.getByText("Netflix")).toBeInTheDocument();
+    expect(screen.getByText("Spotify")).toBeInTheDocument();
+
+    fireEvent.click(category);
+    expect(screen.queryByText("Netflix")).not.toBeInTheDocument();
   });
 });

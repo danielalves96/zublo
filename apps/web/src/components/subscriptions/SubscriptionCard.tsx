@@ -100,6 +100,86 @@ function PaymentMethodIcon({ method }: { method: PaymentMethod }) {
   );
 }
 
+interface SubscriptionActionsProps {
+  sub: Subscription;
+  className?: string;
+  onEdit: () => void;
+  onClone: () => void;
+  onRenew: () => void;
+  onDelete: () => void;
+}
+
+function SubscriptionActions({
+  sub,
+  className,
+  onEdit,
+  onClone,
+  onRenew,
+  onDelete,
+}: SubscriptionActionsProps) {
+  const { t } = useTranslation();
+  const credit = isCredit(sub);
+
+  return (
+    <div
+      className={cn(
+        "flex items-center space-x-1 rounded-full border bg-background/80 p-1 shadow-sm backdrop-blur transition-opacity",
+        className,
+      )}
+    >
+      {sub.url && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary"
+          onClick={() => window.open(sub.url, "_blank")}
+          title={t("open_url")}
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+        </Button>
+      )}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-7 w-7 rounded-full text-muted-foreground hover:bg-blue-500/10 hover:text-blue-500"
+        onClick={onEdit}
+        title={t("edit")}
+      >
+        <Edit className="h-3.5 w-3.5" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-7 w-7 rounded-full text-muted-foreground hover:bg-green-500/10 hover:text-green-500"
+        onClick={onClone}
+        title={t("clone")}
+      >
+        <Copy className="h-3.5 w-3.5" />
+      </Button>
+      {!sub.inactive && !credit && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 rounded-full text-muted-foreground hover:bg-amber-500/10 hover:text-amber-500"
+          onClick={onRenew}
+          title={t("renew")}
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+        </Button>
+      )}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-7 w-7 rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+        onClick={onDelete}
+        title={t("delete")}
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+      </Button>
+    </div>
+  );
+}
+
 // ── SubscriptionCard ──────────────────────────────────────────────────────────
 
 export function SubscriptionCard({
@@ -112,6 +192,7 @@ export function SubscriptionCard({
   onClone,
   onRenew,
   onDelete,
+  layout = "grid",
 }: {
   sub: Subscription;
   mainCurrency?: Currency;
@@ -123,6 +204,7 @@ export function SubscriptionCard({
   onClone: () => void;
   onRenew: () => void;
   onDelete: () => void;
+  layout?: "grid" | "list";
 }) {
   const { t } = useTranslation();
   const currency = sub.expand?.currency;
@@ -139,6 +221,96 @@ export function SubscriptionCard({
   const symbol = shouldConvert ? (mainCurrency?.symbol ?? "$") : (currency?.symbol ?? "$");
   const days = daysUntil(sub.next_payment);
   const progress = showProgress ? subscriptionProgress(sub.start_date, sub.next_payment) : 0;
+
+  if (layout === "list") {
+    return (
+      <div
+        className={cn(
+          "group flex flex-col gap-3 rounded-xl border bg-card/60 p-3 backdrop-blur-sm transition-colors hover:bg-card sm:flex-row sm:items-center",
+          sub.inactive && "opacity-60 grayscale-[0.3]",
+        )}
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-background font-bold shadow-sm">
+            {sub.logo ? (
+              <img
+                src={subscriptionsService.logoUrl(sub) ?? ""}
+                alt={sub.name}
+                className="h-full w-full rounded-xl object-cover p-1"
+              />
+            ) : (
+              <span className="flex h-full w-full items-center justify-center bg-primary/10 text-primary">
+                {sub.name[0]?.toUpperCase()}
+              </span>
+            )}
+          </div>
+
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h3 className="truncate font-semibold">{sub.name}</h3>
+              {credit ? (
+                <Badge className="shrink-0 bg-green-500/15 text-green-700 hover:bg-green-500/15 dark:text-green-400">
+                  {t("credit_income")}
+                </Badge>
+              ) : null}
+              {sub.inactive ? (
+                <span className="shrink-0 rounded-md bg-destructive/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-destructive">
+                  {t("inactive_label")}
+                </span>
+              ) : null}
+            </div>
+            <p className="truncate text-xs text-muted-foreground">
+              {category?.name ?? t("category")}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-4 sm:contents">
+          <div className="min-w-[7rem] text-left sm:text-right">
+            <p
+              className={cn(
+                "font-mono font-bold tracking-tight",
+                credit && "text-green-600 dark:text-green-400",
+              )}
+            >
+              {credit ? "+" : ""}
+              {formatPrice(price, symbol)}
+            </p>
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              {credit ? t("one_time") : showMonthly ? t("monthly") : cycleName}
+            </p>
+          </div>
+
+          <div className="hidden min-w-[8.5rem] text-sm md:block">
+            {sub.next_payment && !sub.inactive ? (
+              <>
+                <p className="text-xs text-muted-foreground">
+                  {t(credit ? "received_on" : "next")}
+                </p>
+                <p className="font-medium">{formatDate(sub.next_payment)}</p>
+              </>
+            ) : null}
+          </div>
+
+          <div className="hidden min-w-[7rem] items-center gap-2 text-xs text-muted-foreground lg:flex">
+            {paymentMethod ? <PaymentMethodIcon method={paymentMethod} /> : null}
+            {payer ? (
+              <span className="truncate font-medium text-foreground/80">{payer.name}</span>
+            ) : null}
+          </div>
+
+          <SubscriptionActions
+            sub={sub}
+            className="shrink-0"
+            onEdit={onEdit}
+            onClone={onClone}
+            onRenew={onRenew}
+            onDelete={onDelete}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -262,60 +434,14 @@ export function SubscriptionCard({
           )}
         </div>
 
-        <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 backdrop-blur rounded-full p-1 border shadow-sm absolute bottom-4 right-4">
-          {sub.url && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10"
-              onClick={() => window.open(sub.url, "_blank")}
-              title={t("open_url")}
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 rounded-full text-muted-foreground hover:text-blue-500 hover:bg-blue-500/10"
-            onClick={onEdit}
-            title={t("edit")}
-          >
-            <Edit className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 rounded-full text-muted-foreground hover:text-green-500 hover:bg-green-500/10"
-            onClick={onClone}
-            title={t("clone")}
-          >
-            <Copy className="h-3.5 w-3.5" />
-          </Button>
-          {/* Renewing an inactive subscription is a no-op on the backend — it
-              refuses to advance a paused or finished schedule — so offering the
-              action here would just be a button that does nothing. */}
-          {!sub.inactive && !credit && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10"
-              onClick={onRenew}
-              title={t("renew")}
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-            onClick={onDelete}
-            title={t("delete")}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
-        </div>
+        <SubscriptionActions
+          sub={sub}
+          className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100"
+          onEdit={onEdit}
+          onClone={onClone}
+          onRenew={onRenew}
+          onDelete={onDelete}
+        />
       </div>
     </div>
   );

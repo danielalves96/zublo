@@ -39,7 +39,7 @@ export function StatisticsPage() {
     enabled: !!userId,
   });
 
-  const { lineData, mainSymbol, pieData, totalMonthly, totalYearly } =
+  const { categoryDetails, lineData, mainSymbol, pieData, totalMonthly, totalYearly } =
     useStatisticsDerivedData({
       subscriptions: subs,
       currencies,
@@ -53,20 +53,12 @@ export function StatisticsPage() {
     member: t("cost_by_member"),
   };
   const breakdownTitle = t(
-    groupBy === "category"
-      ? "categories"
-      : groupBy === "payment"
-        ? "payment_methods"
-        : "household",
+    groupBy === "category" ? "categories" : groupBy === "payment" ? "payment_methods" : "household",
   );
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <StatisticsHeader
-        groupBy={groupBy}
-        groupLabels={groupLabels}
-        onGroupByChange={setGroupBy}
-      />
+      <StatisticsHeader groupBy={groupBy} groupLabels={groupLabels} onGroupByChange={setGroupBy} />
 
       <StatisticsSummaryCards
         mainSymbol={mainSymbol}
@@ -89,6 +81,7 @@ export function StatisticsPage() {
         mainSymbol={mainSymbol}
         title={breakdownTitle}
         totalMonthly={totalMonthly}
+        categoryDetails={groupBy === "category" ? categoryDetails : undefined}
       />
     </div>
   );

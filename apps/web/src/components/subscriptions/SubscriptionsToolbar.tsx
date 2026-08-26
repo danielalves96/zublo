@@ -1,4 +1,4 @@
-import { ArrowUpDown, Filter, Search } from "lucide-react";
+import { ArrowUpDown, Filter, LayoutGrid, List, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
@@ -8,17 +8,21 @@ import { cn } from "@/lib/utils";
 interface SubscriptionsToolbarProps {
   searchTerm: string;
   showFilters: boolean;
+  view: "grid" | "list";
   onSearchChange: (value: string) => void;
   onToggleFilters: () => void;
   onCycleSort: () => void;
+  onViewChange: (view: "grid" | "list") => void;
 }
 
 export function SubscriptionsToolbar({
   searchTerm,
   showFilters,
+  view,
   onSearchChange,
   onToggleFilters,
   onCycleSort,
+  onViewChange,
 }: SubscriptionsToolbarProps) {
   const { t } = useTranslation();
 
@@ -35,6 +39,31 @@ export function SubscriptionsToolbar({
       </div>
 
       <div className="flex gap-2">
+        <div className="flex rounded-lg bg-background/50 p-1" role="group" aria-label={t("view")}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn("h-9 w-9", view === "grid" && "bg-accent text-primary shadow-sm")}
+            aria-label={t("grid_view")}
+            title={t("grid_view")}
+            aria-pressed={view === "grid"}
+            onClick={() => onViewChange("grid")}
+          >
+            <LayoutGrid className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn("h-9 w-9", view === "list" && "bg-accent text-primary shadow-sm")}
+            aria-label={t("list_view")}
+            title={t("list_view")}
+            aria-pressed={view === "list"}
+            onClick={() => onViewChange("list")}
+          >
+            <List className="h-4 w-4" />
+          </Button>
+        </div>
+
         <Button
           variant="outline"
           className={cn(
@@ -44,10 +73,7 @@ export function SubscriptionsToolbar({
           onClick={onToggleFilters}
         >
           <Filter
-            className={cn(
-              "h-4 w-4",
-              showFilters ? "text-primary" : "text-muted-foreground",
-            )}
+            className={cn("h-4 w-4", showFilters ? "text-primary" : "text-muted-foreground")}
           />
           <span className="hidden sm:inline">{t("filter")}</span>
         </Button>

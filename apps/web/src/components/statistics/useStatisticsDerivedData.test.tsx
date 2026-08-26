@@ -113,6 +113,11 @@ describe("useStatisticsDerivedData", () => {
       { name: "Entertainment", value: 10 },
       { name: "Utilities", value: 10 },
     ]);
+    expect(result.current.categoryDetails).toEqual({
+      Entertainment: [{ id: "sub-1", name: "Subscription", value: 10 }],
+      Utilities: [{ id: "sub-2", name: "Subscription", value: 10 }],
+      Other: [{ id: "sub-3", name: "Subscription", value: 30 }],
+    });
     expect(result.current.lineData).toHaveLength(12);
     expect(result.current.lineData[0]).toEqual({ name: "2025/02", cost: 1.25 });
     expect(result.current.lineData.at(-1)).toEqual({

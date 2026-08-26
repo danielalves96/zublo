@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 
 import type {
+  StatisticsCategoryDetails,
   StatisticsGroupBy,
   StatisticsHistoryPoint,
   StatisticsPieDatum,
@@ -27,15 +28,21 @@ export function useStatisticsDerivedData({
     const mainRate = mainCurrency?.rate ?? 1;
     const mainSymbol = mainCurrency?.symbol ?? "$";
 
-    const groupedData = subscriptions
-      .filter(isExpense)
-      .reduce<Record<string, number>>((accumulator, subscription) => {
-        const currency = subscription.expand?.currency;
-        const cycleName = subscription.expand?.cycle?.name ?? "Monthly";
-        const monthly = toMonthly(subscription.price, cycleName, subscription.frequency || 1);
-        const rate = currency?.rate ?? 1;
-        const converted = (monthly / rate) * mainRate;
+    const recurringSubscriptions = subscriptions.filter(isExpense).map((subscription) => {
+      const currency = subscription.expand?.currency;
+      const cycleName = subscription.expand?.cycle?.name ?? "Monthly";
+      const monthly = toMonthly(subscription.price, cycleName, subscription.frequency || 1);
+      const rate = currency?.rate ?? 1;
+      const value = (monthly / rate) * mainRate;
 
+      return {
+        subscription,
+        value,
+      };
+    });
+
+    const groupedData = recurringSubscriptions.reduce<Record<string, number>>(
+      (accumulator, { subscription, value }) => {
         let key = "Other";
         if (groupBy === "category" && subscription.expand?.category) {
           key = subscription.expand.category.name;
@@ -45,9 +52,34 @@ export function useStatisticsDerivedData({
           key = subscription.expand.payer.name;
         }
 
-        accumulator[key] = (accumulator[key] || 0) + converted;
+        accumulator[key] = (accumulator[key] || 0) + value;
         return accumulator;
-      }, {});
+      },
+      {},
+    );
+
+    const categoryDetails = recurringSubscriptions.reduce<StatisticsCategoryDetails>(
+      (accumulator, { subscription, value }) => {
+        const categoryName = subscription.expand?.category?.name ?? "Other";
+        const details = accumulator[categoryName] ?? [];
+
+        details.push({
+          id: subscription.id,
+          name: subscription.name,
+          value: Number(value.toFixed(2)),
+        });
+        accumulator[categoryName] = details;
+
+        return accumulator;
+      },
+      {},
+    );
+
+    Object.values(categoryDetails).forEach((details) =>
+      details.sort(
+        (left, right) => right.value - left.value || left.name.localeCompare(right.name),
+      ),
+    );
 
     const pieData: StatisticsPieDatum[] = Object.entries(groupedData)
       .map(([name, value]) => ({
@@ -64,6 +96,7 @@ export function useStatisticsDerivedData({
     const totalMonthly = Object.values(groupedData).reduce((total, value) => total + value, 0);
 
     return {
+      categoryDetails,
       lineData,
       mainSymbol,
       pieData,
