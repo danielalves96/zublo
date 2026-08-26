@@ -1,5 +1,5 @@
-import i18n, { SUPPORTED_LANGUAGES } from "./i18n";
 import { LS_KEYS } from "./constants";
+import i18n, { SUPPORTED_LANGUAGES } from "./i18n";
 
 describe("i18n", () => {
   it("configures the expected fallback language and localStorage key", () => {
@@ -39,6 +39,17 @@ describe("i18n", () => {
     for (const { code } of SUPPORTED_LANGUAGES) {
       const resources = i18n.getResourceBundle(code, "translation");
       for (const key of creditKeys) {
+        expect(resources[key], `${code}.${key}`).toBeTruthy();
+      }
+    }
+  });
+
+  it("translates subscription view controls in every supported language", () => {
+    const viewKeys = ["view", "grid_view", "list_view"];
+
+    for (const { code } of SUPPORTED_LANGUAGES) {
+      const resources = i18n.getResourceBundle(code, "translation");
+      for (const key of viewKeys) {
         expect(resources[key], `${code}.${key}`).toBeTruthy();
       }
     }
