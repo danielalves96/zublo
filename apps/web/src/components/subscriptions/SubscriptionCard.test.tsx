@@ -113,6 +113,7 @@ describe("SubscriptionCard", () => {
     const onEdit = vi.fn();
     const onClone = vi.fn();
     const onRenew = vi.fn();
+    const onHistory = vi.fn();
     const onDelete = vi.fn();
 
     render(
@@ -125,6 +126,7 @@ describe("SubscriptionCard", () => {
         onEdit={onEdit}
         onClone={onClone}
         onRenew={onRenew}
+        onHistory={onHistory}
         onDelete={onDelete}
       />,
     );
@@ -148,12 +150,14 @@ describe("SubscriptionCard", () => {
     fireEvent.click(screen.getByTitle("edit"));
     fireEvent.click(screen.getByTitle("clone"));
     fireEvent.click(screen.getByTitle("renew"));
+    fireEvent.click(screen.getByTitle("history"));
     fireEvent.click(screen.getByTitle("delete"));
 
     expect(mocks.windowOpen).toHaveBeenCalledWith("https://example.com/netflix", "_blank");
     expect(onEdit).toHaveBeenCalledTimes(1);
     expect(onClone).toHaveBeenCalledTimes(1);
     expect(onRenew).toHaveBeenCalledTimes(1);
+    expect(onHistory).toHaveBeenCalledTimes(1);
     expect(onDelete).toHaveBeenCalledTimes(1);
   });
 
@@ -164,6 +168,7 @@ describe("SubscriptionCard", () => {
         onEdit={vi.fn()}
         onClone={vi.fn()}
         onRenew={vi.fn()}
+        onHistory={vi.fn()}
         onDelete={vi.fn()}
       />,
     );
@@ -176,6 +181,7 @@ describe("SubscriptionCard", () => {
         onEdit={vi.fn()}
         onClone={vi.fn()}
         onRenew={vi.fn()}
+        onHistory={vi.fn()}
         onDelete={vi.fn()}
       />,
     );
@@ -188,6 +194,7 @@ describe("SubscriptionCard", () => {
         onEdit={vi.fn()}
         onClone={vi.fn()}
         onRenew={vi.fn()}
+        onHistory={vi.fn()}
         onDelete={vi.fn()}
       />,
     );
@@ -200,6 +207,7 @@ describe("SubscriptionCard", () => {
         onEdit={vi.fn()}
         onClone={vi.fn()}
         onRenew={vi.fn()}
+        onHistory={vi.fn()}
         onDelete={vi.fn()}
       />,
     );
@@ -221,6 +229,7 @@ describe("SubscriptionCard", () => {
         onEdit={vi.fn()}
         onClone={vi.fn()}
         onRenew={vi.fn()}
+        onHistory={vi.fn()}
         onDelete={vi.fn()}
       />,
     );
@@ -244,6 +253,7 @@ describe("SubscriptionCard", () => {
         onEdit={vi.fn()}
         onClone={vi.fn()}
         onRenew={vi.fn()}
+        onHistory={vi.fn()}
         onDelete={vi.fn()}
       />,
     );
@@ -264,6 +274,7 @@ describe("SubscriptionCard", () => {
         onEdit={vi.fn()}
         onClone={vi.fn()}
         onRenew={vi.fn()}
+        onHistory={vi.fn()}
         onDelete={vi.fn()}
       />,
     );
@@ -297,6 +308,7 @@ describe("SubscriptionCard", () => {
         onEdit={vi.fn()}
         onClone={vi.fn()}
         onRenew={onRenew}
+        onHistory={vi.fn()}
         onDelete={vi.fn()}
       />,
     );
@@ -325,6 +337,7 @@ describe("SubscriptionCard", () => {
         onEdit={vi.fn()}
         onClone={vi.fn()}
         onRenew={vi.fn()}
+        onHistory={vi.fn()}
         onDelete={vi.fn()}
       />,
     );
@@ -346,6 +359,7 @@ describe("SubscriptionCard", () => {
         onEdit={vi.fn()}
         onClone={vi.fn()}
         onRenew={vi.fn()}
+        onHistory={vi.fn()}
         onDelete={vi.fn()}
       />,
     );
@@ -369,6 +383,7 @@ describe("SubscriptionCard", () => {
         onEdit={vi.fn()}
         onClone={vi.fn()}
         onRenew={vi.fn()}
+        onHistory={vi.fn()}
         onDelete={vi.fn()}
       />,
     );
@@ -384,6 +399,7 @@ describe("SubscriptionCard", () => {
         onEdit={vi.fn()}
         onClone={vi.fn()}
         onRenew={vi.fn()}
+        onHistory={vi.fn()}
         onDelete={vi.fn()}
       />,
     );
@@ -403,6 +419,7 @@ describe("SubscriptionCard", () => {
         onEdit={vi.fn()}
         onClone={vi.fn()}
         onRenew={vi.fn()}
+        onHistory={vi.fn()}
         onDelete={vi.fn()}
       />,
     );
@@ -419,6 +436,7 @@ describe("SubscriptionCard", () => {
         onEdit={vi.fn()}
         onClone={vi.fn()}
         onRenew={vi.fn()}
+        onHistory={vi.fn()}
         onDelete={vi.fn()}
       />,
     );
@@ -445,6 +463,7 @@ describe("SubscriptionCard", () => {
         onEdit={vi.fn()}
         onClone={vi.fn()}
         onRenew={vi.fn()}
+        onHistory={vi.fn()}
         onDelete={vi.fn()}
       />,
     );

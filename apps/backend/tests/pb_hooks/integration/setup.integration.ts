@@ -118,6 +118,58 @@ export class PocketBaseIntegrationHarness {
       DEFAULT_PASSWORD,
     ]);
 
+    await this.startServer(migrations);
+
+    // Seed the first authenticated application user.
+    this.admin = await this.registerAndLoginUser({
+      email: DEFAULT_ADMIN_EMAIL,
+      name: "Integration Admin",
+      password: DEFAULT_PASSWORD,
+      username: "integration-admin",
+    });
+    this.superuser = await this.loginSuperuser();
+  }
+
+  /**
+   * Restarts the server against the *same* data directory, optionally on a
+   * different migrations directory.
+   *
+   * This is how an upgrade is exercised: boot an older set of migrations,
+   * write data through the API, then restart on the current ones and assert
+   * what the new migration did to that data. Auth tokens are signed with keys
+   * stored in the database, so the existing sessions survive the restart.
+   */
+  async restart(migrationsDirOverride?: string): Promise<void> {
+    if (!this.dataDir) {
+      throw new Error("Cannot restart before reset() has created a data directory.");
+    }
+
+    await this.stopProcess();
+    this.migrationsDirOverride = migrationsDirOverride ?? null;
+    await this.startServer(this.migrationsDirOverride ?? migrationsDir);
+  }
+
+  async stop(): Promise<void> {
+    await this.stopProcess();
+    this.admin = null;
+    this.superuser = null;
+
+    if (this.dataDir) {
+      await rm(this.dataDir, { force: true, recursive: true });
+      this.dataDir = null;
+    }
+  }
+
+  private async stopProcess(): Promise<void> {
+    const child = this.child;
+    this.child = null;
+
+    if (child) {
+      await terminateProcess(child);
+    }
+  }
+
+  private async startServer(migrations: string): Promise<void> {
     const port = await getFreePort();
     this.baseUrl = `http://127.0.0.1:${port}`;
 
@@ -127,7 +179,7 @@ export class PocketBaseIntegrationHarness {
       "--http",
       `127.0.0.1:${port}`,
       "--dir",
-      this.dataDir,
+      this.dataDir!,
       "--hooksDir",
       hooksDir,
       "--migrationsDir",
@@ -157,31 +209,6 @@ export class PocketBaseIntegrationHarness {
     });
 
     await waitForPocketBaseReady(this.baseUrl, () => this.dumpLogs());
-
-    // Seed the first authenticated application user.
-    this.admin = await this.registerAndLoginUser({
-      email: DEFAULT_ADMIN_EMAIL,
-      name: "Integration Admin",
-      password: DEFAULT_PASSWORD,
-      username: "integration-admin",
-    });
-    this.superuser = await this.loginSuperuser();
-  }
-
-  async stop(): Promise<void> {
-    const child = this.child;
-    this.child = null;
-    this.admin = null;
-    this.superuser = null;
-
-    if (child) {
-      await terminateProcess(child);
-    }
-
-    if (this.dataDir) {
-      await rm(this.dataDir, { force: true, recursive: true });
-      this.dataDir = null;
-    }
   }
 
   async registerAndLoginUser(input: {
