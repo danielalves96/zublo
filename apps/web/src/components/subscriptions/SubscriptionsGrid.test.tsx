@@ -19,7 +19,7 @@ vi.mock("@/services/paymentMethods", () => ({
 }));
 
 vi.mock("@/lib/utils", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/utils")>();
+  const actual = await importOriginal<Record<string, unknown>>();
   return {
     ...actual,
     formatPrice: (v: number, s: string) => `${v} ${s}`,
@@ -32,6 +32,7 @@ vi.mock("@/lib/utils", async (importOriginal) => {
 });
 
 import type { Subscription } from "@/types";
+
 import { SubscriptionsGrid } from "./SubscriptionsGrid";
 
 function getSub(overrides: Partial<Subscription> = {}): Subscription {
@@ -73,9 +74,7 @@ describe("SubscriptionsGrid", () => {
   });
 
   it("renders the empty state when subscriptions list is empty and not loading", () => {
-    render(
-      <SubscriptionsGrid isLoading={false} subscriptions={[]} {...baseHandlers} />,
-    );
+    render(<SubscriptionsGrid isLoading={false} subscriptions={[]} {...baseHandlers} />);
     expect(screen.getByText("no_subscriptions")).toBeInTheDocument();
     expect(screen.getByText("no_subscriptions_hint")).toBeInTheDocument();
   });
@@ -92,15 +91,35 @@ describe("SubscriptionsGrid", () => {
     expect(screen.getByText("Spotify")).toBeInTheDocument();
   });
 
-  it("calls onEdit, onClone, onRenew, and onDelete with correct subscription when cards trigger actions", () => {
-    const sub = getSub();
-    render(
+  it("renders subscriptions in the compact list layout", () => {
+    const { container } = render(
       <SubscriptionsGrid
         isLoading={false}
-        subscriptions={[sub]}
+        subscriptions={[
+          getSub({
+            expand: {
+              category: {
+                id: "cat-1",
+                name: "Streaming",
+                user: "user-1",
+              },
+            },
+          }),
+        ]}
+        layout="list"
         {...baseHandlers}
       />,
     );
+
+    expect(screen.getByText("Netflix")).toBeInTheDocument();
+    expect(screen.getByText("Streaming")).toBeInTheDocument();
+    expect(container.firstChild).toHaveClass("space-y-2");
+    expect(screen.getByTitle("edit")).toBeVisible();
+  });
+
+  it("calls onEdit, onClone, onRenew, and onDelete with correct subscription when cards trigger actions", () => {
+    const sub = getSub();
+    render(<SubscriptionsGrid isLoading={false} subscriptions={[sub]} {...baseHandlers} />);
 
     fireEvent.click(screen.getByTitle("edit"));
     expect(baseHandlers.onEdit).toHaveBeenCalledWith(sub);

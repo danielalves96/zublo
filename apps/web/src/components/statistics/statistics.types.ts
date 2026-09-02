@@ -9,3 +9,11 @@ export interface StatisticsHistoryPoint {
   name: string;
   cost: number;
 }
+
+export interface StatisticsSubscriptionDetail {
+  id: string;
+  name: string;
+  value: number;
+}
+
+export type StatisticsCategoryDetails = Record<string, StatisticsSubscriptionDetail[]>;

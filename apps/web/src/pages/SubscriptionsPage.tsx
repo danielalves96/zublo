@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type ChangeEvent,useRef, useState } from "react";
+import { type ChangeEvent, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { SubscriptionFormModal } from "@/components/SubscriptionFormModal";
+import { SubscriptionHistoryDialog } from "@/components/subscriptions/SubscriptionHistoryDialog";
 import { SubscriptionsFiltersPanel } from "@/components/subscriptions/SubscriptionsFiltersPanel";
 import { SubscriptionsGrid } from "@/components/subscriptions/SubscriptionsGrid";
 import {
@@ -10,12 +11,11 @@ import {
   type SubscriptionFiltersState,
   type SubscriptionSortKey,
 } from "@/components/subscriptions/subscriptionsPage.types";
-import { SubscriptionHistoryDialog } from "@/components/subscriptions/SubscriptionHistoryDialog";
 import { SubscriptionsPageHeader } from "@/components/subscriptions/SubscriptionsPageHeader";
 import { SubscriptionsToolbar } from "@/components/subscriptions/SubscriptionsToolbar";
-import { useFilteredSubscriptions } from "@/hooks/useFilteredSubscriptions";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useAuth } from "@/contexts/AuthContext";
+import { useFilteredSubscriptions } from "@/hooks/useFilteredSubscriptions";
 import { queryKeys } from "@/lib/queryKeys";
 import { toast } from "@/lib/toast";
 import { categoriesService } from "@/services/categories";
@@ -34,17 +34,13 @@ export function SubscriptionsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [sort] = useState<SubscriptionSortKey>("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
-  const [filters, setFilters] = useState<SubscriptionFiltersState>(
-    INITIAL_SUBSCRIPTION_FILTERS,
-  );
+  const [filters, setFilters] = useState<SubscriptionFiltersState>(INITIAL_SUBSCRIPTION_FILTERS);
   const [showForm, setShowForm] = useState(false);
-  const [editSubscription, setEditSubscription] = useState<Subscription | null>(
-    null,
-  );
-  const [historySubscription, setHistorySubscription] =
-    useState<Subscription | null>(null);
+  const [editSubscription, setEditSubscription] = useState<Subscription | null>(null);
+  const [historySubscription, setHistorySubscription] = useState<Subscription | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [view, setView] = useState<"grid" | "list">("grid");
   const [isImporting, setIsImporting] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
 
@@ -224,9 +220,11 @@ export function SubscriptionsPage() {
       <SubscriptionsToolbar
         searchTerm={searchTerm}
         showFilters={showFilters}
+        view={view}
         onSearchChange={setSearchTerm}
         onToggleFilters={() => setShowFilters((current) => !current)}
         onCycleSort={handleCycleSort}
+        onViewChange={setView}
       />
 
       {showFilters ? (
@@ -240,6 +238,7 @@ export function SubscriptionsPage() {
       <SubscriptionsGrid
         isLoading={isLoading}
         subscriptions={filteredSubscriptions}
+        layout={view}
         mainCurrency={mainCurrency}
         convertCurrency={user?.convert_currency}
         showMonthly={user?.monthly_price}

@@ -39,7 +39,7 @@ export function StatisticsPage() {
     enabled: !!userId,
   });
 
-  const { lineData, mainCode, mainSymbol, pieData, totalMonthly, totalYearly } =
+  const { categoryDetails, lineData, mainCode, mainSymbol, pieData, totalMonthly, totalYearly } =
     useStatisticsDerivedData({
       subscriptions: subs,
       currencies,
@@ -84,6 +84,7 @@ export function StatisticsPage() {
         mainSymbol={mainSymbol}
         title={breakdownTitle}
         totalMonthly={totalMonthly}
+        categoryDetails={groupBy === "category" ? categoryDetails : undefined}
       />
     </div>
   );

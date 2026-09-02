@@ -13,14 +13,17 @@ describe("SubscriptionsToolbar", () => {
     const onSearchChange = vi.fn();
     const onToggleFilters = vi.fn();
     const onCycleSort = vi.fn();
+    const onViewChange = vi.fn();
 
     render(
       <SubscriptionsToolbar
         searchTerm="net"
         showFilters={false}
+        view="grid"
         onSearchChange={onSearchChange}
         onToggleFilters={onToggleFilters}
         onCycleSort={onCycleSort}
+        onViewChange={onViewChange}
       />,
     );
 
@@ -29,10 +32,16 @@ describe("SubscriptionsToolbar", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "filter" }));
     fireEvent.click(screen.getByRole("button", { name: "sort" }));
+    fireEvent.click(screen.getByRole("button", { name: "list_view" }));
 
     expect(onSearchChange).toHaveBeenCalledWith("spotify");
     expect(onToggleFilters).toHaveBeenCalledTimes(1);
     expect(onCycleSort).toHaveBeenCalledTimes(1);
+    expect(onViewChange).toHaveBeenCalledWith("list");
+    expect(screen.getByRole("button", { name: "grid_view" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 
   it("applies active styling to filter button when showFilters is true", () => {
@@ -40,9 +49,11 @@ describe("SubscriptionsToolbar", () => {
       <SubscriptionsToolbar
         searchTerm=""
         showFilters={true}
+        view="list"
         onSearchChange={vi.fn()}
         onToggleFilters={vi.fn()}
         onCycleSort={vi.fn()}
+        onViewChange={vi.fn()}
       />,
     );
 
