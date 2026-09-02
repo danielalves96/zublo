@@ -261,14 +261,19 @@ export function Layout() {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto w-full max-w-[1600px] mx-auto p-4 md:p-8 lg:p-10 scroll-smooth">
+        <main
+          className={cn(
+            "flex-1 overflow-y-auto w-full max-w-[1600px] mx-auto p-4 md:p-8 lg:p-10 scroll-smooth",
+            user?.mobile_navigation && "pb-24 md:pb-24",
+          )}
+        >
           <Outlet />
         </main>
       </div>
 
       {/* Mobile bottom nav (when mobile_navigation enabled) */}
       {user?.mobile_navigation && (
-        <nav className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-border/40 bg-card/80 backdrop-blur-xl pb-safe lg:hidden">
+        <nav className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-border/40 bg-card/80 backdrop-blur-xl pb-[env(safe-area-inset-bottom)] lg:hidden">
           {navItems.slice(0, 5).map(({ key, path, icon: Icon }) => {
             const isActive = pathname.startsWith(path);
             return (
