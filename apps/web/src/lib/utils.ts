@@ -1,8 +1,8 @@
-import { type ClassValue,clsx } from "clsx";
+import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
 import { subscriptionsService } from "@/services/subscriptions";
-import type { Currency,Subscription } from "@/types";
+import type { Currency, Subscription } from "@/types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -39,36 +39,55 @@ export function getColorForSub(sub: Subscription, index: number): string {
   return EVENT_COLORS[(hash + index) % EVENT_COLORS.length];
 }
 
-/**
- * Format a price with a currency symbol.
- */
+interface PriceFormatOptions {
+  currencyCode?: string;
+  locale?: string;
+}
+
+/** Return the number of fraction digits defined for an ISO 4217 currency. */
+export function getCurrencyFractionDigits(currencyCode?: string): number {
+  if (!currencyCode) return 2;
+
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: currencyCode.toUpperCase(),
+    }).resolvedOptions().maximumFractionDigits ?? 2;
+  } catch {
+    return 2;
+  }
+}
+
+/** Format a price with a currency symbol and the currency's natural precision. */
 export function formatPrice(
   price: number,
   symbol: string,
-  locale = "en-US",
+  options: PriceFormatOptions | string = {},
 ): string {
+  // Keep accepting a locale string for backwards compatibility.
+  const locale = typeof options === "string" ? options : (options.locale ?? "en-US");
+  const fractionDigits = getCurrencyFractionDigits(
+    typeof options === "string" ? undefined : options.currencyCode,
+  );
+
   try {
     return (
       new Intl.NumberFormat(locale, {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
+        minimumFractionDigits: fractionDigits,
+        maximumFractionDigits: fractionDigits,
       }).format(price) +
       " " +
       symbol
     );
   } catch {
-    return price.toFixed(2) + " " + symbol;
+    return price.toFixed(fractionDigits) + " " + symbol;
   }
 }
 
 /**
  * Convert a price to monthly based on cycle name and frequency.
  */
-export function toMonthly(
-  price: number,
-  cycleName: string,
-  frequency: number,
-): number {
+export function toMonthly(price: number, cycleName: string, frequency: number): number {
   const f = frequency || 1;
   switch (cycleName) {
     case "Daily":
@@ -137,18 +156,13 @@ export function daysUntil(dateStr: string): number {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const target = parseLocalDate(dateStr);
-  return Math.ceil(
-    (target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
-  );
+  return Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 }
 
 /**
  * Progress percentage between start date and next payment.
  */
-export function subscriptionProgress(
-  startDate: string,
-  nextPayment: string,
-): number {
+export function subscriptionProgress(startDate: string, nextPayment: string): number {
   if (!startDate || !nextPayment) return 0;
   const start = parseLocalDate(startDate).getTime();
   const end = parseLocalDate(nextPayment).getTime();

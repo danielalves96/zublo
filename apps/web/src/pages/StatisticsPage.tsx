@@ -39,7 +39,7 @@ export function StatisticsPage() {
     enabled: !!userId,
   });
 
-  const { lineData, mainSymbol, pieData, totalMonthly, totalYearly } =
+  const { lineData, mainCode, mainSymbol, pieData, totalMonthly, totalYearly } =
     useStatisticsDerivedData({
       subscriptions: subs,
       currencies,
@@ -53,22 +53,15 @@ export function StatisticsPage() {
     member: t("cost_by_member"),
   };
   const breakdownTitle = t(
-    groupBy === "category"
-      ? "categories"
-      : groupBy === "payment"
-        ? "payment_methods"
-        : "household",
+    groupBy === "category" ? "categories" : groupBy === "payment" ? "payment_methods" : "household",
   );
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <StatisticsHeader
-        groupBy={groupBy}
-        groupLabels={groupLabels}
-        onGroupByChange={setGroupBy}
-      />
+      <StatisticsHeader groupBy={groupBy} groupLabels={groupLabels} onGroupByChange={setGroupBy} />
 
       <StatisticsSummaryCards
+        mainCode={mainCode}
         mainSymbol={mainSymbol}
         subscriptionsCount={subs.length}
         totalMonthly={totalMonthly}
@@ -78,14 +71,16 @@ export function StatisticsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <StatisticsDistributionCard
           data={pieData}
+          mainCode={mainCode}
           mainSymbol={mainSymbol}
           title={groupLabels[groupBy]}
         />
-        <StatisticsHistoryCard data={lineData} mainSymbol={mainSymbol} />
+        <StatisticsHistoryCard data={lineData} mainCode={mainCode} mainSymbol={mainSymbol} />
       </div>
 
       <StatisticsBreakdownCard
         data={pieData}
+        mainCode={mainCode}
         mainSymbol={mainSymbol}
         title={breakdownTitle}
         totalMonthly={totalMonthly}

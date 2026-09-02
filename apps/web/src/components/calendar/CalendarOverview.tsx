@@ -26,6 +26,7 @@ export function CalendarOverview({
 }: CalendarOverviewProps) {
   const { t } = useTranslation();
   const currencySymbol = mainCurrency?.symbol ?? "$";
+  const priceOptions = { currencyCode: mainCurrency?.code };
 
   return (
     <>
@@ -41,14 +42,14 @@ export function CalendarOverview({
           icon={<TrendingUp className="h-5 w-5" />}
           iconClass="bg-blue-500/20 text-blue-500"
           label={t("total")}
-          value={formatPrice(total, currencySymbol)}
+          value={formatPrice(total, currencySymbol, priceOptions)}
           loading={loading}
         />
         <StatCard
           icon={<Clock className="h-5 w-5" />}
           iconClass="bg-amber-500/20 text-amber-500"
           label={t("due")}
-          value={formatPrice(due, currencySymbol)}
+          value={formatPrice(due, currencySymbol, priceOptions)}
           loading={loading}
         />
       </div>
@@ -58,7 +59,7 @@ export function CalendarOverview({
           <AlertTriangle className="h-4 w-4 shrink-0" />
           <span>
             {t("over_budget_warning")}{" "}
-            <strong>{formatPrice(total - budget, currencySymbol)}</strong>
+            <strong>{formatPrice(total - budget, currencySymbol, priceOptions)}</strong>
           </span>
         </div>
       ) : null}

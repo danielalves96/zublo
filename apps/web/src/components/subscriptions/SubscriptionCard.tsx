@@ -136,7 +136,8 @@ export function SubscriptionCard({
   const rawPrice =
     showMonthly && !credit ? toMonthly(sub.price, cycleName, sub.frequency || 1) : sub.price;
   const price = shouldConvert ? toMainCurrency(rawPrice, currency) : rawPrice;
-  const symbol = shouldConvert ? (mainCurrency?.symbol ?? "$") : (currency?.symbol ?? "$");
+  const displayCurrency = shouldConvert ? mainCurrency : currency;
+  const symbol = displayCurrency?.symbol ?? "$";
   const days = daysUntil(sub.next_payment);
   const progress = showProgress ? subscriptionProgress(sub.start_date, sub.next_payment) : 0;
 
@@ -194,7 +195,7 @@ export function SubscriptionCard({
             )}
           >
             {credit ? "+" : ""}
-            {formatPrice(price, symbol)}
+            {formatPrice(price, symbol, { currencyCode: displayCurrency?.code })}
           </p>
           <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
             {credit ? t("one_time") : showMonthly ? t("monthly") : cycleName}

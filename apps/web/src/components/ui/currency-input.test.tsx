@@ -1,5 +1,5 @@
-import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
+import React from "react";
 
 import { CurrencyInput } from "./currency-input";
 
@@ -42,15 +42,23 @@ describe("CurrencyInput", () => {
     expect(screen.getByText("USD")).toBeInTheDocument();
   });
 
+  it.each(["JPY", "KRW"])("shows no decimals for %s when blurred", (code) => {
+    render(<CurrencyInput value={1000} onChange={() => {}} code={code} />);
+    expect(screen.getByRole("textbox").getAttribute("value")).toMatch(/^1[,.\s]?000$/);
+  });
+
+  it("uses a zero-decimal placeholder for zero-decimal currencies", () => {
+    render(<CurrencyInput value={0} onChange={() => {}} code="JPY" />);
+    expect(screen.getByPlaceholderText("0")).toBeInTheDocument();
+  });
+
   it("renders without symbol or code when they are absent", () => {
     const { container } = render(<CurrencyInput value={0} onChange={() => {}} />);
     expect(container.querySelectorAll("span")).toHaveLength(0);
   });
 
   it("applies disabled styling when the disabled prop is set", () => {
-    const { container } = render(
-      <CurrencyInput value={0} onChange={() => {}} disabled />,
-    );
+    const { container } = render(<CurrencyInput value={0} onChange={() => {}} disabled />);
     expect(container.firstChild).toHaveClass("opacity-50");
   });
 
@@ -160,9 +168,7 @@ describe("CurrencyInput", () => {
   });
 
   it("renders the placeholder when provided", () => {
-    render(
-      <CurrencyInput value={0} onChange={() => {}} placeholder="0.00" />,
-    );
+    render(<CurrencyInput value={0} onChange={() => {}} placeholder="0.00" />);
     expect(screen.getByPlaceholderText("0.00")).toBeInTheDocument();
   });
 
