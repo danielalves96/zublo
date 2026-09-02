@@ -58,6 +58,7 @@ const baseHandlers = {
   onEdit: vi.fn(),
   onClone: vi.fn(),
   onRenew: vi.fn(),
+  onHistory: vi.fn(),
   onDelete: vi.fn(),
 };
 
@@ -128,6 +129,9 @@ describe("SubscriptionsGrid", () => {
 
     fireEvent.click(screen.getByTitle("renew"));
     expect(baseHandlers.onRenew).toHaveBeenCalledWith(sub.id);
+
+    fireEvent.click(screen.getByTitle("history"));
+    expect(baseHandlers.onHistory).toHaveBeenCalledWith(sub);
 
     fireEvent.click(screen.getByTitle("delete"));
     expect(baseHandlers.onDelete).toHaveBeenCalledWith(sub.id);

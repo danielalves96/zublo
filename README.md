@@ -95,7 +95,7 @@ Demo screenshots
 
 | Area | What you get |
 |---|---|
-| Subscriptions | Recurring billing cycles, due dates, payment context |
+| Subscriptions | Recurring billing cycles, due dates, payment context, change history with total spent |
 | Calendar | Upcoming payments in a calendar view |
 | Dashboard | High-level cost visibility and summary metrics |
 | Statistics | Spending breakdowns and trend visibility |

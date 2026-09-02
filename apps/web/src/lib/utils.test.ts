@@ -13,6 +13,7 @@ import {
   formatDate,
   formatPrice,
   getColorForSub,
+  getCurrencyFractionDigits,
   sanitizeHref,
   subscriptionProgress,
   toMainCurrency,
@@ -90,6 +91,17 @@ describe("formatPrice", () => {
     expect(formatPrice(10, "€")).toBe("10.00 €");
   });
 
+  it.each([
+    ["JPY", "¥"],
+    ["KRW", "₩"],
+  ])("omits decimals for zero-decimal currency %s", (currencyCode, symbol) => {
+    expect(formatPrice(1000, symbol, { currencyCode })).toBe(`1,000 ${symbol}`);
+  });
+
+  it("uses the ISO precision for currencies with three decimals", () => {
+    expect(formatPrice(1, "د.ب", { currencyCode: "BHD" })).toBe("1.000 د.ب");
+  });
+
   it("respects custom locale (pt-BR uses comma separator)", () => {
     const result = formatPrice(1000, "R$", "pt-BR");
     // pt-BR uses period as thousands separator and comma as decimal
@@ -101,6 +113,11 @@ describe("formatPrice", () => {
     // Invalid locale should not throw — fallback uses toFixed(2)
     const result = formatPrice(5.5, "X", "invalid-locale-xyz");
     expect(result).toContain("X");
+  });
+
+  it("falls back to two decimals for a missing or invalid currency code", () => {
+    expect(getCurrencyFractionDigits()).toBe(2);
+    expect(getCurrencyFractionDigits("not-a-currency")).toBe(2);
   });
 });
 

@@ -76,7 +76,9 @@ export function DayPanel({
               <p className="text-xs text-muted-foreground mt-0.5">
                 {entries.length} {entries.length === 1 ? t("subscription") : t("subscriptions")} ·{" "}
                 <span className="font-medium text-foreground">
-                  {formatPrice(total, mainCurrency.symbol)}
+                  {formatPrice(total, mainCurrency.symbol, {
+                    currencyCode: mainCurrency.code,
+                  })}
                 </span>
               </p>
             ) : (
@@ -196,11 +198,16 @@ export function DayPanel({
                   <div className="shrink-0 text-right">
                     <p className="font-semibold text-sm">
                       {credit ? "+" : ""}
-                      {formatPrice(sub.price, cur?.symbol ?? "$")}
+                      {formatPrice(sub.price, cur?.symbol ?? "$", {
+                        currencyCode: cur?.code,
+                      })}
                     </p>
                     {cur && mainCurrency && cur.id !== mainCurrency.id && (
                       <p className="text-[11px] text-muted-foreground">
-                        ≈ {formatPrice(toMain(sub.price, cur), mainCurrency.symbol)}
+                        ≈{" "}
+                        {formatPrice(toMain(sub.price, cur), mainCurrency.symbol, {
+                          currencyCode: mainCurrency.code,
+                        })}
                       </p>
                     )}
                     {diffDays === 0 && (

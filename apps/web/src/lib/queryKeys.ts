@@ -16,6 +16,10 @@ export const queryKeys = {
   // ─── Subscriptions ────────────────────────────────────────────────────────
   subscriptions: {
     all: (userId: string) => ["subscriptions", userId] as const,
+    // Scoped per subscription: the change log of one subscription is
+    // unaffected by edits to any other.
+    history: (userId: string, subscriptionId: string) =>
+      ["subscription-history", userId, subscriptionId] as const,
   },
 
   // ─── Currencies ───────────────────────────────────────────────────────────

@@ -3,6 +3,7 @@ import { type ChangeEvent, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { SubscriptionFormModal } from "@/components/SubscriptionFormModal";
+import { SubscriptionHistoryDialog } from "@/components/subscriptions/SubscriptionHistoryDialog";
 import { SubscriptionsFiltersPanel } from "@/components/subscriptions/SubscriptionsFiltersPanel";
 import { SubscriptionsGrid } from "@/components/subscriptions/SubscriptionsGrid";
 import {
@@ -36,6 +37,7 @@ export function SubscriptionsPage() {
   const [filters, setFilters] = useState<SubscriptionFiltersState>(INITIAL_SUBSCRIPTION_FILTERS);
   const [showForm, setShowForm] = useState(false);
   const [editSubscription, setEditSubscription] = useState<Subscription | null>(null);
+  const [historySubscription, setHistorySubscription] = useState<Subscription | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [view, setView] = useState<"grid" | "list">("grid");
@@ -244,6 +246,7 @@ export function SubscriptionsPage() {
         onEdit={handleEdit}
         onClone={(id) => cloneMutation.mutate(id)}
         onRenew={(id) => renewMutation.mutate(id)}
+        onHistory={setHistorySubscription}
         onDelete={setDeleteId}
       />
 
@@ -262,6 +265,14 @@ export function SubscriptionsPage() {
               queryKey: queryKeys.subscriptions.all(userId),
             });
           }}
+        />
+      ) : null}
+
+      {historySubscription ? (
+        <SubscriptionHistoryDialog
+          sub={historySubscription}
+          userId={userId}
+          onClose={() => setHistorySubscription(null)}
         />
       ) : null}
 

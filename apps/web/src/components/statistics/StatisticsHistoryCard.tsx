@@ -1,12 +1,5 @@
 import { useTranslation } from "react-i18next";
-import {
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import type { StatisticsHistoryPoint } from "@/components/statistics/statistics.types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,13 +7,11 @@ import { formatPrice } from "@/lib/utils";
 
 interface StatisticsHistoryCardProps {
   data: StatisticsHistoryPoint[];
+  mainCode?: string;
   mainSymbol: string;
 }
 
-export function StatisticsHistoryCard({
-  data,
-  mainSymbol,
-}: StatisticsHistoryCardProps) {
+export function StatisticsHistoryCard({ data, mainCode, mainSymbol }: StatisticsHistoryCardProps) {
   const { t } = useTranslation();
 
   return (
@@ -55,7 +46,10 @@ export function StatisticsHistoryCard({
                   color: "hsl(var(--foreground))",
                   fontWeight: "bold",
                 }}
-                formatter={(value: number) => [formatPrice(value, mainSymbol), "Cost"]}
+                formatter={(value: number) => [
+                  formatPrice(value, mainSymbol, { currencyCode: mainCode }),
+                  "Cost",
+                ]}
               />
               <Line
                 type="monotone"

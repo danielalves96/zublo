@@ -1,6 +1,6 @@
-import { useEffect, useRef,useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { cn } from "@/lib/utils";
+import { cn, getCurrencyFractionDigits } from "@/lib/utils";
 
 interface CurrencyInputProps {
   value: number | string;
@@ -12,12 +12,13 @@ interface CurrencyInputProps {
   disabled?: boolean;
 }
 
-function formatNumber(val: number): string {
+function formatNumber(val: number, code?: string): string {
   /* v8 ignore next -- formatNumber is only called when numeric > 0; NaN > 0 is false so isNaN branch is unreachable */
   if (isNaN(val) || val === 0) return "";
+  const fractionDigits = getCurrencyFractionDigits(code);
   return new Intl.NumberFormat(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
   }).format(val);
 }
 
@@ -37,7 +38,7 @@ export function CurrencyInput({
   onChange,
   symbol,
   code,
-  placeholder = "0,00",
+  placeholder,
   className,
   disabled,
 }: CurrencyInputProps) {
@@ -74,7 +75,9 @@ export function CurrencyInput({
     onChange(parsed);
   };
 
-  const displayValue = focused ? raw : (numeric > 0 ? formatNumber(numeric) : "");
+  const fractionDigits = getCurrencyFractionDigits(code);
+  const displayValue = focused ? raw : numeric > 0 ? formatNumber(numeric, code) : "";
+  const resolvedPlaceholder = placeholder ?? (fractionDigits === 0 ? "0" : "0,00");
 
   return (
     <div
@@ -82,7 +85,7 @@ export function CurrencyInput({
         "flex items-center h-10 rounded-xl border bg-muted/50 transition-colors",
         "focus-within:bg-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-0",
         disabled && "opacity-50 pointer-events-none",
-        className
+        className,
       )}
     >
       {symbol && (
@@ -98,7 +101,7 @@ export function CurrencyInput({
         onChange={handleChange}
         onFocus={handleFocus}
         onBlur={handleBlur}
-        placeholder={placeholder}
+        placeholder={resolvedPlaceholder}
         disabled={disabled}
         className="flex-1 min-w-0 bg-transparent px-2 py-2 text-sm font-semibold outline-none placeholder:text-muted-foreground/50"
       />

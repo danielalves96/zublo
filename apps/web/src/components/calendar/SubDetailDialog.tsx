@@ -122,11 +122,14 @@ export function SubDetailDialog({
             <div className="text-right shrink-0">
               <p className="text-2xl font-extrabold leading-none">
                 {credit ? "+" : ""}
-                {formatPrice(sub.price, cur?.symbol ?? "$")}
+                {formatPrice(sub.price, cur?.symbol ?? "$", { currencyCode: cur?.code })}
               </p>
               {cur && mainCurrency && cur.id !== mainCurrency.id && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  ≈ {formatPrice(toMain(sub.price, cur), mainCurrency.symbol)}
+                  ≈{" "}
+                  {formatPrice(toMain(sub.price, cur), mainCurrency.symbol, {
+                    currencyCode: mainCurrency.code,
+                  })}
                 </p>
               )}
             </div>
@@ -154,7 +157,9 @@ export function SubDetailDialog({
                       <p className="text-xs text-muted-foreground mt-0.5 truncate">
                         {new Date(paymentRecord.paid_at).toLocaleDateString()}
                         {paymentRecord.amount != null &&
-                          ` · ${formatPrice(paymentRecord.amount, cur?.symbol ?? "$")}`}
+                          ` · ${formatPrice(paymentRecord.amount, cur?.symbol ?? "$", {
+                            currencyCode: cur?.code,
+                          })}`}
                       </p>
                     )}
                   </div>

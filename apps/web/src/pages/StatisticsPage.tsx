@@ -39,7 +39,7 @@ export function StatisticsPage() {
     enabled: !!userId,
   });
 
-  const { categoryDetails, lineData, mainSymbol, pieData, totalMonthly, totalYearly } =
+  const { categoryDetails, lineData, mainCode, mainSymbol, pieData, totalMonthly, totalYearly } =
     useStatisticsDerivedData({
       subscriptions: subs,
       currencies,
@@ -61,6 +61,7 @@ export function StatisticsPage() {
       <StatisticsHeader groupBy={groupBy} groupLabels={groupLabels} onGroupByChange={setGroupBy} />
 
       <StatisticsSummaryCards
+        mainCode={mainCode}
         mainSymbol={mainSymbol}
         subscriptionsCount={subs.length}
         totalMonthly={totalMonthly}
@@ -70,14 +71,16 @@ export function StatisticsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <StatisticsDistributionCard
           data={pieData}
+          mainCode={mainCode}
           mainSymbol={mainSymbol}
           title={groupLabels[groupBy]}
         />
-        <StatisticsHistoryCard data={lineData} mainSymbol={mainSymbol} />
+        <StatisticsHistoryCard data={lineData} mainCode={mainCode} mainSymbol={mainSymbol} />
       </div>
 
       <StatisticsBreakdownCard
         data={pieData}
+        mainCode={mainCode}
         mainSymbol={mainSymbol}
         title={breakdownTitle}
         totalMonthly={totalMonthly}

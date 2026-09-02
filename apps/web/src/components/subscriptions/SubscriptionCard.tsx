@@ -1,4 +1,13 @@
-import { Calendar, Copy, Edit, ExternalLink, Hourglass, RefreshCw, Trash2 } from "lucide-react";
+import {
+  Calendar,
+  Copy,
+  Edit,
+  ExternalLink,
+  History,
+  Hourglass,
+  RefreshCw,
+  Trash2,
+} from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -106,6 +115,7 @@ interface SubscriptionActionsProps {
   onEdit: () => void;
   onClone: () => void;
   onRenew: () => void;
+  onHistory: () => void;
   onDelete: () => void;
 }
 
@@ -115,6 +125,7 @@ function SubscriptionActions({
   onEdit,
   onClone,
   onRenew,
+  onHistory,
   onDelete,
 }: SubscriptionActionsProps) {
   const { t } = useTranslation();
@@ -156,6 +167,18 @@ function SubscriptionActions({
       >
         <Copy className="h-3.5 w-3.5" />
       </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-7 w-7 rounded-full text-muted-foreground hover:bg-purple-500/10 hover:text-purple-500"
+        onClick={onHistory}
+        title={t("history")}
+      >
+        <History className="h-3.5 w-3.5" />
+      </Button>
+      {/* Renewing an inactive subscription is a no-op on the backend — it
+          refuses to advance a paused or finished schedule — so offering the
+          action here would just be a button that does nothing. */}
       {!sub.inactive && !credit && (
         <Button
           variant="ghost"
@@ -191,6 +214,7 @@ export function SubscriptionCard({
   onEdit,
   onClone,
   onRenew,
+  onHistory,
   onDelete,
   layout = "grid",
 }: {
@@ -203,6 +227,7 @@ export function SubscriptionCard({
   onEdit: () => void;
   onClone: () => void;
   onRenew: () => void;
+  onHistory: () => void;
   onDelete: () => void;
   layout?: "grid" | "list";
 }) {
@@ -218,7 +243,8 @@ export function SubscriptionCard({
   const rawPrice =
     showMonthly && !credit ? toMonthly(sub.price, cycleName, sub.frequency || 1) : sub.price;
   const price = shouldConvert ? toMainCurrency(rawPrice, currency) : rawPrice;
-  const symbol = shouldConvert ? (mainCurrency?.symbol ?? "$") : (currency?.symbol ?? "$");
+  const displayCurrency = shouldConvert ? mainCurrency : currency;
+  const symbol = displayCurrency?.symbol ?? "$";
   const days = daysUntil(sub.next_payment);
   const progress = showProgress ? subscriptionProgress(sub.start_date, sub.next_payment) : 0;
 
@@ -274,7 +300,7 @@ export function SubscriptionCard({
               )}
             >
               {credit ? "+" : ""}
-              {formatPrice(price, symbol)}
+              {formatPrice(price, symbol, { currencyCode: displayCurrency?.code })}
             </p>
             <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
               {credit ? t("one_time") : showMonthly ? t("monthly") : cycleName}
@@ -305,6 +331,7 @@ export function SubscriptionCard({
             onEdit={onEdit}
             onClone={onClone}
             onRenew={onRenew}
+            onHistory={onHistory}
             onDelete={onDelete}
           />
         </div>
@@ -366,7 +393,7 @@ export function SubscriptionCard({
             )}
           >
             {credit ? "+" : ""}
-            {formatPrice(price, symbol)}
+            {formatPrice(price, symbol, { currencyCode: displayCurrency?.code })}
           </p>
           <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
             {credit ? t("one_time") : showMonthly ? t("monthly") : cycleName}
@@ -440,6 +467,7 @@ export function SubscriptionCard({
           onEdit={onEdit}
           onClone={onClone}
           onRenew={onRenew}
+          onHistory={onHistory}
           onDelete={onDelete}
         />
       </div>

@@ -105,6 +105,7 @@ describe("useStatisticsDerivedData", () => {
       },
     );
 
+    expect(result.current.mainCode).toBe("USD");
     expect(result.current.mainSymbol).toBe("$");
     expect(result.current.totalMonthly).toBeCloseTo(50, 5);
     expect(result.current.totalYearly).toBeCloseTo(600, 5);
@@ -193,6 +194,7 @@ describe("useStatisticsDerivedData", () => {
     );
 
     // No main currency → mainSymbol defaults to "$"
+    expect(result.current.mainCode).toBeUndefined();
     expect(result.current.mainSymbol).toBe("$");
     // mainRate defaults to 1 — price is unchanged
     expect(result.current.totalMonthly).toBeCloseTo(10, 5);

@@ -227,6 +227,7 @@ vi.mock("@/components/subscriptions/SubscriptionsGrid", () => ({
     onEdit,
     onClone,
     onRenew,
+    onHistory,
     onDelete,
   }: {
     subscriptions: Array<{ id: string; name: string }>;
@@ -234,6 +235,7 @@ vi.mock("@/components/subscriptions/SubscriptionsGrid", () => ({
     onEdit: (subscription: { id: string; name: string }) => void;
     onClone: (id: string) => void;
     onRenew: (id: string) => void;
+    onHistory: (subscription: { id: string; name: string }) => void;
     onDelete: (id: string) => void;
   }) => (
     <div>
@@ -247,6 +249,9 @@ vi.mock("@/components/subscriptions/SubscriptionsGrid", () => ({
       </button>
       <button type="button" onClick={() => onRenew(subscriptions[0].id)}>
         renew-subscription
+      </button>
+      <button type="button" onClick={() => onHistory(subscriptions[0])}>
+        history-subscription
       </button>
       <button type="button" onClick={() => onDelete(subscriptions[0].id)}>
         delete-subscription
@@ -272,6 +277,23 @@ vi.mock("@/components/SubscriptionFormModal", () => ({
       </button>
       <button type="button" onClick={onClose}>
         close-form
+      </button>
+    </div>
+  ),
+}));
+
+vi.mock("@/components/subscriptions/SubscriptionHistoryDialog", () => ({
+  SubscriptionHistoryDialog: ({
+    sub,
+    onClose,
+  }: {
+    sub: { name: string };
+    onClose: () => void;
+  }) => (
+    <div>
+      <div>history:{sub.name}</div>
+      <button type="button" onClick={onClose}>
+        close-history
       </button>
     </div>
   ),
@@ -540,6 +562,19 @@ describe("SubscriptionsPage", () => {
     // Close via the close-delete button which calls onOpenChange(false) → !false = true → setDeleteId(null)
     fireEvent.click(screen.getByRole("button", { name: "close-delete" }));
     expect(screen.queryByRole("button", { name: "confirm-delete" })).not.toBeInTheDocument();
+  });
+
+  it("opens the history dialog for a subscription and closes it again", async () => {
+    const { Wrapper } = createQueryClientWrapper();
+    render(<SubscriptionsPage />, { wrapper: Wrapper });
+
+    await waitFor(() => screen.getByText("grid:1"));
+
+    fireEvent.click(screen.getByRole("button", { name: "history-subscription" }));
+    expect(screen.getByText("history:Netflix")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "close-history" }));
+    expect(screen.queryByText("history:Netflix")).not.toBeInTheDocument();
   });
 
   it("renders with empty userId when user is null (covers user?.id ?? '' fallback)", () => {

@@ -1,29 +1,18 @@
 import { useMutation } from "@tanstack/react-query";
-import {
-  CheckCircle2,
-  Eye,
-  FileText,
-  Upload,
-  X,
-} from "lucide-react";
-import { useRef,useState } from "react";
+import { CheckCircle2, Eye, FileText, Upload, X } from "lucide-react";
+import { useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/lib/toast";
 import { formatPrice } from "@/lib/utils";
 import { paymentRecordsService } from "@/services/paymentRecords";
-import type { PaymentRecord,Subscription } from "@/types";
+import type { PaymentRecord, Subscription } from "@/types";
 
-import { getLogoUrl,toDateOnly, toDateStr } from "./types";
+import { getLogoUrl, toDateOnly, toDateStr } from "./types";
 
 interface MarkAsPaidModalProps {
   sub: Subscription;
@@ -49,9 +38,7 @@ export function MarkAsPaidModal({
   const isViewOnly = !!existingRecord?.paid_at;
 
   const [amount, setAmount] = useState(
-    existingRecord?.amount != null
-      ? String(existingRecord.amount)
-      : String(sub.price),
+    existingRecord?.amount != null ? String(existingRecord.amount) : String(sub.price),
   );
   const [notes, setNotes] = useState(existingRecord?.notes ?? "");
   const [proofFile, setProofFile] = useState<File | null>(null);
@@ -76,16 +63,13 @@ export function MarkAsPaidModal({
       if (!recordId) {
         const candidates = await paymentRecordsService.listForSubscription(sub.id, userId);
 
-        const matched = candidates.find(
-          (r) => toDateOnly(r.due_date) === dueDate,
-        );
+        const matched = candidates.find((r) => toDateOnly(r.due_date) === dueDate);
         recordId = matched?.id;
       }
 
       if (recordId) {
         const saved = await paymentRecordsService.update(recordId, data as Partial<PaymentRecord>);
-        if (!saved?.id)
-          throw new Error("Falha ao atualizar registro de pagamento");
+        if (!saved?.id) throw new Error("Falha ao atualizar registro de pagamento");
         return;
       }
 
@@ -110,11 +94,7 @@ export function MarkAsPaidModal({
           <DialogTitle className="flex items-center gap-4">
             {logo ? (
               <div className="h-12 w-12 shrink-0 rounded-2xl overflow-hidden border bg-background p-1.5">
-                <img
-                  src={logo}
-                  alt=""
-                  className="h-full w-full object-contain"
-                />
+                <img src={logo} alt="" className="h-full w-full object-contain" />
               </div>
             ) : (
               <div className="h-12 w-12 shrink-0 rounded-2xl bg-primary/10 flex items-center justify-center text-base font-bold text-primary">
@@ -124,9 +104,7 @@ export function MarkAsPaidModal({
 
             <div className="min-w-0 flex-1">
               <p className="text-lg font-bold leading-tight truncate">
-                {isViewOnly
-                  ? t("view_payment")
-                  : t("mark_as_paid")}
+                {isViewOnly ? t("view_payment") : t("mark_as_paid")}
               </p>
               <p className="text-sm text-muted-foreground truncate mt-0.5">
                 {sub.name} ·{" "}
@@ -139,7 +117,7 @@ export function MarkAsPaidModal({
             </div>
 
             <Badge variant="outline" className="shrink-0">
-              {formatPrice(sub.price, cur?.symbol ?? "$")}
+              {formatPrice(sub.price, cur?.symbol ?? "$", { currencyCode: cur?.code })}
             </Badge>
           </DialogTitle>
         </DialogHeader>
@@ -196,10 +174,7 @@ export function MarkAsPaidModal({
                   className="flex min-w-0 items-center gap-2 rounded-xl border px-3 py-2.5 text-sm text-primary hover:bg-accent/40 transition-colors"
                 >
                   <FileText className="h-4 w-4 shrink-0" />
-                  <span
-                    className="min-w-0 flex-1 truncate"
-                    title={existingRecord?.proof}
-                  >
+                  <span className="min-w-0 flex-1 truncate" title={existingRecord?.proof}>
                     {existingRecord?.proof}
                   </span>
                   <Eye className="h-4 w-4 shrink-0" />
@@ -242,9 +217,7 @@ export function MarkAsPaidModal({
                     </button>
                   )}
 
-                  <p className="text-xs text-muted-foreground">
-                    {t("proof_hint")}
-                  </p>
+                  <p className="text-xs text-muted-foreground">{t("proof_hint")}</p>
                 </>
               ) : (
                 <p className="text-sm text-muted-foreground rounded-xl border px-3 py-3">
@@ -265,9 +238,7 @@ export function MarkAsPaidModal({
                 className="bg-green-600 hover:bg-green-700 text-white"
               >
                 <CheckCircle2 className="h-4 w-4 mr-2" />
-                {mut.isPending
-                  ? t("saving")
-                  : t("confirm_payment")}
+                {mut.isPending ? t("saving") : t("confirm_payment")}
               </Button>
             )}
           </div>

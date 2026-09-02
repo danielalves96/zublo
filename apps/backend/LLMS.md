@@ -30,7 +30,7 @@ Self-hosted subscription tracker. Docker image: `ghcr.io/danielalves96/zublo:lat
 
 | Module | Capabilities |
 |---|---|
-| Subscriptions | Create, edit, clone, cancel, reactivate, delete, import (JSON/XLSX), export (JSON/XLSX) |
+| Subscriptions | Create, edit, clone, cancel, reactivate, delete, import (JSON/XLSX), export (JSON/XLSX); per-subscription change history (price, cycle, currency, pause/resume) with total spent since the start |
 | Calendar | Monthly view of due payments; mark as paid (amount + proof file); undo payment; export iCal |
 | Statistics | Monthly/yearly totals by category, payment method, household member; 12-month history chart |
 | Dashboard | Financial summary, budget progress bar, AI saving recommendations |
@@ -57,6 +57,7 @@ Self-hosted subscription tracker. Docker image: `ghcr.io/danielalves96/zublo:lat
 - **Household member**: a person label for cost-splitting — has NO Zublo account
 - **Inactive**: soft-cancelled subscription — kept for history, excluded from totals
 - **Auto-renew**: daily cron marks the subscription as paid automatically on due date
+- **History**: every subscription write is logged (price/cycle/currency change, pause, resume). The total spent replays the billing schedule against that log, so past payments keep the price that applied then; confirmed payments (payment tracking) are reported separately
 - **Budget**: monthly spending ceiling set in Settings → Profile
 - **External REST auth**: send API keys in `Authorization: Bearer wk_...` headers, not query params
 - **iCal auth**: calendar apps use the generated feed URL from the UI because they usually cannot send auth headers

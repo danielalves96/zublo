@@ -1,12 +1,5 @@
 import { useTranslation } from "react-i18next";
-import {
-  Cell,
-  Legend,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-} from "recharts";
+import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
 import { STATISTICS_COLORS } from "@/components/statistics/constants";
 import type { StatisticsPieDatum } from "@/components/statistics/statistics.types";
@@ -15,12 +8,14 @@ import { formatPrice } from "@/lib/utils";
 
 interface StatisticsDistributionCardProps {
   data: StatisticsPieDatum[];
+  mainCode?: string;
   mainSymbol: string;
   title: string;
 }
 
 export function StatisticsDistributionCard({
   data,
+  mainCode,
   mainSymbol,
   title,
 }: StatisticsDistributionCardProps) {
@@ -44,9 +39,7 @@ export function StatisticsDistributionCard({
                 innerRadius={60}
                 outerRadius={100}
                 paddingAngle={2}
-                label={({ name, percent }) =>
-                  `${name} (${(percent * 100).toFixed(0)}%)`
-                }
+                label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
                 labelLine={false}
               >
                 {data.map((_, index) => (
@@ -67,7 +60,9 @@ export function StatisticsDistributionCard({
                   color: "hsl(var(--foreground))",
                   fontWeight: "bold",
                 }}
-                formatter={(value: number) => formatPrice(value, mainSymbol)}
+                formatter={(value: number) =>
+                  formatPrice(value, mainSymbol, { currencyCode: mainCode })
+                }
               />
               <Legend wrapperStyle={{ paddingTop: "20px" }} />
             </PieChart>

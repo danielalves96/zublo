@@ -24,6 +24,7 @@ export function useSummaryData(userId: string) {
       const mainCurrency = currencies.find((c) => c.is_main);
       const mainRate = mainCurrency?.rate ?? 1;
       const mainSymbol = mainCurrency?.symbol ?? "$";
+      const mainCode = mainCurrency?.code;
 
       let totalMonthly = 0;
       let totalCredits = 0;
@@ -72,6 +73,7 @@ export function useSummaryData(userId: string) {
         totalDaily: (totalMonthly * 12) / 365,
         totalCredits,
         mainSymbol,
+        mainCode,
         // Credits are income, not subscriptions: counting them here would
         // disagree with every total on the same card, which excludes them.
         count: expenseCount,
