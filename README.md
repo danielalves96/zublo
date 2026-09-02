@@ -191,6 +191,18 @@ Important:
 - set `PB_ENCRYPTION_KEY` in real deployments
 - the first registered user becomes the initial admin
 
+### Running Behind A Reverse Proxy
+
+Zublo is a single PocketBase process, so any proxy that forwards plain HTTP to `9597` without buffering or rewriting the request body works. A minimal Caddy example:
+
+```
+zublo.example.com {
+    reverse_proxy localhost:9597
+}
+```
+
+If you enable MFA or update your profile and get unexpected `400` responses, the most common cause is a proxy directive that buffers, compresses, or rewrites the request body (large `client_max_body_size`/`request_body` tweaks, aggressive compression, or a `Content-Length`/chunked mismatch). Keep the proxy config as close to a plain passthrough as possible; there's no proxy-specific handling required on the Zublo side.
+
 ## Local Development
 
 If you want to work on the repo itself:

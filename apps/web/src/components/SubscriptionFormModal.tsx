@@ -165,7 +165,10 @@ export function SubscriptionFormModal({
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        className="max-w-2xl max-h-[90vh] overflow-y-auto"
+        onInteractOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>{sub ? t("edit_subscription") : t("add_subscription")}</DialogTitle>
         </DialogHeader>
