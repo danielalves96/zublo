@@ -203,6 +203,10 @@ zublo.example.com {
 
 If you enable MFA or update your profile and get unexpected `400` responses, the most common cause is a proxy directive that buffers, compresses, or rewrites the request body (large `client_max_body_size`/`request_body` tweaks, aggressive compression, or a `Content-Length`/chunked mismatch). Keep the proxy config as close to a plain passthrough as possible; there's no proxy-specific handling required on the Zublo side.
 
+## One-Click Deploy
+
+[![Deploy on RepoCloud](https://d16t0pc4846x52.cloudfront.net/deploylobe.svg)](https://repocloud.io/details/Zublo/)
+
 ## Local Development
 
 If you want to work on the repo itself:
